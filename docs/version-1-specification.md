@@ -248,8 +248,9 @@ A settler does not choose a profession; it chooses a site, and decides its work 
 For each need, the settler works out the share of its days that meeting the need would take at that site, the cheaper of making the good itself or earning coins to buy it:
 
 ```
-makeShare(g)   = dailyNeed(g) / output of the activity that makes g at this site (skill 1.0)
-buyShare(g)    = dailyNeed(g) × price(g) / max over activities a: output(a) × price(good of a)
+makeShare(g)   = dailyNeed(g) / output of the activity that makes g at this site (skill 1.0,
+                 ; using shared output for depleting activities, see below)
+buyShare(g)    = dailyNeed(g) × price(g) / max over activities a: sharedOutput(a) × price(good of a)
                  ; only if some household in reach holds surplus of g and trades of g and of
                  ; the paying good have been observed within reach; otherwise not available
 share(g)       = min(makeShare(g), buyShare(g))
@@ -257,6 +258,13 @@ slack          = 1 − Σ over needs: share(g)
 score          = slack + neighbour weight × Σ over households in reach: closeness
 ```
 
+- For an activity that draws on a shared, depleting layer (in version 1, woodcutting), the output used here is divided by the number of households effectively sharing it:
+
+  ```
+  sharedOutput(a) = output(a) / (1 + Σ over households in reach: closeness × share of their last 30 days spent on a)
+  ```
+
+  The forest layer only shows what has already been cut, not what the neighbours will keep cutting, so without this a settler next to three full-time woodcutters would expect full output and find the forest worn down within weeks. The share is read from each neighbour's Activity component; settlers in transit have no history yet and count as zero. Farming needs no such term, because fields are claimed exclusively.
 - price is the average of recent TradeCompleted prices within reach of the site. This is hearsay: the settler has no beliefs of its own yet. Where no trade has been observed, buying is simply not an option; the settler never assumes a supplier will come.
 - A site is viable only if slack is at least the minimum slack. A settler never settles somewhere it cannot support itself on arrival, either by its own work or by buying from someone already there.
 - Settlers already walking toward a site count as households at that site, both in the neighbour term and as claimants of its farm tiles, so that several settlers do not commit to the same opportunity before the first one arrives.
@@ -448,6 +456,7 @@ These are the problems most likely to appear, with what to do about each.
 | Price collapse | Belief midpoints for grain fall to near zero as farmers compete | Verify that sellable surplus is capped by would-be buyers' shortfall, so households stop producing what nobody in reach will buy. Verify sellers never sell below their own target stock. |
 | Surplus pile-up | A household's stock of one good grows without limit | The surplus already held must be subtracted in the sellable term. If stock still grows, check that the would-be buyer test uses the need trip trigger, not any urgency above zero. |
 | Scattered homesteads | Households spread across the map out of each other's reach and never trade | Raise the neighbour weight in site choice. Check that settlers in transit are counted. Check the generator gives contiguous fertile valleys. |
+| Crowding the forest | Settlers pile in around the same forest, which is soon cut down, and the newest arrivals find far less wood than their site score promised | Check that site choice uses shared output for woodcutting, counting neighbours' recent woodcutting days by closeness. If crowding persists, the forest regrowth rate is too low for the wood per day, not the score. |
 | Activity thrash | Households switch activity every few days, or neighbours all switch together | Check the tie rule keeps yesterday's activity, the per-household perturbation is applied, and fields lapse slowly enough to survive an occasional day of woodcutting. In stage 5, a low skill growth rate gives too little friction. |
 | Lock-in | Households never change activity even when one good is badly short | Skill cap too high relative to the price swing a shortage can produce. Lower the cap or raise decay. |
 | Hard reach edge | Choices flip when a neighbour moves one tile | Every count of neighbours must use the closeness weight, not a yes/no inside reach. |
