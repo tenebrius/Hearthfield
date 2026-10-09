@@ -124,7 +124,7 @@ One tick is one day. There are no seasons in version 1; all rates are constant. 
 
 Several rules use a reach radius: forest within reach for woodcutting, neighbours within reach for trade and for site choice. Reach is measured in path length, not straight line, so water and later terrain shape it. One global constant for version 1, around 12 tiles, kept in the parameter table.
 
-Fields are held to a smaller farm radius around home (around 3 tiles), so that a farm reads as a farm on screen rather than tiles scattered across the whole reach.
+Fields are held to a smaller farm radius around home (around 4 tiles), so that a farm reads as a farm on screen rather than tiles scattered across the whole reach.
 
 ## Households
 
@@ -478,7 +478,7 @@ Starting values, all in one config object. They will be tuned from the first run
 | Map size | 128 (dev), 256 (run) | Tiles per side |
 | Arable threshold | 0.3 | Fertility below this cannot be claimed |
 | Reach | 12 | Path length, tiles |
-| Farm radius | 3 | Fields are claimed within this of home |
+| Farm radius | 4 | Fields are claimed within this of home |
 | Walk speed | 2 | Tiles per tick |
 | Tick | 1 day | No seasons |
 | Farm tiles | 6 | Claimed per farming household |
