@@ -9,7 +9,7 @@ Expansion is one system at a time, each justified by a behaviour the current bui
 1. **One system per step.** A step adds one system, or one data entry, never both a new mechanic and a new good at once. When a behaviour goes wrong, the cause must be the last thing added.
 2. **Add only what the watcher would miss.** Each phase names the thing you would see on screen that is missing today. If nobody would notice its absence, it waits.
 3. **Every addition is a layer, a data entry, a system or an event.** If a proposed feature does not fit one of those four shapes, the architecture is wrong or the feature is, and the question is settled before any code.
-4. **Keep version 1 running as a scenario.** The two-good, two-profession world stays as a preset and its checks keep running. If a later system breaks it, the later system is wrong.
+4. **Keep version 1 running as a scenario.** The two-good, two-activity world stays as a preset and its checks keep running. If a later system breaks it, the later system is wrong.
 5. **Replace by emitting the same events.** Demography replaces migration by emitting HouseholdCreated and HouseholdRemoved. A recipe system replaces fixed production by writing to the same Stocks. Nothing downstream changes.
 6. **No feature for its own realism.** Fallow rotation, inheritance, guilds and lords are all real and all deferred. Realism is added when its absence produces a visibly wrong picture, not before.
 7. **Tune, then freeze.** After each phase, the regression thresholds are reset from the new working run and held until the next phase. Tuning drift is as dangerous as code drift.
@@ -81,25 +81,25 @@ The missing picture: everyone works a resource and nobody works for other people
 
 ### What is added
 
-- **Recipes.** Production generalises from reading a resource layer to running a recipe: inputs from Stocks, outputs to Stocks, at a rate. Farmer and woodcutter become recipes with no inputs and a layer-dependent rate. This is a refactor of one system; its behaviour for the two existing professions must not change, and the version 1 checks prove it.
+- **Recipes.** Production generalises from reading a resource layer to running a recipe: inputs from Stocks, outputs to Stocks, at a rate. Farming and woodcutting become recipes with no inputs and a layer-dependent rate. This is a refactor of one system; its behaviour for the two existing activities must not change, and the version 1 checks prove it.
 - **Tools, a third good.** Consumed slowly by farmers and woodcutters as a need, or as a production multiplier. A need is simpler and reuses the urgency machinery; choose that.
-- **Blacksmith.** Recipe: wood in, tools out. No resource layer, so its site score is trade access alone, and it settles among its customers. This is the first profession whose arrival depends entirely on observed demand, and it proves the profession-choice logic generalises.
+- **Smithing.** Recipe: wood in, tools out. No resource layer, so any household may take it up wherever it lives; its value comes entirely from would-be buyers of tools in reach and the cost of wood. This is the first activity whose value depends entirely on others' demand, and it proves the daily choice generalises. Those who practise it most become the blacksmiths.
 - **Trade over N goods.** Bid and ask already work per good; visits iterate over all goods in priority order. Priority becomes a field on the good's data entry.
 
 ### What is not added
 
-- No second craft. One is enough to prove recipes and demand-driven arrival. A second adds nothing to the test and doubles the tuning.
+- No second craft. One is enough to prove recipes and demand-driven specialisation. A second adds nothing to the test and doubles the tuning.
 - No input shortages beyond the natural one. If wood is scarce, the blacksmith buys less and makes less. No special handling.
 
 ### Expected difficulties
 
 - Three goods means three price beliefs per household and nine possible trades per visit. The inspector must grow to show them all or tuning becomes blind.
-- A blacksmith's income depends on two prices, wood and tools. Expected income must subtract input costs: income is output times tool price minus input times wood price minus food. This is the first time the formula has a middle term; it should be written generally for any recipe now.
+- Smithing's value depends on two prices, wood and tools. The daily choice must subtract input costs: value is output times tool value minus input times wood value. This is the first time the formula has a middle term; it should be written generally for any recipe now, and site choice's slack calculation uses the same general form.
 - Demand for a slow-consumed good is thin, so a blacksmith may serve twenty households and still barely survive. Tune tool need rate so one blacksmith per ten to fifteen households is viable.
 
 ### Gate to pass
 
-A blacksmith arrives only after wood is traded locally, settles within a stall cluster, and survives 1,000 ticks on tool sales; farmers and woodcutters behave as before with tools off.
+Smithing appears only after wood is traded locally; at least one household keeps smithing as its main activity for 1,000 ticks, living on tool sales, within a stall cluster; farming and woodcutting behave as before with tools off.
 
 ## Phase 4: roads and merchants
 
@@ -113,9 +113,9 @@ The missing picture: clusters that never talk to each other, and paths that neve
 
 ### Step 4b, merchants
 
-- A merchant is a profession with no production. It buys where its belief says a good is cheap and sells where it says the good is dear, carrying stock between stalls.
+- Merchanting is an activity with no production. It buys where its belief says a good is cheap and sells where it says the good is dear, carrying stock between stalls.
 - The one new mechanic: a merchant's reach is larger than a household's, and it holds beliefs per cluster rather than one belief per good. That is what lets it see a price difference nobody else can see.
-- Expected income for a merchant is the price gap between the two best clusters minus travel cost, and it becomes viable only once clusters exist and their prices differ. Nothing special is needed to make merchants appear at the right time.
+- The value of merchanting is the price gap between the two best clusters minus travel cost, and it becomes worth choosing only once clusters exist and their prices differ. Nothing special is needed to make merchants appear at the right time.
 - Merchants must not be allowed to be the only link: households still trade locally as before.
 
 ### Expected difficulties
@@ -130,19 +130,19 @@ Roads visible between clusters within 2,000 ticks; at least one merchant viable 
 
 ## Phase 5: land and people
 
-The missing picture: every farm the same size, population that only changes by walking on and off the map, and no one ever changing trade. This phase makes households vary and the population self-sustaining.
+The missing picture: every farm the same size, population that only changes by walking on and off the map, and households that never change in size. This phase makes households vary and the population self-sustaining.
 
 ### Step 5a, labour-sized farms
 
-Replace the fixed tile count with the rule described in version 1's Professions section as deferred: a farmer keeps claiming the best free tile near home while the extra harvest is worth the extra labour, bounded by a labour budget. Only the claim function changes. Farm size then varies with soil, crowding and grain price, and marginal land is worked when prices are high and dropped when they fall.
+Replace the fixed tile count with the rule described in version 1's Activities section as deferred: a farmer keeps claiming the best free tile near home while the extra harvest is worth the extra labour, bounded by a labour budget. Only the claim function changes. Farm size then varies with soil, crowding and grain price, and marginal land is worked when prices are high and dropped when they fall.
 
 ### Step 5b, prosperity-driven migration
 
 The arrival interval becomes a function of observed prosperity: recent trade volume, low unmet-need counts, and free viable sites. The interval is still capped at both ends so population cannot explode or vanish in a season. This is a change inside the migration system only.
 
-### Step 5c, career change
+### Step 5c, career change (covered by version 1)
 
-A household at home re-evaluates expected income for other professions once a year. If another profession beats its own by a clear margin, it switches, paying a cost in lost production during a transition period. The margin and cost are the inertia. The evaluation is the same function new settlers use, so no new logic exists; only a trigger.
+Version 1 has no fixed professions: every household chooses its activity daily, and skill provides the inertia that a yearly re-evaluation and a switching margin would otherwise have to supply. Nothing is added here. If the population of later phases shows switching cascades, tune skill growth and decay before adding any new rule.
 
 ### Step 5d, demography
 
@@ -151,7 +151,7 @@ Households gain an age and a size. Births raise size, deaths lower it, and a hou
 ### Expected difficulties
 
 - Labour-sized farms interact with annual harvest from phase 2: labour at harvest is the real bottleneck. Model harvest labour as a cap on tiles, not a daily budget, or farms grow unbounded in summer and fail in autumn.
-- Career change can cascade: one switch changes local prices, which triggers the next. The yearly cadence plus a margin of at least 20% usually holds it; if not, stagger the evaluation day per household.
+- Larger households change the balance of skill and labour: a household of five practising one activity should not gain skill five times as fast. Scale skill growth by days practised, not by labour applied.
 - Demography is slow. Population responds to conditions on a scale of decades, so bad tuning takes thousands of ticks to show. Keep migration available as a scenario so fast tests still exist.
 
 ### Gate to pass
@@ -167,7 +167,7 @@ The missing picture: a flat world. Villages sit on fertile land but ignore river
 - **Elevation layer.** Movement cost rises with slope; site scores penalise steep tiles. Farms avoid hillsides, roads find passes.
 - **Rivers.** Generated by flowing water downhill on the elevation layer. River tiles are impassable except at fords, which are cheap crossings where the river is shallow. Later, a river can be a cheap transport lane for merchants; not now.
 - **Marsh.** A layer that lowers fertility and raises movement cost. It is the simplest way to create regions that stay empty, which is what makes settled regions read as chosen.
-- **Resource deposits.** Point resources, such as ore or stone, as a layer with a few high-value tiles. They give a reason for a profession to settle away from fields and for roads to reach somewhere other than a market.
+- **Resource deposits.** Point resources, such as ore or stone, as a layer with a few high-value tiles. They give a reason for households to settle away from fields and for roads to reach somewhere other than a market.
 
 Every one of these is a layer read by site scoring and findPath. No system is added; existing systems read more inputs.
 
@@ -221,7 +221,7 @@ Each phase adds a scenario that enables exactly the systems it needs, and keeps 
 
 ### Data over code
 
-Goods, professions, recipes and needs are data files validated at load. The question to ask of any new feature is whether it can be a data entry. Most can, and those cost nothing to add later.
+Goods, activities, recipes and needs are data files validated at load. The question to ask of any new feature is whether it can be a data entry. Most can, and those cost nothing to add later.
 
 ### The debug tools grow with the systems
 
