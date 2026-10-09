@@ -431,7 +431,14 @@ Five stages, each with a visible result and an automated check. Do not start a s
 
 1. **World and renderer.** Map generation from a seed, overlays, pan and zoom, pause and step, headless runner that writes JSON. Done when the same seed gives the same map twice and the headless run of an empty world completes.
 2. **Farmers settle and produce.** Migration with farming as the only activity and food as the only need, site choice, field claiming, production, movement with A\*. Scenario: farming-only. Done when farms visibly cluster on fertile land, new farms sit beside old ones until land runs out, settlers stop arriving when no viable site remains, and a settler never walks through water.
-3. **Needs and leaving.** Consumption, unmet counters, departure, field lapse. Scenario: farming-only, with the warmth need off. Done when a map with fertility set to zero receives no settlers, a map with fertility halved mid-run loses households until the rest are viable again, and a normal map keeps its farmers, who never leave. Coins and goods conservation tests pass.
+3. **Needs and leaving.** Consumption, unmet counters, departure, field lapse. Scenario: farming-only, with the warmth need off. Done when a map with fertility set to zero receives no settlers, a normal map keeps its farmers, who never leave, and halving fertility mid-run (a scheduled intervention) splits the households present at the shock exactly at the survival line: every one whose fields fall below it leaves within its leave threshold, and every one above it stays. The line is computed from the parameters, not hard-coded, so it stays right when they are tuned:
+
+   ```
+   survival line: sum of original fertility over the household's fields
+                  = food need ÷ (grain per tile per fertility × shock factor)
+   ```
+
+   With the starting values that is 1 ÷ (0.6 × 0.5) ≈ 3.3, a mean of about 0.56 over six fields. Households within a few percent of the line may go either way and are excluded from the check. Coins and goods conservation tests pass.
 4. **Wood, homesteading and trade.** Woodcutting activity, warmth need, forest depletion and regrowth, the daily choice, price beliefs, visits, learning, trip triggers. Skill growth and decay are off in this stage: every skill stays at 1.0, so any trade comes from differences in land alone. Scenario: full. Done when a lone settler on a normal site homesteads and survives 1,000 ticks with no neighbours, every item under Trade, What correct looks like, holds in a 2,000-tick headless run, and the inspector shows a household's grain belief narrowing over its first ten trades.
 5. **Skill and specialisation.** Skill growth and decay on. Done when households' time splits into clear specialists, the share of time on each activity settles, no household changes main activity more often than the friction check allows, and halving fertility mid-run raises grain prices and shifts household-days toward farming.
 
