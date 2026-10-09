@@ -88,7 +88,7 @@ Systems record events into a per-tick list; other systems read the list at their
 
 ### System registry and scenario presets
 
-Each system registers with a name and a manifest of components, layers and events it uses. A scenario file names the map generator, the enabled systems, the enabled activities, the enabled needs and starting conditions. The farming-only stage is a scenario with woodcutting, trade and the warmth need off, not a separate build. At startup, the registry warns if an enabled system needs a layer or event no enabled system provides.
+Each system registers with a name and a manifest of components, layers and events it uses. A scenario file names the map generator, the enabled systems, the enabled activities, the enabled needs and starting conditions. The farming-only stage is a scenario with woodcutting, trade and the warmth need off, not a separate build. A scenario can also schedule interventions: at tick T, multiply layer X by a factor. Nothing in version 1 changes fertility on its own; interventions are how checks apply a shock such as halving fertility mid-run. At startup, the registry warns if an enabled system needs a layer or event no enabled system provides.
 
 ### Simulation and rendering are separate
 
@@ -122,7 +122,15 @@ One tick is one day. There are no seasons in version 1; all rates are constant. 
 
 ### Reach
 
-Several rules use a reach radius: forest within reach for woodcutting, neighbours within reach for trade and for site choice. Reach is measured in path length, not straight line, so water and later terrain shape it. One global constant for version 1, around 12 tiles, kept in the parameter table.
+Several rules use a reach radius: forest within reach for woodcutting, neighbours within reach for trade and for site choice. Reach is what a household knows about, what it can trade with, and the distance at which closeness falls to zero. It is measured in path length, not straight line, so water and later terrain shape it.
+
+Reach is defined in days, not tiles: it is as far as a household would walk to trade.
+
+```latex
+reach = walkSpeed \times maxTripDays
+```
+
+With a walk speed of 6 tiles per tick and a maximum one-way trip of 2 days, reach is 12 tiles, so the furthest neighbour is a 4-day round trip and a typical one 1 to 2 days. Defining it this way keeps trips from quietly becoming week-long when walk speed changes, for instance when roads arrive.
 
 Fields are held to a smaller farm radius around home (around 4 tiles), so that a farm reads as a farm on screen rather than tiles scattered across the whole reach.
 
@@ -204,11 +212,11 @@ The production system reads the entry and does the same thing for both: look at 
 
 ### Fields are held by use
 
-A household that chooses farming and holds no fields claims the best free arable tiles within farm radius of home, in id order, checking the owner layer before each claim. Every day it farms, its fields' last-worked tick is updated. A field not worked for the claim lapse period (around 10 days) is released. A household that farms some days and cuts wood on others keeps its fields as long as it returns to them in time; one that stops farming loses them, and its best tiles may be taken by a neighbour. That loss is a real cost of switching, and it is visible on the map.
+A household that chooses farming and holds no fields claims the best free arable tiles within farm radius of home, in id order, checking the owner layer before each claim. Every day it farms, its fields' last-worked tick is updated. A field not worked for the claim lapse period (around 10 days) is released. The lapse counts only days the household is at home: a trading trip never costs a household its fields, however long it takes; only choosing other work does. A household that farms some days and cuts wood on others keeps its fields as long as it returns to them in time; one that stops farming loses them, and its best tiles may be taken by a neighbour. That loss is a real cost of switching, and it is visible on the map.
 
 ### The daily choice
 
-Each day, a household at home chooses one activity. It values each activity by what today's output would be worth to it, and does the one worth most. On a tie, it keeps yesterday's activity, so households do not flicker.
+Each day, a household at home chooses one activity. It values each activity by what today's output would be worth to it, and does the one worth most. On a tie, it keeps yesterday's activity, so households do not flicker. If no activity is worth anything today, because its own stocks are full and no neighbour in reach is short, it rests: it produces nothing and depletes nothing. Rest days do not count toward main activity, and every skill decays on them.
 
 ```
 output(a)      = base rate at this site × skill_a
@@ -223,8 +231,10 @@ value(a)       = ownUnits(a) × ownValue(g) + max(0, sellable(a)) × midpoint_g
 
 - A good the household needs itself is worth what it would bid for it, which rises with urgency. This is what makes a household short of wood cut its own when nobody nearby sells any.
 - Surplus is worth the household's own belief midpoint, the centre of its belief range: its best single guess at the price. It plans with the same beliefs it will trade with.
-- Surplus only counts if someone in reach would buy it. A **would-be buyer** is a neighbour whose urgency for the good is above the need trip trigger. Its **shortfall** is its target stock minus its stock. The household subtracts surplus it already holds, so once it holds enough spare to cover its neighbours' shortfall, more of that good is worth nothing until some of it sells. This is the brake that stops over-production.
+- Surplus only counts if someone in reach would buy it. A **would-be buyer** is a neighbour below its own target stock of the good, that is, with urgency above zero. Its **shortfall** is its target stock minus its stock. The household subtracts surplus it already holds, so once it holds enough spare to cover its neighbours' shortfall, more of that good is worth nothing until some of it sells. This is the brake that stops over-production.
 - A household sees how short its neighbours are; it never sees what they think the good is worth.
+- The would-be buyer test and the need trip trigger answer different questions. A neighbour at 25 days of grain will not walk anywhere to buy, but it would buy if a seller came to its door. Using the trip trigger here would leave homesteaders, who keep their stocks near full, never counting as buyers, and trade would never start.
+- What makes trade pay is output. A household on rich soil with thin forest produces far more grain per day than wood, so farming for a neighbour's shortfall is worth more to it than cutting its own wood. That is comparative advantage, and it is why the gap persists after belief ranges have narrowed.
 - A small per-household random perturbation (around ±10%) is applied to each value, so that neighbours facing the same signal do not all switch on the same day.
 
 Before any trade, beliefs sit at the bootstrap anchor, so the choice reduces to "work on whichever stock is closest to running out". As neighbours appear and prices form, surplus value takes over and specialisation begins.
@@ -353,7 +363,7 @@ A household with no coins and no surplus cannot buy, and must make what it needs
 
 ### What correct looks like
 
-- Grain flows from households whose main activity is farming to those whose main activity is woodcutting, and wood the reverse. Net flow of each good is in one direction only.
+- No household is a net seller of both goods: over any 100-tick window, a household that sells more grain than it buys buys more wood than it sells, and the reverse. Grain flows toward households that mostly cut wood and wood toward those that mostly farm.
 - Each household's belief range for a good narrows over time, and neighbouring households' belief midpoints converge toward each other.
 - Price of wood rises when wood is scarce and falls as more households take up woodcutting. Grain the reverse.
 - No household trades below its own target stock, and no coin is created.
@@ -366,7 +376,7 @@ Systems run in a fixed order every tick. The order is a decision, not an acciden
 1. Migration: consider a new settler; create it at the edge if a viable site exists.
 2. Movement: advance every travelling household along its path. Emit ArrivedAt for any that reached a target.
 3. Settling: settlers that arrived at a chosen site set home; emit HouseholdCreated.
-4. Production: each household at home chooses today's activity, claims fields if it chose farming and holds none, and produces; emit ActivityChosen. Skills are updated, fields not worked within the claim lapse period are released, depleting layers are reduced, and forest regrows.
+4. Production: each household at home chooses today's activity or rest, claims fields if it chose farming and holds none, and produces; emit ActivityChosen. Skills are updated, fields of households at home that have gone unworked for the claim lapse period are released, depleting layers are reduced, and forest regrows.
 5. Needs: households with a home consume daily rates; update unmet counters; emit NeedUnmet; mark households that must leave.
 6. Trade: resolve visits for households that arrived at a trading partner this tick; then evaluate trip triggers for households at home and set travel targets.
 7. Departure: households marked to leave release tiles, emit HouseholdRemoved, and set the edge as their target.
@@ -408,7 +418,7 @@ Clicking a household opens a panel with every component value: main activity, to
 ### Controls and charts
 
 - Pause, step one tick, and speed presets (1, 10, 100 ticks per second).
-- Live charts over time: population by main activity, share of household-days spent on each activity, mean belief midpoint per good, trades per day per good, total coins, number of households with an unmet need.
+- Live charts over time: population by main activity, net grain and wood flow between main-activity groups, share of household-days spent on each activity, mean belief midpoint per good, trades per day per good, total coins, number of households with an unmet need.
 - A scenario picker to switch between the farming-only and full scenarios, and a seed field.
 
 ### Headless mode
@@ -437,7 +447,7 @@ Five stages, each with a visible result and an automated check. Do not start a s
 
 - Convergence: the mean belief range width per good falls over the run and ends below a threshold.
 - Agreement: the standard deviation of belief midpoints across households within reach of each other falls over the run.
-- Direction: net grain flow is from farming households to woodcutting households and net wood flow the reverse, every 100-tick window.
+- Direction: over every 100-tick window, no household is a net seller of both goods. Net flow between main-activity groups is charted but not tested, because in stage 4 a homesteader's main activity can rest on a few days either way.
 - Response: compared to a baseline run, a run with half the forest has a higher wood price and a larger share of household-days spent woodcutting.
 - Survival: in the full scenario on a normal map, fewer than 10% of households leave over 2,000 ticks after the first 300.
 - Specialisation (stage 5): the share of households spending more than 80% of their days on one activity rises over the run.
@@ -454,7 +464,7 @@ These are the problems most likely to appear, with what to do about each.
 | Viability keyed to trade history | Nobody becomes a woodcutter because no grain has been traded, and no grain is traded because nobody is a woodcutter; or the first farmers freeze waiting for wood | Never require a past trade before something can start. Every household can make every good it needs; trade is an improvement on self-supply, not a precondition for survival. A site is viable if a household can support itself there now, by its own work or by buying from someone already in reach. |
 | Beliefs never overlap | Buyers bid 1 coin, sellers ask 3, nobody trades, everyone makes everything themselves | Learning on failure must move both sides. Check that a failed visit raises the buyer's high and lowers the seller's low. Check that the minimum range width is not zero. |
 | Price collapse | Belief midpoints for grain fall to near zero as farmers compete | Verify that sellable surplus is capped by would-be buyers' shortfall, so households stop producing what nobody in reach will buy. Verify sellers never sell below their own target stock. |
-| Surplus pile-up | A household's stock of one good grows without limit | The surplus already held must be subtracted in the sellable term. If stock still grows, check that the would-be buyer test uses the need trip trigger, not any urgency above zero. |
+| Surplus pile-up | A household's stock of one good grows without limit | The surplus already held must be subtracted in the sellable term, and shortfall must be weighted by closeness. If stock still grows, check that a household with nothing worth doing rests rather than repeating yesterday's activity. |
 | Scattered homesteads | Households spread across the map out of each other's reach and never trade | Raise the neighbour weight in site choice. Check that settlers in transit are counted. Check the generator gives contiguous fertile valleys. |
 | Crowding the forest | Settlers pile in around the same forest, which is soon cut down, and the newest arrivals find far less wood than their site score promised | Check that site choice uses shared output for woodcutting, counting neighbours' recent woodcutting days by closeness. If crowding persists, the forest regrowth rate is too low for the wood per day, not the score. |
 | Activity thrash | Households switch activity every few days, or neighbours all switch together | Check the tie rule keeps yesterday's activity, the per-household perturbation is applied, and fields lapse slowly enough to survive an occasional day of woodcutting. In stage 5, a low skill growth rate gives too little friction. |
@@ -486,12 +496,13 @@ Starting values, all in one config object. They will be tuned from the first run
 | --- | --- | --- |
 | Map size | 128 (dev), 256 (run) | Tiles per side |
 | Arable threshold | 0.3 | Fertility below this cannot be claimed |
-| Reach | 12 | Path length, tiles |
+| Reach | 12 | Path length, tiles; walk speed × maximum trip days |
 | Farm radius | 4 | Fields are claimed within this of home |
-| Walk speed | 2 | Tiles per tick |
+| Walk speed | 6 | Tiles per tick |
+| Maximum trip | 2 days | One way; sets reach |
 | Tick | 1 day | No seasons |
 | Farm tiles | 6 | Claimed per farming household |
-| Claim lapse | 10 ticks | Fields not worked for this long are released |
+| Claim lapse | 10 days at home | Fields not worked for this many days at home are released; days away on trips do not count |
 | Grain per tile per day | 0.6 × fertility × skill | A farm on fertility 0.7 yields about 2.5 per day unskilled |
 | Wood per day | 3.0 × mean forest in reach × skill | Depletes the layer by the amount cut |
 | Forest regrowth | 0.002 per tick | Toward generated value |
@@ -514,7 +525,7 @@ Starting values, all in one config object. They will be tuned from the first run
 | Belief step | 0.2 | Fraction moved toward price on success |
 | Belief shrink | 0.9 | Range multiplier on success |
 | Belief min width | 10% of midpoint |  |
-| Need trip trigger | urgency > 0.3 | Also the would-be buyer test |
+| Need trip trigger | urgency > 0.3 | A would-be buyer is any neighbour with urgency > 0 |
 | Surplus trip trigger | surplusPressure > 0.5 |  |
 | Failed visit cooldown | 3 ticks |  |
 | Preferred partner margin | 1.5 × distance | Last successful partner kept if within this |
