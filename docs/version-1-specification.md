@@ -112,7 +112,7 @@ The world is a square grid of tiles, flat, with no elevation. A tile is 1 unit; 
 
 ### Movement
 
-Movement is point to point on the grid with obstacle avoidance. Use A\* on the tile grid with 8-way movement, with path results cached per origin and destination pair for the tick. Households are small in number in version 1, so performance is not a concern yet, but the interface must be one function, findPath(from, to), so it can be replaced later by a flow-field or road-aware version.
+Movement is point to point on the grid with obstacle avoidance. Use A\* on the tile grid with 8-way movement, orthogonal steps costing 1 and diagonal steps √2 (the same costs define path length for reach), with path results cached per origin and destination pair for the tick. Households are small in number in version 1, so performance is not a concern yet, but the interface must be one function, findPath(from, to), so it can be replaced later by a flow-field or road-aware version.
 
 A household is either at home, walking to a target, or at the target. Walking speed is a constant number of tiles per tick. Nothing teleports, including arriving and departing settlers, who walk from and to the nearest map edge.
 
@@ -173,7 +173,7 @@ Work and trade decisions need a notion of how badly a household wants a good. Ur
 
 linear between those points. Keep it as a single pure function, urgency(daysRemaining), and tune it in one place.
 
-Because urgency depends only on days remaining and every need uses the same curve, a household always works on, and buys first, whichever stock is closest to running out. This balances needs on its own; no priority rule is needed.
+Every need uses the same curve, so the more urgent good is always the one closer to running out, and a household buys that one first. Work is decided by value, which also scales with output, so a household leans toward its more productive activity and lets the other stock run lower, switching once that stock's urgency makes it worth more. That is reasonable economics, it balances needs without a priority rule, and the starting wood covers the one moment it could cause harm: arrival, when wood is at zero on a site rich in soil and poor in forest.
 
 ### Skill
 
@@ -195,7 +195,7 @@ A household leaves when any need counter exceeds that need's leave threshold. It
 
 ### Starting state
 
-A new household arrives with a small purse of coins, a few days of grain and no wood, and skill 1.0 in every activity. The purse is deliberately small: it should let a household make its first purchases, not fund weeks of buying. If starting purses are large, trade looks healthy for a while on money that nobody earned, and the test is meaningless.
+A new household arrives with a small purse of coins, a few days of grain, a few days of wood, and skill 1.0 in every activity. The purse is deliberately small: it should let a household make its first purchases, not fund weeks of buying. If starting purses are large, trade looks healthy for a while on money that nobody earned, and the test is meaningless.
 
 ## Activities
 
@@ -208,7 +208,7 @@ An activity is a data entry, not code. The two entries in version 1 are the temp
 | Claims tiles | yes, a fixed count of the best free arable tiles within farm radius of home | no |
 | Daily output | sum of fertility over claimed tiles × rate × skill | mean forest within reach × rate × skill, which depletes the layer |
 
-The production system reads the entry and does the same thing for both: look at the resource layer around home, produce output into Stocks, and for depleting resources subtract from the layer. Forest regrows by a small amount per tick toward its generated value. An activity that produces something nobody consumes yet, such as future mining, needs no new production code.
+The production system reads the entry and does the same thing for both: look at the resource layer around home, produce output into Stocks, and for depleting resources subtract from the layer. A day's cut is taken from the tiles in reach in proportion to each tile's standing forest. Forest regrows by a fixed amount per tile per tick, never above the tile's generated value. An activity that produces something nobody consumes yet, such as future mining, needs no new production code.
 
 ### Fields are held by use
 
@@ -237,7 +237,7 @@ value(a)       = ownUnits(a) × ownValue(g) + max(0, sellable(a)) × midpoint_g
 - What makes trade pay is output. A household on rich soil with thin forest produces far more grain per day than wood, so farming for a neighbour's shortfall is worth more to it than cutting its own wood. That is comparative advantage, and it is why the gap persists after belief ranges have narrowed.
 - A small per-household random perturbation (around ±10%) is applied to each value, so that neighbours facing the same signal do not all switch on the same day.
 
-Before any trade, beliefs sit at the bootstrap anchor, so the choice reduces to "work on whichever stock is closest to running out". As neighbours appear and prices form, surplus value takes over and specialisation begins.
+Before any trade, beliefs sit at the bootstrap anchor, so the choice is driven by own needs alone: urgency, weighted by how much each activity produces at this site. As neighbours appear and prices form, surplus value takes over and specialisation begins.
 
 ## Migration
 
@@ -278,7 +278,7 @@ score          = slack + neighbour weight × Σ over households in reach: closen
 - price is the average of recent TradeCompleted prices within reach of the site. This is hearsay: the settler has no beliefs of its own yet. Where no trade has been observed, buying is simply not an option; the settler never assumes a supplier will come.
 - A site is viable only if slack is at least the minimum slack. A settler never settles somewhere it cannot support itself on arrival, either by its own work or by buying from someone already there.
 - Settlers already walking toward a site count as households at that site, both in the neighbour term and as claimants of its farm tiles, so that several settlers do not commit to the same opportunity before the first one arrives.
-- The neighbour term is what draws settlers together. Without it, homesteaders, who can live alone, would spread across the map out of each other's reach and never trade. Its weight is tuned: zero gives scattered farmsteads, too high crowds everyone onto poor land.
+- The neighbour term is what draws settlers together. Without it, homesteaders, who can live alone, would spread across the map out of each other's reach and never trade. Its weight is tuned: zero gives scattered farmsteads, too high crowds everyone onto poor land. It must at least outweigh what a typical homesteader neighbour costs a site through shared forest, about woodcutting share × neighbour's woodcutting share ≈ 0.28 × 0.28 ≈ 0.08 per unit of closeness, or every site next to someone scores worse than one out of reach. A neighbour who cuts wood full time should still outweigh it, so settlers do not crowd a forest already being cut.
 
 Candidate tiles are sampled, not exhaustively scored: take a few hundred random non-water tiles plus the tiles adjacent to existing households, score them, and pick the best. Exhaustive scoring of a 256 by 256 map per arrival is too slow and gains nothing.
 
@@ -324,7 +324,13 @@ ask = high - (high - low) \cdot surplusPressure
 ```
 
 - urgency is the buyer's urgency for that good (see Households), 0 when stock is at or above full, rising toward 1 as it runs out. A desperate buyer bids its high; a comfortable one bids its low.
-- surplusPressure is 0 when the seller holds no more than its own target stock and rises toward 1 as its surplus grows. A seller sitting on a glut asks its low.
+- surplusPressure is how much of what nearby buyers lack the seller is already holding:
+
+  ```
+  surplusPressure(g) = min(1, surplus held of g ÷ Σ over would-be buyers of g in reach: shortfall × closeness)
+  ```
+
+  It is 0 when the seller holds nothing above its own target, and 1 once it holds enough to cover its neighbours' shortfall, which is exactly when the daily choice stops valuing more of that good. A seller in that position asks its low, and since every buyer bids at least its own low, a first trade between two households holding the anchor belief clears. With no would-be buyer in reach, surplusPressure is 0.
 - A household never sells below what it needs itself: tradable quantity is stock minus its own target, never less than zero.
 
 ### Matching
@@ -338,8 +344,9 @@ Both goods are considered at every visit, in each direction, the visitor's most 
 After each attempt, each side adjusts its belief for that good:
 
 - Trade happened at price p: move both low and high a step toward p and shrink the range by a factor. Beliefs converge on the clearing price.
-- Buyer failed (bid below ask): raise high toward the ask seen. The buyer will offer more next time.
-- Seller failed (ask above bid): lower low toward the bid seen. The seller will accept less next time.
+- Buyer failed (bid below ask): shift the whole range up by step × (ask − bid), both low and high. The buyer will offer more next time.
+- Seller failed (ask above bid): shift the whole range down by step × (ask − bid), both low and high. The seller will accept less next time.
+- Shift the whole range rather than one end. The ask a buyer sees is always below its own high, so "raise high toward the ask" would actually lower it and widen the gap after every failure.
 - A range that shrinks below a minimum width is widened back to it, so beliefs never freeze.
 
 Step size and shrink factor are parameters. Large steps make prices jumpy, small steps make them slow to find a level. Start at 0.2 and tune by watching the price chart.
@@ -363,8 +370,8 @@ A household with no coins and no surplus cannot buy, and must make what it needs
 
 ### What correct looks like
 
-- No household is a net seller of both goods: over any 100-tick window, a household that sells more grain than it buys buys more wood than it sells, and the reverse. Grain flows toward households that mostly cut wood and wood toward those that mostly farm.
-- Each household's belief range for a good narrows over time, and neighbouring households' belief midpoints converge toward each other.
+- No household is a net seller of both goods over any 100-tick window. A household may sell one good and make all of the other itself. Grain flows toward households that mostly cut wood and wood toward those that mostly farm.
+- The belief range of each household that has traded a good at least five times narrows over time, and the midpoints of neighbouring households that trade converge toward each other.
 - Price of wood rises when wood is scarce and falls as more households take up woodcutting. Grain the reverse.
 - No household trades below its own target stock, and no coin is created.
 - After a change in fertility, prices and the share of time spent on each activity move in the right direction and settle again.
@@ -431,14 +438,14 @@ Five stages, each with a visible result and an automated check. Do not start a s
 
 1. **World and renderer.** Map generation from a seed, overlays, pan and zoom, pause and step, headless runner that writes JSON. Done when the same seed gives the same map twice and the headless run of an empty world completes.
 2. **Farmers settle and produce.** Migration with farming as the only activity and food as the only need, site choice, field claiming, production, movement with A\*. Scenario: farming-only. Done when farms visibly cluster on fertile land, new farms sit beside old ones until land runs out, settlers stop arriving when no viable site remains, and a settler never walks through water.
-3. **Needs and leaving.** Consumption, unmet counters, departure, field lapse. Scenario: farming-only, with the warmth need off. Done when a map with fertility set to zero receives no settlers, a normal map keeps its farmers, who never leave, and halving fertility mid-run (a scheduled intervention) splits the households present at the shock exactly at the survival line: every one whose fields fall below it leaves within its leave threshold, and every one above it stays. The line is computed from the parameters, not hard-coded, so it stays right when they are tuned:
+3. **Needs and leaving.** Consumption, unmet counters, departure, field lapse. Scenario: farming-only, with the warmth need off. Done when a map with fertility set to zero receives no settlers, a normal map keeps its farmers, who never leave, and halving fertility mid-run (a scheduled intervention) splits the households present at the shock exactly at the survival line: every one whose fields fall below it leaves within 1,000 ticks of the shock, and every one above it stays. The line is computed from the parameters, not hard-coded, so it stays right when they are tuned:
 
    ```
    survival line: sum of original fertility over the household's fields
                   = food need ÷ (grain per tile per fertility × shock factor)
    ```
 
-   With the starting values that is 1 ÷ (0.6 × 0.5) ≈ 3.3, a mean of about 0.56 over six fields. Households within a few percent of the line may go either way and are excluded from the check. Coins and goods conservation tests pass.
+   With the starting values that is 1 ÷ (0.6 × 0.5) ≈ 3.3, a mean of about 0.56 over six fields. A household below the line first eats down its stock, so it leaves after about stock ÷ (need − output) + leave threshold days: a farm 10% below the line with 30 days of grain takes about 325 days, one 5% below about 625. Households within 5% of the line are excluded from the check. Coins and goods conservation tests pass.
 4. **Wood, homesteading and trade.** Woodcutting activity, warmth need, forest depletion and regrowth, the daily choice, price beliefs, visits, learning, trip triggers. Skill growth and decay are off in this stage: every skill stays at 1.0, so any trade comes from differences in land alone. Scenario: full. Done when a lone settler on a normal site homesteads and survives 1,000 ticks with no neighbours, every item under Trade, What correct looks like, holds in a 2,000-tick headless run, and the inspector shows a household's grain belief narrowing over its first ten trades.
 5. **Skill and specialisation.** Skill growth and decay on. Done when households' time splits into clear specialists, the share of time on each activity settles, no household changes main activity more often than the friction check allows, and halving fertility mid-run raises grain prices and shifts household-days toward farming.
 
@@ -453,7 +460,7 @@ Five stages, each with a visible result and an automated check. Do not start a s
 ### Checks that prove trade works
 
 - Convergence: the mean belief range width per good falls over the run and ends below a threshold.
-- Agreement: the standard deviation of belief midpoints across households within reach of each other falls over the run.
+- Agreement: the standard deviation of belief midpoints across households within reach of each other falls over the run. Only households that have traded the good at least once count, measured from the first trade in that neighbourhood; before any trade every belief is a copy of the anchor and the spread is zero.
 - Direction: over every 100-tick window, no household is a net seller of both goods. Net flow between main-activity groups is charted but not tested, because in stage 4 a homesteader's main activity can rest on a few days either way.
 - Response: compared to a baseline run, a run with half the forest has a higher wood price and a larger share of household-days spent woodcutting.
 - Survival: in the full scenario on a normal map, fewer than 10% of households leave over 2,000 ticks after the first 300.
@@ -469,7 +476,7 @@ These are the problems most likely to appear, with what to do about each.
 | Pitfall | What it looks like | What to do |
 | --- | --- | --- |
 | Viability keyed to trade history | Nobody becomes a woodcutter because no grain has been traded, and no grain is traded because nobody is a woodcutter; or the first farmers freeze waiting for wood | Never require a past trade before something can start. Every household can make every good it needs; trade is an improvement on self-supply, not a precondition for survival. A site is viable if a household can support itself there now, by its own work or by buying from someone already in reach. |
-| Beliefs never overlap | Buyers bid 1 coin, sellers ask 3, nobody trades, everyone makes everything themselves | Learning on failure must move both sides. Check that a failed visit raises the buyer's high and lowers the seller's low. Check that the minimum range width is not zero. |
+| Beliefs never overlap | Buyers bid 1 coin, sellers ask 3, nobody trades, everyone makes everything themselves | Learning on failure must move both sides. Check that a failed visit shifts the buyer's whole range up and the seller's whole range down, so the gap between bid and ask narrows on every failure. Check that the minimum range width is not zero. |
 | Price collapse | Belief midpoints for grain fall to near zero as farmers compete | Verify that sellable surplus is capped by would-be buyers' shortfall, so households stop producing what nobody in reach will buy. Verify sellers never sell below their own target stock. |
 | Surplus pile-up | A household's stock of one good grows without limit | The surplus already held must be subtracted in the sellable term, and shortfall must be weighted by closeness. If stock still grows, check that a household with nothing worth doing rests rather than repeating yesterday's activity. |
 | Scattered homesteads | Households spread across the map out of each other's reach and never trade | Raise the neighbour weight in site choice. Check that settlers in transit are counted. Check the generator gives contiguous fertile valleys. |
@@ -512,7 +519,7 @@ Starting values, all in one config object. They will be tuned from the first run
 | Claim lapse | 10 days at home | Fields not worked for this many days at home are released; days away on trips do not count |
 | Grain per tile per day | 0.6 × fertility × skill | A farm on fertility 0.7 yields about 2.5 per day unskilled |
 | Wood per day | 3.0 × mean forest in reach × skill | Depletes the layer by the amount cut |
-| Forest regrowth | 0.002 per tick | Toward generated value |
+| Forest regrowth | 0.004 per tile per tick | Fixed amount, capped at the tile's generated value |
 | Food need | 1.0 grain per day | Leave threshold 20 unmet days |
 | Warmth need | 0.5 wood per day | Leave threshold 20 unmet days |
 | Need priority | equal | Unused in version 1 |
@@ -524,10 +531,10 @@ Starting values, all in one config object. They will be tuned from the first run
 | Skill decay | 0.002 per day not practised | Toward 1.0; 0 in stage 4 |
 | Activity noise | ±10% | Per household, on each activity's value |
 | Minimum slack | 0.1 | Share of days left spare that a site must offer |
-| Neighbour weight | 0.02 | Per household in reach, times closeness |
+| Neighbour weight | 0.1 | Per household in reach, times closeness; must exceed about 0.08 (see Site choice) |
 | Starting purse | 5 coins |  |
 | Starting grain | 5 | Days of food |
-| Starting wood | 0 |  |
+| Starting wood | 5 | 10 days of warmth; covers the first days, when a settler on rich soil farms first |
 | Bootstrap anchor | 1 coin per unit | Belief \[0.5, 2.0\] when no trade observed |
 | Belief step | 0.2 | Fraction moved toward price on success |
 | Belief shrink | 0.9 | Range multiplier on success |
@@ -538,4 +545,4 @@ Starting values, all in one config object. They will be tuned from the first run
 | Preferred partner margin | 1.5 × distance | Last successful partner kept if within this |
 | Arrival interval | 5 ticks |  |
 
-The first tuning target: an unskilled homesteader on a site with fertility 0.7 and forest 0.6 spends about 40% of its days farming and 28% cutting wood, leaving about a third of its time spare. That spare time is what can become surplus for trade. A household specialised in farming has about 1.5 grain a day to sell, enough to feed about one and a half woodcutters; one specialised in woodcutting has about 1.3 wood to sell on fresh forest, enough to warm about two and a half farmers, but forest within reach of a full-time woodcutter falls well below its generated value, so expect that to drop toward one. If households stay homesteaders and never trade, the gap between sites is too small or the neighbour weight too low; if woodcutting households leave, raise wood per day or lower the warmth need. Change one number per run.
+The first tuning target: an unskilled homesteader on a site with fertility 0.7 and forest 0.6 spends about 40% of its days farming and 28% cutting wood, leaving about a third of its time spare. That spare time is what can become surplus for trade. A household specialised in farming has about 1.5 grain a day to sell, enough to feed about one and a half woodcutters; one specialised in woodcutting has about 1.3 wood to sell on fresh forest, enough to warm about two and a half farmers. Forest within reach of a full-time woodcutter settles where cutting equals regrowth, about 1.6 wood a day with the regrowth above, leaving about 1.1 to sell, enough for about two farmers. With the old regrowth of 0.002 it settled near 0.8 a day, too little to warm even one. If households stay homesteaders and never trade, the gap between sites is too small or the neighbour weight too low; if woodcutting households leave, raise wood per day or lower the warmth need. Change one number per run.
