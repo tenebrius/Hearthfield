@@ -1,0 +1,166 @@
+# Forager Lab: handoff notes
+
+Status as of 2026-10-11. This document lets someone pick up the work without the earlier conversation.
+
+## 1. Why this exists
+
+The Hearthfield docs (`version-1-specification.md`, `expansion-plan.md`) describe settlers with hand-written logic for work choice, valuation, trade and migration. We are exploring an alternative: settlers driven by small neural networks evolved through natural selection, so that logic does not have to be designed by hand.
+
+Forager Lab is the first learning sandbox for that idea. Dots on a 64×64 map must find food (and optionally water) to survive and split. It is intentionally much simpler than Hearthfield. It has no households, trade or prices yet.
+
+**The central open problem:** evolved dots often do no better than dots that move at random (section 5). Until evolution reliably beats random motion on a simple map, scaling the idea up to Hearthfield is premature.
+
+## 2. Where things live
+
+| What | Where |
+|---|---|
+| Live page (claude.ai artifact, private to the owner) | https://claude.ai/artifact/9xTrayZPNYBxB127nBKxmR (published version 33) |
+| Source of that page | `tools/forager-lab/forager-lab.html` (a single self-contained file; open it in any browser) |
+| Headless harness builder | `tools/forager-lab/mkharness.py`, which writes `base.js` (git-ignored) |
+| Experiment runner | `tools/forager-lab/run.js` |
+
+Running headless:
+
+```sh
+cd tools/forager-lab
+python3 mkharness.py            # regenerate base.js after every HTML edit
+node run.js '{"layout":"circles","lossW":0,"lossE":1,"layers":2}' 1 800000 50000
+node run.js '{"layout":"circles","lossW":0,"lossE":1,"baseline":true}' 1 200000 20000
+# run several seeds in parallel:
+printf '%s\n' 1 2 3 4 | xargs -P4 -I{} node run.js '{"layout":"circles","lossW":0,"lossE":1}' {} 400000 50000
+```
+
+The JSON argument overrides keys of `cfg` (see section 3). `mkharness.py` extracts the page script, stubs the DOM, reads the real default slider values from the HTML, makes the RNG state snapshot-able and exposes `globalThis.__t` (step, agents, cfg, makeWorld, snap, restore). It also adds two hooks for memory experiments: `cfg.swap` (feed each dot a random other dot's memory) and `cfg.ablate = m` (zero memory register m).
+
+> **Caveat on old results:** an early version of the harness stub returned `'1'` for every slider value. Every headless result produced before that fix was wrong and has been retracted. That covers claims about cliffs, cooldown, moving food, register usage and poison. Only trust numbers produced with the current `mkharness.py`, including the ones below.
+
+## 3. Current design
+
+### World
+- 64×64 tiles. Each tile holds food or water with an amount from 0 to 1, regrowing at `regrow` / `waterRegrow` per tick.
+- Layouts (`layout`):
+  - `mixed`: islands of food and water.
+  - `split`: food on one side, water on the other.
+  - `circles`: two food discs of radius 9 centred at (48,16) and (16,48), with no water. The discs are about 45 tiles apart, well beyond sight.
+- Optional food relocation every `shiftEvery` ticks (`shiftPct` % of islands move).
+- Paint mode lets you draw food and water by hand. Painted tiles are pinned.
+
+### Dot (agent)
+- **Energy `e`:** loses `lossE` each tick, plus `moveE × speed` when moving. Eating adds `amount × gainE`, capped at `maxE`.
+- **Hydration `w`:** symmetric to energy, with `lossW`, `moveW`, `gainW` and `maxW`.
+- **Death:** a dot dies when e ≤ 0 (starved) or w ≤ 0 (thirst).
+- **Split:** happens when `e ≥ max(reqE, payE+1)` and `w ≥ max(reqW, payW+1)`, cooldown is over and population < `maxPop`. The parent pays `payE`/`payW`. The child starts with `kidE`/`kidW` (created, not taken from the parent) and a mutated copy of the genome.
+- **Newcomers:** random-genome dots are added whenever population < `floorN`. They start with `startE`/`startW`. Copying from an archive of successful parents is available but off by default, because it rewarded dots that only split.
+- **Random-mover baseline (`baseline: true`):** the brain is ignored. Each tick the dot picks a random heading at full speed and eats with probability 0.2.
+
+### Brain
+- **Genome:** a flat `Float32Array` of weights with fixed topology. Mutation changes each weight with probability `mutRate` (0.1), adding Gaussian noise of size `mutSize` (0.2). There is no crossover and no gradient training.
+- **Network:** 18 inputs → 1 or 2 hidden tanh layers of `hidden` neurons (default 8) → 11 outputs.
+- **Inputs:**
+
+  | idx | meaning |
+  |---|---|
+  | 0, 1 | food / water amount on own tile |
+  | 2–4 | nearest food tile: direction x, y, closeness `1 − d/(R+1)`. Tiles below 0.2 are ignored. R = `sight` (5). |
+  | 5–7 | the same for nearest water |
+  | 8, 9 | e/maxE, w/maxW |
+  | 10 | bias (1) |
+  | 11–14 | memory registers |
+  | 15, 16 | position x, y (zero if `position` is off) |
+  | 17 | uniform random in [−1, 1] (zero if `noise` is off) |
+
+- **Outputs:**
+  - Move x, move y. The dot moves in any direction at `min(1, |v|) × stepLen` tiles per tick.
+  - Eat. If eat > 0 the dot eats instead of moving. This is also the only way to stand still.
+  - 4 memory values and 4 gates, with update `mem = gate·tanh(v) + (1−gate)·mem`.
+
+### Defaults
+```
+regrow 0.03  waterRegrow 0.03  lossE 0.3  lossW 0.6  moveE 0.1  moveW 0
+gainE 30 gainW 30  maxE 100 maxW 100  startE 50 startW 150
+reqE 85 reqW 40  payE 60 payW 0  kidE 40 kidW 100  cooldown 0
+islands 6 islandSize 4  layout mixed  stepLen 1  sight 5
+hidden 8  layers 1  memory on  position on  noise off  archive off
+floorN 20  maxPop 800  mutRate 0.1  mutSize 0.2
+```
+
+UI extras include population, intake and water charts; an inspector for the selected dot showing a live brain diagram; config-only save and load (localStorage); and a seed field.
+
+## 4. Known code problems (from code review, not yet fixed)
+
+Two independent reviews agreed that the weight indexing in `think`, `forward` and `buildBrain` is consistent and that nothing crashes. They found these problems, listed roughly by how much they matter:
+
+1. **The gain cap lowers values that start above the max.** On eating, the code sets `a.w = Math.min(cfg.maxW, a.w + amt*gainW)`. Newcomers start at w = 150 while maxW = 100, so their first drink drops them to 100. Energy has the same issue whenever `startE` or `kidE` is above `maxE`. Inputs 8 and 9 can also exceed 1.
+   - *Fix:* use `Math.max(a.w, Math.min(maxW, a.w + gain))`, or clamp start values to the max.
+2. **The noise input uses the shared world RNG.** `inp[17] = rng()*2−1` consumes the world RNG, so with noise on, world events (regrowth, newcomers, mutation) diverge from a noise-off run with the same seed. The two runs are not a controlled comparison. **The "random input does not help" result below is therefore unreliable.**
+   - *Fix:* give the noise input its own seeded PRNG.
+3. **Old saves cannot be reproduced.** Changing `N_IN` from 17 to 18 changed how many RNG draws the initial genomes use, so saved configs from before that change no longer reproduce their runs.
+4. **"Clear map" breaks relocation silently.** It pins every tile, so relocation then does nothing, yet the shift counters, markers and recovery stats still update. In the `circles` layout, `relocateFood` returns without doing anything, also silently.
+5. **Island size changes mid-run.** `placeIsland` reads the live `islandSize` slider during relocation, so changing the slider affects a running world.
+6. **Relocation can erase water** on tiles where water overlapped an island.
+7. **Memory off freezes the registers instead of blanking them.** The inputs read 0, but the registers keep updating internally. This is harmless today but misleading.
+8. **`describe()` is incomplete.** It labels the `circles` layout as "mixed" and omits `layers` and `noise`.
+9. **Old configs leave `noise` unchanged.** `applyConfig` only copies the keys present, so loading an old config keeps whatever `noise` value is currently set.
+10. **Seed 0 is inconsistent.** It becomes seed 1 on Reset but seed 4 on Save.
+11. **Checkboxes can disagree with `cfg`** after the browser restores form state on reload.
+12. **The numbers 18 and 11 are hard-coded** in the weight-count label and the help text instead of using `N_IN` / `N_OUT`.
+
+Recommended order: fix 1 and 2, then rerun the random-input experiment.
+
+## 5. The main problem: evolved dots vs random movers
+
+### Results
+
+All numbers come from the corrected harness, using 4 seeds unless noted.
+
+**Food only (`lossW 0`), energy loss 0.6, default mixed layout:**
+
+| Setup | Population |
+|---|---|
+| Random movers (no brain) | ~344 |
+| Evolved, no memory, with position (360k ticks) | plateau ~294, **worse than random** |
+| Evolved, no memory, no position | 423, but only passes random after ~240–280k ticks |
+| Evolved, memory + position | 367 |
+
+**Two circles, food only, energy loss 1.0, cap 800:**
+
+| Setup | Result |
+|---|---|
+| Random movers | ~262 stable (one seed only 130) |
+| Evolved, 2 hidden layers × 8, no memory, with position, 800k ticks | 3 of 4 seeds stuck at ~175 on **one** circle (max 191); one seed reached 352 (max 371) |
+| The same plus the random input (17) | all 4 seeds ~175 (max 190). *Unreliable because of bug 2.* |
+
+The evolved dots fill one circle and never colonise the second, which is out of sight about 45 tiles away. Random walkers drift there by chance.
+
+**Two circles, energy loss 0.3 (easy):** every setup reaches the 800 cap. Speed differs hugely, though. Random movers reach 100 dots in about 60–95 ticks; evolved dots take 1k–42k ticks, because they must first evolve any ability to eat.
+
+### What the evolved dots actually learned (measured)
+- **Steering:** they steer toward visible food (cosine between movement and food direction 0.4–0.61).
+- **Eating:** they eat when standing on food 72–96% of the time.
+- **"Eat" on bare tiles:** 40–47% of the time. Because "eat" is the only way to stand still, this is partly resting, but it wastes time and energy.
+- **Water:** they seek it only weakly.
+- **Freezing (no-memory dots):** they spend about 3.6% of their time stuck in one place for 30+ ticks, against about 1% with memory. They die of thirst 87% of the time, against 62% for random movers.
+- **Generations:** 360k ticks gives only 90–117 generations deep, and a typical living dot is at generation ~50–60. Most gains come early, then progress plateaus.
+
+So evolution does produce real, non-random behaviour (local food-seeking), but it does not produce *exploration*. Once a dot cannot see food, a deterministic brain with constant inputs gives a constant output. It then walks in a fixed line into a wall, or stands still. A random walker, by contrast, keeps covering new ground.
+
+### Hypotheses (not yet tested)
+1. **No persistent exploration drive.** Without sight of food the inputs barely change, so the output barely changes. Per-tick noise (input 17) only adds jitter and gives no lasting random heading, which is what exploration needs. Memory can in principle act as a slowly drifting "heading" register, which may be why memory helps in some runs.
+2. **Position inputs encourage map-specific shortcuts** ("go to x≈48, y≈16") that work for one circle and lock the population there. They also add weights to tune. This would explain why no-position dots did better over long runs.
+3. **Too few generations.** About 60 effective generations with mutation-only search on ~250+ weights is very little. Selection pressure is also weak, because any dot that lives long enough to split counts as successful.
+4. **Local optimum on the one-circle map.** Exploring for the second circle costs energy and pays nothing until a dot gets there, so selection actively removes explorers while the first circle is not yet full.
+
+## 6. Suggested next steps
+1. Fix bugs 1 and 2 (give noise its own PRNG), then redo the random-input test on two circles.
+2. **Test an exploration primitive directly.** Options:
+   - An input that holds a random value per dot, redrawn every N ticks (a persistent heading seed).
+   - A "turn rate" output, so straight-line wandering is easy to express.
+   - A separate "rest" output, so "eat" no longer doubles as standing still.
+3. Run two circles **without position inputs** to test hypothesis 2.
+4. **Speed up evolution:**
+   - Run more ticks per second headless (for example 2M+ ticks).
+   - Make food scarcer so selection is stronger.
+   - Try larger `mutSize` early.
+   - Seed newcomers from the current population instead of from scratch.
+5. **Measure exploration directly:** count distinct tiles visited per lifetime and how often the second circle gets colonised, for evolved vs random dots.
+6. Only once evolved dots clearly beat random movers on two circles should more Hearthfield-like features be added (trade, households).
