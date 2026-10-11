@@ -220,3 +220,24 @@ Population averaged over the last 1000 ticks before each mark.
 - Wander only had both circles by 100k on 4 of 4 seeds. Wander + result had them by 100k on 3 of 4 (seed 3 was still on one circle at 100k and crossed before 200k).
 - So the result inputs add nothing measurable here, and may slightly delay colonisation. The difference rests on one seed.
 - After about 100k ticks the population is flat (+5 over the next 400k). With both circles full it is probably limited by food supply, not by the brain, so this map can no longer tell better brains apart. A harder map (farther circles, thirst, moving food, mixed layout) is needed.
+
+### Hand-made map with water: random vs evolved (memory + wander heading)
+
+Layout `handmade` (new, no generator): food circles of radius 9 at top right (48,16) and bottom left (16,48); two fixed 7×7 ponds at tiles x,y 13–19 (top left) and 45–51 (bottom right). All tiles pinned. Settings: energy loss 1.0, hydration loss 0.3, 2 hidden layers of 8, position on, result inputs OFF, cap 800, seeds 1–4. Evolved dots: memory on + wander heading on, 500k ticks. Random movers: 200k ticks.
+
+Population averaged over the last 1000 ticks before each mark.
+
+| Setup | seed | 100k | 200k | 300k | 400k | 500k | peak (tick) |
+|---|---|---|---|---|---|---|---|
+| Evolved, memory + wander | 1 | 263 | 256 | 262 | 252 | 254 | 320 (2k) |
+| | 2 | 256 | 255 | 265 | 260 | 257 | 306 (27k) |
+| | 3 | 260 | 255 | 256 | 255 | 254 | 316 (5k) |
+| | 4 | 265 | 264 | 251 | 250 | 255 | 317 (4k) |
+| Random movers | 1 | 235 | 233 | | | | 269 |
+| | 2 | 228 | 233 | | | | 266 |
+| | 3 | 227 | 231 | | | | 271 |
+| | 4 | 232 | 233 | | | | 275 |
+
+- Evolved dots settle at ~255, about 10% above random movers (~232), on all 4 seeds. The evolved populations are flat from 100k onwards, so longer runs would not change this.
+- The evolved peaks (306–320) come in the first few thousand ticks, when newcomers' starting hydration and the free child hydration give an early boom. The steady level is lower. The gap over random is small compared with the food-only two-circle map (~345 vs ~262).
+- Not known: whether ~255 is a ceiling set by food and water supply (a rough estimate puts water supply alone at roughly 290 dots) or by the brains. Not tested: memory off, wander off, position off, other pond placements, thirst at other rates. Without those the contribution of memory vs wander heading cannot be separated.
