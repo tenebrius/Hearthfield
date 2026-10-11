@@ -185,4 +185,18 @@ All in `tools/forager-lab/forager-lab.html`:
 - `mkharness.py` hook pattern updated for `seedVal()`.
 
 ### How to test whether they help
-Use two circles, food only, energy loss 1.0, two hidden layers. Compare, over 4 seeds and at least 200k–800k ticks: no feedback, feedback, feedback + wander heading, random movers. Also try with and without memory and with and without position. Quick check done at commit time: see the results note below if present.
+Use two circles, food only, energy loss 1.0, two hidden layers. Compare, over 4 seeds and at least 200k–800k ticks: no feedback, feedback, feedback + wander heading, random movers. Also try with and without memory and with and without position. 
+### First result (200k ticks, 4 seeds, two circles, energy loss 1.0, 2 hidden layers of 8, memory OFF, position on, cap 800)
+
+Population averaged over the last 1000 ticks. ~175 means stuck on one circle; ~345 means both circles colonised.
+
+| Setup | seed 1 | seed 2 | seed 3 | seed 4 | seeds on both circles |
+|---|---|---|---|---|---|
+| Random movers | 260 | 265 | 265 | 261 | (always ~262) |
+| Evolved, no result inputs | 347 | 174 | 174 | 347 | 2 of 4 |
+| Evolved + result inputs | 172 | 349 | 173 | 171 | 1 of 4 |
+| Evolved + result inputs + wander heading | 344 | 345 | 345 | 341 | **4 of 4** |
+
+- The wander heading is the first change that makes evolved dots beat random movers on this map on every seed (~345 vs ~262).
+- The result inputs alone made no clear difference (1 of 4 vs 2 of 4 is within seed luck).
+- Caveats: only 200k ticks and 4 seeds; memory was off in all rows; the "no result inputs" row also shows that the earlier "3 of 4 stuck" figure was seed luck (2 of 4 here). Not yet tested: wander heading without result inputs, with memory, without position, or on the mixed map and with thirst on. Run those next.
