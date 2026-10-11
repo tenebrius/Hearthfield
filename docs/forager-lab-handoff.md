@@ -200,3 +200,23 @@ Population averaged over the last 1000 ticks. ~175 means stuck on one circle; ~3
 - The wander heading is the first change that makes evolved dots beat random movers on this map on every seed (~345 vs ~262).
 - The result inputs alone made no clear difference (1 of 4 vs 2 of 4 is within seed luck).
 - Caveats: only 200k ticks and 4 seeds; memory was off in all rows; the "no result inputs" row also shows that the earlier "3 of 4 stuck" figure was seed luck (2 of 4 here). Not yet tested: wander heading without result inputs, with memory, without position, or on the mixed map and with thirst on. Run those next.
+
+### Long run: wander heading alone vs wander + result inputs (500k ticks, 4 seeds, same setup as above)
+
+Population averaged over the last 1000 ticks before each mark.
+
+| Setup | seed | 100k | 200k | 300k | 400k | 500k |
+|---|---|---|---|---|---|---|
+| Wander only | 1 | 340 | 343 | 345 | 345 | 346 |
+| | 2 | 341 | 343 | 345 | 346 | 345 |
+| | 3 | 343 | 345 | 348 | 348 | 348 |
+| | 4 | 343 | 343 | 346 | 346 | 349 |
+| Wander + result | 1 | 341 | 344 | 346 | 346 | 347 |
+| | 2 | 344 | 345 | 344 | 344 | 347 |
+| | 3 | **173** | 345 | 346 | 347 | 347 |
+| | 4 | 338 | 341 | 342 | 345 | 346 |
+
+- All 8 runs ended on both circles at ~346 (max 366–370). Random movers: ~262.
+- Wander only had both circles by 100k on 4 of 4 seeds. Wander + result had them by 100k on 3 of 4 (seed 3 was still on one circle at 100k and crossed before 200k).
+- So the result inputs add nothing measurable here, and may slightly delay colonisation. The difference rests on one seed.
+- After about 100k ticks the population is flat (+5 over the next 400k). With both circles full it is probably limited by food supply, not by the brain, so this map can no longer tell better brains apart. A harder map (farther circles, thirst, moving food, mixed layout) is needed.
