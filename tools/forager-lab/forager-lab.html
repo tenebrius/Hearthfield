@@ -224,7 +224,7 @@
           <small>Everything here comes in an energy and a hydration version with the same units, so the two can be compared directly. A dot dies at 0 of either. Set "Lost per tick" and "Extra lost per move" to 0 for energy or for hydration to switch that need off entirely, for a one-resource test. To split, a dot needs the "needed" amount of both, loses the "parent loses" amounts, and the child starts with the "child receives" amounts. The parent survives with what is left, and always keeps at least 1 of each. The amount the child receives is separate, so the difference is created or lost.</small>
         </div>
         <div class="ctl"><label for="sLayout">Map layout</label><span></span>
-          <select id="sLayout"><option value="mixed">Mixed: food and water anywhere</option><option value="split">Separated: food and water on opposite sides</option><option value="circles">Two food circles, no water (top right and bottom left)</option></select>
+          <select id="sLayout"><option value="mixed">Mixed: food and water anywhere</option><option value="split">Separated: food and water on opposite sides</option><option value="circles">Two food circles, no water (top right and bottom left)</option><option value="handmade">Hand-made: two food circles plus two ponds (food top right and bottom left, water top left and bottom right)</option></select>
           <small>Separated puts all food on one side and all water on the other, with a wide gap between them, so dots must travel back and forth. Two food circles puts one food disc in the top right and one in the bottom left, with no water: set the hydration losses to 0 to test with food only. Takes effect on Reset.</small></div>
         <div class="ctl"><label for="rIsl">Food islands</label><output id="oIsl"></output>
           <input type="range" id="rIsl" min="3" max="20" step="1" value="6"><small>Number of separate food patches, kept far enough apart that the gaps are wider than sight where possible. Takes effect on Reset.</small></div>
@@ -369,7 +369,7 @@
       foodX0 = foodLeft ? 0 : W * 0.62; foodX1 = foodLeft ? W * 0.38 : W;
       watX0 = foodLeft ? W * 0.62 : 0; watX1 = foodLeft ? W : W * 0.38;
     } else { foodX0 = 0; foodX1 = W; watX0 = 0; watX1 = W; }
-    if (cfg.layout === 'circles') {
+    if (cfg.layout === 'circles' || cfg.layout === 'handmade') {
       safeBlobs = [];
       var centres = [[W * 0.75, H * 0.25], [W * 0.25, H * 0.75]], CR = 9;
       for (var ci = 0; ci < W * H; ci++) {
@@ -378,6 +378,12 @@
           var ddx = px - centres[cc][0], ddy = py - centres[cc][1];
           if (ddx * ddx + ddy * ddy <= CR * CR) { kind[ci] = 1; fert[ci] = 0.8; pinned[ci] = 1; }
         }
+      }
+      if (cfg.layout === 'handmade') {
+        // fixed 7x7 ponds, centred on the two quadrants that have no food
+        [[13, 13], [45, 45]].forEach(function (pc) {
+          for (var wy = pc[1]; wy < pc[1] + 7; wy++) for (var wx = pc[0]; wx < pc[0] + 7; wx++) { var wi = wy * W + wx; kind[wi] = 3; fert[wi] = 0.8; pinned[wi] = 1; }
+        });
       }
     } else {
       safeBlobs = makeIslands();
@@ -949,7 +955,7 @@
 
   function describe(sv) {
     var c = sv.cfg;
-    return 'seed ' + sv.seed + ' · ' + (c.layout === 'split' ? 'separated' : c.layout === 'circles' ? 'two circles' : 'mixed') + ' · ' + c.islands + ' islands · food ' + c.regrow + ' · water ' + c.waterRegrow + (c.lossE !== undefined ? ' · energy −' + c.lossE + '/tick · hydration −' + c.lossW + '/tick' : '') + ' · brain ' + (c.layers || 1) + '×' + c.hidden + (c.noise ? ' · random input' : '') + (c.feedback ? ' · result inputs' : '') + (c.tumble ? ' · wander ' + c.tumbleEvery : '');
+    return 'seed ' + sv.seed + ' · ' + (c.layout === 'split' ? 'separated' : c.layout === 'circles' ? 'two circles' : c.layout === 'handmade' ? 'hand-made ponds' : 'mixed') + ' · ' + c.islands + ' islands · food ' + c.regrow + ' · water ' + c.waterRegrow + (c.lossE !== undefined ? ' · energy −' + c.lossE + '/tick · hydration −' + c.lossW + '/tick' : '') + ' · brain ' + (c.layers || 1) + '×' + c.hidden + (c.noise ? ' · random input' : '') + (c.feedback ? ' · result inputs' : '') + (c.tumble ? ' · wander ' + c.tumbleEvery : '');
   }
 
   function renderSaves() {
