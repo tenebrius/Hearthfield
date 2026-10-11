@@ -247,7 +247,7 @@
         <div class="ctl"><label for="rLay">Hidden layers</label><output id="oLay"></output>
           <input type="range" id="rLay" min="1" max="2" step="1" value="1"><small>How many layers of neurons sit between the inputs and the outputs. Two layers can combine the inputs in two steps, but it adds weights to evolve. Takes effect on Reset.</small></div>
         <div class="ctl"><label for="rHid">Neurons per hidden layer</label><output id="oHid"></output>
-          <input type="range" id="rHid" min="2" max="32" step="1" value="8"><small>Neurons between the 18 inputs and 11 outputs. More can learn richer behaviour but evolve slower. Takes effect on Reset.</small></div>
+          <input type="range" id="rHid" min="2" max="32" step="1" value="8"><small>Neurons in each hidden layer, between the inputs and the outputs. More can learn richer behaviour but evolve slower. Takes effect on Reset.</small></div>
         <div class="ctl"><label for="rStep">Move speed</label><output id="oStep"></output>
           <input type="range" id="rStep" min="0.25" max="3" step="0.25" value="1"><small>Tiles a dot travels in one tick at full speed, in any direction it chooses. A dot can also move slower or stand still. The "extra lost per move" amounts apply at full speed and shrink in proportion.</small></div>
         <div class="ctl"><label for="rSight">Sight range</label><output id="oSight"></output>
@@ -255,6 +255,10 @@
         <label class="check"><input type="checkbox" id="cMem" checked><span>Memory registers<small>4 numbers per dot that its brain can read and rewrite each tick. Nobody decides what they hold. Off: registers are blanked and ignored.</small></span></label>
         <label class="check"><input type="checkbox" id="cPos" checked><span>Dots know their position<small>Gives each dot its own x and y, so a register can store where water or food was.</small></span></label>
         <label class="check"><input type="checkbox" id="cNoise"><span>Random number input<small>Gives each dot a fresh random number every tick as one more input, so a brain that is otherwise deterministic can use it to explore or break ties. Off: that input is always 0.</small></span></label>
+        <label class="check"><input type="checkbox" id="cFb" checked><span>Result of last action<small>Two extra inputs: how much the last move was blocked (an edge stopped it), and whether the last eat found food (amount), found nothing (−1) or wasn't tried (0). Off: both are always 0.</small></span></label>
+        <label class="check"><input type="checkbox" id="cTumble"><span>Wander heading (run and tumble)<small>Gives each dot a random direction, as two inputs, that stays fixed for a while and is then redrawn. A brain can copy it into its move outputs to travel in a straight line, and gets a new direction every so often. Off: both inputs are 0.</small></span></label>
+        <div class="ctl"><label for="rTumble">Heading lasts</label><output id="oTumble"></output>
+          <input type="range" id="rTumble" min="10" max="1000" step="10" value="100"><small>Average ticks before a dot's wander heading is redrawn. Each redraw varies from half to one and a half times this.</small></div>
         <label class="check"><input type="checkbox" id="cBase"><span>Random baseline<small>Ignore the brains and move at random, to see what evolution adds.</small></span></label>
         <label class="check"><input type="checkbox" id="cArch"><span>Newcomers copy recent parents<small>On: replacement dots are mutated copies of dots that recently had children. That can favour dots that simply had spare resources, not skilled ones. Off: newcomers are random.</small></span></label>
       </section>
@@ -274,7 +278,7 @@
 <script>
 (function () {
   var W = 64, H = 64, CELL = 8;
-  var N_IN = 18, N_MEM = 4, N_OUT = 3 + 2 * N_MEM, N_HID = 8, N_LAY = 1, N_W = N_IN * N_HID + N_HID * N_OUT;
+  var N_IN = 22, N_MEM = 4, N_OUT = 3 + 2 * N_MEM, N_HID = 8, N_LAY = 1, N_W = N_IN * N_HID + N_HID * N_OUT;
   var ACTION_NAMES = ['resting', 'moving', 'eating'];
 
   var $ = function (id) { return document.getElementById(id); };
@@ -286,7 +290,7 @@
   var foodX0 = 0, foodX1 = 64, watX0 = 0, watX1 = 64;
   var pinned = new Uint8Array(64 * 64), paintMode = false, paintBrush = 'food', hoverTile = null, painting = false, lastPaint = null;
   var archive = [], safeBlobs, shifts = 0, shiftInfo = null, shiftTicks = [], selectedId = 0, rng, food, fert, kind, agents, tick, born, starved, thirsty, hist, nextId, paused = false;
-  var cfg = { regrow: 0.03, waterRegrow: 0.03, lossE: 0.3, lossW: 0.6, moveE: 0.1, moveW: 0, gainE: 30, gainW: 30, maxE: 100, maxW: 100, startE: 50, startW: 150, reqE: 85, reqW: 40, payE: 60, payW: 0, kidE: 40, kidW: 100, islands: 6, islandSize: 4, brush: 3, stepLen: 1, layout: 'mixed', cooldown: 0, archive: false, shiftEvery: 0, shiftPct: 50, sight: 5, hidden: 8, layers: 1, memory: true, position: true, noise: false, mutRate: 0.1, mutSize: 0.2, speed: 12, baseline: false, floorN: 20, maxPop: 800 };
+  var cfg = { regrow: 0.03, waterRegrow: 0.03, lossE: 0.3, lossW: 0.6, moveE: 0.1, moveW: 0, gainE: 30, gainW: 30, maxE: 100, maxW: 100, startE: 50, startW: 150, reqE: 85, reqW: 40, payE: 60, payW: 0, kidE: 40, kidW: 100, islands: 6, islandSize: 4, brush: 3, stepLen: 1, layout: 'mixed', cooldown: 0, archive: false, shiftEvery: 0, shiftPct: 50, sight: 5, hidden: 8, layers: 1, memory: true, position: true, noise: false, feedback: true, tumble: false, tumbleEvery: 100, mutRate: 0.1, mutSize: 0.2, speed: 12, baseline: false, floorN: 20, maxPop: 800 };
 
   var rngState = 1;
   function mulberry32(a) {
@@ -302,6 +306,15 @@
   function gauss() {
     var u = 1 - rng(), v = rng();
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  // Separate random stream for the optional random inputs, so switching them on or off
+  // never changes what the world does (food, newcomers, mutations) for the same seed.
+  var auxState = 1;
+  function aux() {
+    auxState = (auxState + 0x6D2B79F5) | 0;
+    var a = auxState, t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   }
 
   function makeBlobs(count) {
@@ -342,9 +355,11 @@
     return blobs;
   }
 
+  function seedVal() { var v = parseInt($('iSeed').value, 10); return isNaN(v) ? 4 : v; }
+
   function makeWorld(seed) {
     N_HID = cfg.hidden; N_LAY = cfg.layers; N_W = N_IN * N_HID + (N_LAY - 1) * N_HID * N_HID + N_HID * N_OUT; hidden = new Float32Array(N_HID); hidden2 = new Float32Array(N_HID);
-    rng = mulberry32(seed); selectedId = 0; archive = []; shifts = 0; shiftInfo = null; shiftTicks = [];
+    rng = mulberry32(seed); auxState = (seed * 7919 + 13) | 0; selectedId = 0; archive = []; shifts = 0; shiftInfo = null; shiftTicks = [];
     fert = new Float32Array(W * H);
     food = new Float32Array(W * H);
     kind = new Uint8Array(W * H);
@@ -383,7 +398,7 @@
   }
 
   function newAgent(x, y, g, gen, hue) {
-    return { id: nextId++, x: x, y: y, e: cfg.startE, w: cfg.startW, g: g, gen: gen, hue: hue, inputs: new Float32Array(N_IN), mem: new Float32Array(N_MEM), last: 0, mx: 0, my: 0, eat: false, cd: 0 };
+    return { id: nextId++, x: x, y: y, e: cfg.startE, w: cfg.startW, g: g, gen: gen, hue: hue, inputs: new Float32Array(N_IN), mem: new Float32Array(N_MEM), last: 0, mx: 0, my: 0, eat: false, cd: 0, blocked: 0, eatRes: 0, hd: 0, hdT: 0 };
   }
 
   function randomAgent() {
@@ -424,13 +439,20 @@
     var d;
     if (fd2 < 1e9) { d = Math.sqrt(fd2) || 1; inp[2] = fdx / d; inp[3] = fdy / d; inp[4] = 1 - d / (R + 1); } else { inp[2] = 0; inp[3] = 0; inp[4] = 0; }
     if (wd2 < 1e9) { d = Math.sqrt(wd2) || 1; inp[5] = wdx / d; inp[6] = wdy / d; inp[7] = 1 - d / (R + 1); } else { inp[5] = 0; inp[6] = 0; inp[7] = 0; }
-    inp[8] = a.e / cfg.maxE;
-    inp[9] = a.w / cfg.maxW;
+    inp[8] = Math.min(1, a.e / cfg.maxE);
+    inp[9] = Math.min(1, a.w / cfg.maxW);
     inp[10] = 1;
     for (var m = 0; m < N_MEM; m++) inp[11 + m] = cfg.memory ? a.mem[m] : 0;
     inp[15] = cfg.position ? (x / W) * 2 - 1 : 0;
     inp[16] = cfg.position ? (y / H) * 2 - 1 : 0;
-    inp[17] = cfg.noise ? rng() * 2 - 1 : 0;
+    inp[17] = cfg.noise ? aux() * 2 - 1 : 0;
+    inp[18] = cfg.feedback ? a.blocked : 0;
+    inp[19] = cfg.feedback ? a.eatRes : 0;
+    if (cfg.tumble) {
+      if (a.hdT <= 0) { a.hd = aux() * 6.2832; a.hdT = cfg.tumbleEvery * (0.5 + aux()); }
+      a.hdT--;
+      inp[20] = Math.cos(a.hd); inp[21] = Math.sin(a.hd);
+    } else { inp[20] = 0; inp[21] = 0; }
   }
 
   var hidden = new Float32Array(N_HID), hidden2 = new Float32Array(N_HID);
@@ -493,18 +515,22 @@
       else { sense(a); think(a); }
       var lostE = cfg.lossE, lostW = cfg.lossW;
       if (a.eat) {
-        a.last = 2;
+        a.last = 2; a.blocked = 0;
         var idx = (a.y | 0) * W + (a.x | 0), amt = food[idx], kd = kind[idx];
-        if (kd === 1) { a.e = Math.min(cfg.maxE, a.e + amt * cfg.gainE); eaten += amt * cfg.gainE; food[idx] = 0; }
-        else if (kd === 3) { a.w = Math.min(cfg.maxW, a.w + amt * cfg.gainW); drunk += amt * cfg.gainW; food[idx] = 0; }
+        if (kd === 1) { a.e = Math.max(a.e, Math.min(cfg.maxE, a.e + amt * cfg.gainE)); eaten += amt * cfg.gainE; food[idx] = 0; }
+        else if (kd === 3) { a.w = Math.max(a.w, Math.min(cfg.maxW, a.w + amt * cfg.gainW)); drunk += amt * cfg.gainW; food[idx] = 0; }
+        a.eatRes = ((kd === 1 || kd === 3) && amt > 0.001) ? amt : -1;
       } else {
+        a.eatRes = 0;
         var len = Math.sqrt(a.mx * a.mx + a.my * a.my), speed = Math.min(1, len);
         if (speed > 0.05) {
           var dist = speed * cfg.stepLen;
+          var px = a.x, py = a.y;
           a.x = Math.min(W - 0.001, Math.max(0, a.x + a.mx / len * dist));
           a.y = Math.min(H - 0.001, Math.max(0, a.y + a.my / len * dist));
+          a.blocked = Math.max(0, 1 - Math.sqrt((a.x - px) * (a.x - px) + (a.y - py) * (a.y - py)) / dist);
           lostE += cfg.moveE * speed; lostW += cfg.moveW * speed; a.last = 1;
-        } else a.last = 0;
+        } else { a.last = 0; a.blocked = 0; }
       }
       a.e -= lostE;
       a.w -= lostW;
@@ -636,7 +662,7 @@
 
 
   // ---------- Brain diagram ----------
-  var INPUT_LABELS = ['food on my tile', 'water on my tile', 'nearest food: dir x', 'nearest food: dir y', 'nearest food: closeness', 'nearest water: dir x', 'nearest water: dir y', 'nearest water: closeness', 'my energy', 'my hydration', 'bias (always 1)', 'memory 1', 'memory 2', 'memory 3', 'memory 4', 'my x position', 'my y position', 'random number'];
+  var INPUT_LABELS = ['food on my tile', 'water on my tile', 'nearest food: dir x', 'nearest food: dir y', 'nearest food: closeness', 'nearest water: dir x', 'nearest water: dir y', 'nearest water: closeness', 'my energy', 'my hydration', 'bias (always 1)', 'memory 1', 'memory 2', 'memory 3', 'memory 4', 'my x position', 'my y position', 'random number', 'last move blocked', 'last eat result', 'wander heading x', 'wander heading y'];
   var OUTPUT_LABELS = ['move: x', 'move: y', 'eat or drink', 'new memory 1', 'new memory 2', 'new memory 3', 'new memory 4', 'gate 1 (keep/replace)', 'gate 2', 'gate 3', 'gate 4'];
   var brain = { id: -1, hid: -1, lay: -1, inN: [], hidL: [], outN: [] };
   function svgEl(name, attrs) {
@@ -767,7 +793,7 @@
   }
   bindRange('rSpeed', 'oSpeed', 'speed', function (v) { return v + '×'; });
   bindRange('rLay', 'oLay', 'layers', function (v) { return v + (v === 1 ? ' layer' : ' layers'); });
-  bindRange('rHid', 'oHid', 'hidden', function (v) { return v + ' neurons, ' + (18 * v + ((cfg.layers || 1) - 1) * v * v + 11 * v) + ' weights'; });
+  bindRange('rHid', 'oHid', 'hidden', function (v) { return v + ' neurons, ' + (N_IN * v + ((cfg.layers || 1) - 1) * v * v + N_OUT * v) + ' weights'; });
   $('rLay').addEventListener('input', function () { $('rHid').dispatchEvent(new Event('input')); });
   bindRange('rSight', 'oSight', 'sight', function (v) { return v + ' tiles'; });
   bindRange('rStep', 'oStep', 'stepLen', function (v) { return v.toFixed(2) + ' tiles/tick'; });
@@ -802,13 +828,16 @@
   $('sLayout').addEventListener('change', function (e) { cfg.layout = e.target.value; });
   $('cMem').addEventListener('change', function (e) { cfg.memory = e.target.checked; });
   $('cNoise').addEventListener('change', function (e) { cfg.noise = e.target.checked; });
+  $('cFb').addEventListener('change', function (e) { cfg.feedback = e.target.checked; });
+  $('cTumble').addEventListener('change', function (e) { cfg.tumble = e.target.checked; });
+  bindRange('rTumble', 'oTumble', 'tumbleEvery', function (v) { return v + ' ticks'; });
   $('cPos').addEventListener('change', function (e) { cfg.position = e.target.checked; });
   $('cBase').addEventListener('change', function (e) { cfg.baseline = e.target.checked; });
   $('cArch').addEventListener('change', function (e) { cfg.archive = e.target.checked; });
   $('bPlay').addEventListener('click', function () { paused = !paused; $('bPlay').textContent = paused ? 'Play' : 'Pause'; });
   $('bStep').addEventListener('click', function () { paused = true; $('bPlay').textContent = 'Play'; step(); });
   $('bMove').addEventListener('click', function () { relocateFood(); });
-  $('bReset').addEventListener('click', function () { makeWorld(parseInt($('iSeed').value, 10) || 1); });
+  $('bReset').addEventListener('click', function () { makeWorld(seedVal()); });
 
   mapC.addEventListener('click', function (e) {
     if (paintMode) return;
@@ -893,10 +922,10 @@
 
   // ---------- Saved configurations (settings only) ----------
   var saves = [], SAVE_KEY = 'forager-lab-configs-v1', MAX_SAVES = 20, persisted = false;
-  var CHECKS = [['cMem', 'memory'], ['cPos', 'position'], ['cNoise', 'noise'], ['cBase', 'baseline'], ['cArch', 'archive']];
+  var CHECKS = [['cMem', 'memory'], ['cPos', 'position'], ['cNoise', 'noise'], ['cFb', 'feedback'], ['cTumble', 'tumble'], ['cBase', 'baseline'], ['cArch', 'archive']];
 
   function captureConfig(label) {
-    return { label: label, when: Date.now(), cfg: JSON.parse(JSON.stringify(cfg)), seed: parseInt($('iSeed').value, 10) || 4 };
+    return { label: label, when: Date.now(), cfg: JSON.parse(JSON.stringify(cfg)), seed: seedVal() };
   }
 
   function syncControls() {
@@ -906,6 +935,8 @@
   }
 
   function applyConfig(sv) {
+    // keys missing from older saves fall back to the original behaviour, not to whatever is currently set
+    cfg.noise = false; cfg.feedback = false; cfg.tumble = false; cfg.tumbleEvery = 100; cfg.layers = 1; cfg.layout = 'mixed';
     Object.keys(sv.cfg).forEach(function (k) { cfg[k] = sv.cfg[k]; });
     $('iSeed').value = sv.seed;
     syncControls();
@@ -918,7 +949,7 @@
 
   function describe(sv) {
     var c = sv.cfg;
-    return 'seed ' + sv.seed + ' · ' + (c.layout === 'split' ? 'separated' : 'mixed') + ' · ' + c.islands + ' islands · food ' + c.regrow + ' · water ' + c.waterRegrow + (c.lossE !== undefined ? ' · energy −' + c.lossE + '/tick · hydration −' + c.lossW + '/tick' : '') + ' · brain ' + c.hidden;
+    return 'seed ' + sv.seed + ' · ' + (c.layout === 'split' ? 'separated' : c.layout === 'circles' ? 'two circles' : 'mixed') + ' · ' + c.islands + ' islands · food ' + c.regrow + ' · water ' + c.waterRegrow + (c.lossE !== undefined ? ' · energy −' + c.lossE + '/tick · hydration −' + c.lossW + '/tick' : '') + ' · brain ' + (c.layers || 1) + '×' + c.hidden + (c.noise ? ' · random input' : '') + (c.feedback ? ' · result inputs' : '') + (c.tumble ? ' · wander ' + c.tumbleEvery : '');
   }
 
   function renderSaves() {
@@ -955,7 +986,8 @@
   try { var raw = localStorage.getItem(SAVE_KEY); if (raw) { saves = JSON.parse(raw); persisted = true; } } catch (e) { saves = []; }
   renderSaves();
 
-  makeWorld(parseInt($('iSeed').value, 10) || 4);
+  syncControls();
+  makeWorld(seedVal());
   for (var warm = 0; warm < 30; warm++) step();
   frame();
 })();

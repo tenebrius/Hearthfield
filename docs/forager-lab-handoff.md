@@ -2,6 +2,8 @@
 
 Status as of 2026-10-11. This document lets someone pick up the work without the earlier conversation.
 
+**Update (later the same day):** the "Result of last action" inputs and the "Wander heading (run and tumble)" input were added, and code-review problems 1, 2, 8, 9, 10 and 12 were fixed (see section 4). Results in section 5 were measured **before** these changes and the random-input result in particular should be rerun. Section 7 records what changed and how to test it.
+
 ## 1. Why this exists
 
 The Hearthfield docs (`version-1-specification.md`, `expansion-plan.md`) describe settlers with hand-written logic for work choice, valuation, trade and migration. We are exploring an alternative: settlers driven by small neural networks evolved through natural selection, so that logic does not have to be designed by hand.
@@ -55,7 +57,7 @@ The JSON argument overrides keys of `cfg` (see section 3). `mkharness.py` extrac
 
 ### Brain
 - **Genome:** a flat `Float32Array` of weights with fixed topology. Mutation changes each weight with probability `mutRate` (0.1), adding Gaussian noise of size `mutSize` (0.2). There is no crossover and no gradient training.
-- **Network:** 18 inputs → 1 or 2 hidden tanh layers of `hidden` neurons (default 8) → 11 outputs.
+- **Network:** 22 inputs → 1 or 2 hidden tanh layers of `hidden` neurons (default 8) → 11 outputs.
 - **Inputs:**
 
   | idx | meaning |
@@ -67,7 +69,10 @@ The JSON argument overrides keys of `cfg` (see section 3). `mkharness.py` extrac
   | 10 | bias (1) |
   | 11–14 | memory registers |
   | 15, 16 | position x, y (zero if `position` is off) |
-  | 17 | uniform random in [−1, 1] (zero if `noise` is off) |
+  | 18 | last move blocked: 0 = fully moved, 1 = not moved at all (an edge stopped it). Zero if `feedback` is off. |
+  | 19 | last eat result: amount eaten, −1 if it tried to eat and found nothing, 0 if it did not try. Zero if `feedback` is off. |
+  | 20, 21 | wander heading (cos, sin): a per-dot random direction held for `tumbleEvery` ticks (±50%), then redrawn from a separate stream. Zero if `tumble` is off. |
+  | 17 | uniform random in [−1, 1] from a separate stream (zero if `noise` is off) |
 
 - **Outputs:**
   - Move x, move y. The dot moves in any direction at `min(1, |v|) × stepLen` tiles per tick.
@@ -86,24 +91,26 @@ floorN 20  maxPop 800  mutRate 0.1  mutSize 0.2
 
 UI extras include population, intake and water charts; an inspector for the selected dot showing a live brain diagram; config-only save and load (localStorage); and a seed field.
 
-## 4. Known code problems (from code review, not yet fixed)
+## 4. Code problems (from code review)
+
+Fixed since the review: **1, 2, 8, 9, 10, 12** (marked FIXED below) and 11 (controls are re-synced from `cfg` on load). Still open: 3 (unfixable by design: old saves do not reproduce), 4, 5, 6, 7.
 
 Two independent reviews agreed that the weight indexing in `think`, `forward` and `buildBrain` is consistent and that nothing crashes. They found these problems, listed roughly by how much they matter:
 
-1. **The gain cap lowers values that start above the max.** On eating, the code sets `a.w = Math.min(cfg.maxW, a.w + amt*gainW)`. Newcomers start at w = 150 while maxW = 100, so their first drink drops them to 100. Energy has the same issue whenever `startE` or `kidE` is above `maxE`. Inputs 8 and 9 can also exceed 1.
+1. FIXED. **The gain cap lowers values that start above the max.** On eating, the code sets `a.w = Math.min(cfg.maxW, a.w + amt*gainW)`. Newcomers start at w = 150 while maxW = 100, so their first drink drops them to 100. Energy has the same issue whenever `startE` or `kidE` is above `maxE`. Inputs 8 and 9 can also exceed 1.
    - *Fix:* use `Math.max(a.w, Math.min(maxW, a.w + gain))`, or clamp start values to the max.
-2. **The noise input uses the shared world RNG.** `inp[17] = rng()*2−1` consumes the world RNG, so with noise on, world events (regrowth, newcomers, mutation) diverge from a noise-off run with the same seed. The two runs are not a controlled comparison. **The "random input does not help" result below is therefore unreliable.**
+2. FIXED. **The noise input uses the shared world RNG.** `inp[17] = rng()*2−1` consumes the world RNG, so with noise on, world events (regrowth, newcomers, mutation) diverge from a noise-off run with the same seed. The two runs are not a controlled comparison. **The "random input does not help" result below is therefore unreliable and should be rerun.** The fix: the noise input and the wander heading now draw from a separate stream (`aux()`), seeded from the world seed.
    - *Fix:* give the noise input its own seeded PRNG.
 3. **Old saves cannot be reproduced.** Changing `N_IN` from 17 to 18 changed how many RNG draws the initial genomes use, so saved configs from before that change no longer reproduce their runs.
 4. **"Clear map" breaks relocation silently.** It pins every tile, so relocation then does nothing, yet the shift counters, markers and recovery stats still update. In the `circles` layout, `relocateFood` returns without doing anything, also silently.
 5. **Island size changes mid-run.** `placeIsland` reads the live `islandSize` slider during relocation, so changing the slider affects a running world.
 6. **Relocation can erase water** on tiles where water overlapped an island.
 7. **Memory off freezes the registers instead of blanking them.** The inputs read 0, but the registers keep updating internally. This is harmless today but misleading.
-8. **`describe()` is incomplete.** It labels the `circles` layout as "mixed" and omits `layers` and `noise`.
-9. **Old configs leave `noise` unchanged.** `applyConfig` only copies the keys present, so loading an old config keeps whatever `noise` value is currently set.
-10. **Seed 0 is inconsistent.** It becomes seed 1 on Reset but seed 4 on Save.
-11. **Checkboxes can disagree with `cfg`** after the browser restores form state on reload.
-12. **The numbers 18 and 11 are hard-coded** in the weight-count label and the help text instead of using `N_IN` / `N_OUT`.
+8. FIXED. **`describe()` is incomplete.** It labels the `circles` layout as "mixed" and omits `layers` and `noise`.
+9. FIXED. **Old configs leave `noise` unchanged.** `applyConfig` only copies the keys present, so loading an old config keeps whatever `noise` value is currently set.
+10. FIXED. **Seed 0 is inconsistent.** It becomes seed 1 on Reset but seed 4 on Save.
+11. FIXED. **Checkboxes can disagree with `cfg`** after the browser restores form state on reload.
+12. FIXED. **The numbers 18 and 11 are hard-coded** in the weight-count label and the help text instead of using `N_IN` / `N_OUT`.
 
 Recommended order: fix 1 and 2, then rerun the random-input experiment.
 
@@ -164,3 +171,18 @@ So evolution does produce real, non-random behaviour (local food-seeking), but i
    - Seed newcomers from the current population instead of from scratch.
 5. **Measure exploration directly:** count distinct tiles visited per lifetime and how often the second circle gets colonised, for evolved vs random dots.
 6. Only once evolved dots clearly beat random movers on two circles should more Hearthfield-like features be added (trade, households).
+
+## 7. Changes made after the first handoff
+
+All in `tools/forager-lab/forager-lab.html`:
+
+- **Result of last action** (checkbox `cFb`, on by default): inputs 18 (move blocked, 0 to 1) and 19 (eat result: amount, −1 for nothing found, 0 for not tried).
+- **Wander heading / run and tumble** (checkbox `cTumble`, off by default; slider `rTumble`, 10–1000 ticks, default 100): inputs 20 and 21, a per-dot direction held for a while then redrawn.
+- **Memory registers unchanged.** An ungated "extra outputs fed back" design was considered and rejected: the existing gated registers do the same job and hold values better.
+- Gain cap no longer lowers a value that starts above the max; inputs 8 and 9 are clamped to at most 1.
+- Noise input and wander heading use their own PRNG, so toggling them does not change the world for a given seed.
+- `N_IN` went from 18 to 22, so initial genomes (and old saved runs) differ from before. Saved configs from older versions load with the new options off.
+- `mkharness.py` hook pattern updated for `seedVal()`.
+
+### How to test whether they help
+Use two circles, food only, energy loss 1.0, two hidden layers. Compare, over 4 seeds and at least 200k–800k ticks: no feedback, feedback, feedback + wander heading, random movers. Also try with and without memory and with and without position. Quick check done at commit time: see the results note below if present.
