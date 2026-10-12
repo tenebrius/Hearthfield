@@ -241,3 +241,20 @@ Population averaged over the last 1000 ticks before each mark.
 - Evolved dots settle at ~255, about 10% above random movers (~232), on all 4 seeds. The evolved populations are flat from 100k onwards, so longer runs would not change this.
 - The evolved peaks (306–320) come in the first few thousand ticks, when newcomers' starting hydration and the free child hydration give an early boom. The steady level is lower. The gap over random is small compared with the food-only two-circle map (~345 vs ~262).
 - Not known: whether ~255 is a ceiling set by food and water supply (a rough estimate puts water supply alone at roughly 290 dots) or by the brains. Not tested: memory off, wander off, position off, other pond placements, thirst at other rates. Without those the contribution of memory vs wander heading cannot be separated.
+
+### Ablation on the hand-made map: is it memory, wander, or neither? (8 seeds, 200k ticks)
+
+Same map and settings as above (energy loss 1.0, hydration loss 0.3, 2 hidden layers of 8, position on, result inputs off). Value = mean population over ticks 100k–200k, per seed (1–8).
+
+| Setup | per seed | mean | sd | minus random (paired by seed) | wins |
+|---|---|---|---|---|---|
+| A. Random movers | 232 233 233 232 232 232 233 232 | 232.4 | 0.5 | | |
+| B. Memory + wander | 260 258 257 258 263 260 264 259 | 259.9 | 2.5 | +27.5 ± 0.9 (se) | 8/8 |
+| C. Wander only | 266 264 269 262 271 268 265 262 | 265.9 | 3.3 | +33.5 ± 1.2 | 8/8 |
+| D. Memory only | 248 264 265 259 260 266 264 264 | 261.2 | 5.9 | +28.9 ± 2.0 | 8/8 |
+| E. Neither | 262 266 265 266 269 258 257 263 | 263.2 | 4.1 | +30.9 ± 1.5 | 8/8 |
+
+- **Evolved dots beat random movers, firmly:** every evolved setup beats random on all 8 seeds, by about 12–14% (+27 to +34 dots). Random movers barely vary (sd 0.5), so this gap is far outside noise.
+- **Memory and wander heading do not explain it on this map.** Setup E (no memory, no wander heading) is as good as the others. The differences among B, C, D and E (260–266) are small next to their seed-to-seed spread (sd 2.5–6) and are not shown to be real. Nominally wander-only is highest and memory + wander is lowest.
+- **So the advantage over random here comes from evolved local food and water seeking,** not from memory or exploration. The earlier two-circle food-only map is where the wander heading mattered (4 of 4 seeds colonised both circles vs 2 of 4 without it). On this map each food circle is large and ponds are reachable, so exploration may not be the limiting step.
+- Not tested, so treat as open: whether ~260 is a ceiling set by water supply (rough estimate ~290), harder maps (circles farther apart, ponds farther from food, higher hydration loss, moving food), and longer or larger-population runs. A test that could show memory or wander matters needs a map where they are needed: e.g. ponds out of sight of food, or food that moves.
