@@ -18,6 +18,7 @@ Forager Lab is the first learning sandbox for that idea. Dots on a 64×64 map mu
 |---|---|
 | Live page (claude.ai artifact, private to the owner) | https://claude.ai/artifact/9xTrayZPNYBxB127nBKxmR (published version 33) |
 | Source of that page | `tools/forager-lab/forager-lab.html` (a single self-contained file; open it in any browser) |
+| **WASM experiment engine** (fast; use this for experiments) | `tools/forager-lab/wasm/` : `forager.c` (source), `forager.wasm` (built, 19 KB), `build.sh`, `engine.js`, `run-wasm.js` (same arguments and output as `run.js`), `test-wasm.js` (checks against plain JS). Run: `node wasm/run-wasm.js '{"layout":"handfar","lossE":1.5,"lossW":0.6,"layers":2,"feedback":false,"inertia":0.9}' 1 200000 50000`. About 8× faster per dot than the page's JS; 200k ticks take ~15–30 s. Supports layouts circles, handmade, handfar only; no food relocation, no archive newcomers. Results match the page statistically (24 seeds: population and births within noise), not seed for seed. |
 | Headless harness builder | `tools/forager-lab/mkharness.py`, which writes `base.js` (git-ignored) |
 | Experiment runner | `tools/forager-lab/run.js` |
 
@@ -299,3 +300,22 @@ Same map and settings as the far-ponds test above (`handfar`, energy loss 1.5, h
 - **Momentum alone does not fix getting stuck:** 10 of 16 runs stuck, no better than neither (p ≈ 0.7). It does raise the ceiling for runs that succeed (4 runs at 171–187), so it changes the level reached, not the reliability.
 - **Reading:** the two ideas do different jobs. Wander heading makes colonising everything more likely; momentum lets dots that do colonise it use the map better. Together they do both. This is a hypothesis fitted to these counts, not tested directly (for example by looking at which circles and ponds the high runs use).
 - Not tested: other momentum values on many seeds (a 4-seed scouting run at 0, 0.5, 0.8, 0.9, 0.95 was inconclusive because outcomes jump between ~85 and ~170), momentum with memory, the random number input with or without memory, and the age counter (not built).
+
+### Noise, age and memory instead of the wander heading (WASM engine, 16 seeds, 200k ticks)
+
+Far-ponds, high-loss map (`handfar`, energy loss 1.5, hydration loss 0.6, 2 hidden layers of 8, momentum 0.9, position on, result inputs off, wander heading OFF except in row i9w). Run on the WASM engine (7 minutes for all 112 runs). Value = mean population over ticks 100k–200k; "stuck" = under 130, "good" = 130–175, "high" = over 175. M = memory on, N = random number input on, A = age input on (input 22, `age / (age + 250)`).
+
+| Setup | mean | stuck | good | high |
+|---|---|---|---|---|
+| i9: momentum only (no memory) | 128 | 9 | 3 | 4 |
+| i9w: momentum + wander heading | 135 | 6 | 5 | 5 |
+| M: memory | 152 | 5 | 6 | 5 |
+| MN: memory + noise | 125 | 9 | 5 | 2 |
+| MA: memory + age | 133 | 8 | 2 | 6 |
+| MNA: memory + noise + age | 144 | 6 | 8 | 2 |
+| NA: noise + age, no memory | 111 | 12 | 3 | 1 |
+
+- **No setup is clearly better or worse than the wander heading.** Stuck counts against i9w (6 of 16): M 5, MN 9, MA 8, MNA 6 (all p ≥ 0.48), NA 12 (p ≈ 0.07). With 16 seeds and two-valued outcomes, differences of a few runs are within chance.
+- **Memory seems to matter, noise and age do not add to it:** noise + age without memory is the worst setup (12 of 16 stuck), and memory alone has the best mean (152). M vs NA: 5 vs 12 stuck, p ≈ 0.03, but that is one of many comparisons, so treat it as a lead, not a result.
+- **The WASM engine gave a worse i9w than the JS engine did** (6 of 16 stuck, with two collapsed runs at 25 and 51, vs 2 of 16 in JS; p ≈ 0.2, and 11 of 32 over both WASM batches). That may be chance; it could also be a real difference between the engines. Worth checking with many seeds on both engines before relying on the earlier JS finding that momentum + wander is the best setup.
+- To separate setups that differ by about 15 percentage points in stuck rate, use about 64 seeds each: 448 runs ≈ 30 minutes on the WASM engine.
