@@ -319,3 +319,17 @@ Far-ponds, high-loss map (`handfar`, energy loss 1.5, hydration loss 0.6, 2 hidd
 - **Memory seems to matter, noise and age do not add to it:** noise + age without memory is the worst setup (12 of 16 stuck), and memory alone has the best mean (152). M vs NA: 5 vs 12 stuck, p ≈ 0.03, but that is one of many comparisons, so treat it as a lead, not a result.
 - **The WASM engine gave a worse i9w than the JS engine did** (6 of 16 stuck, with two collapsed runs at 25 and 51, vs 2 of 16 in JS; p ≈ 0.2, and 11 of 32 over both WASM batches). That may be chance; it could also be a real difference between the engines. Worth checking with many seeds on both engines before relying on the earlier JS finding that momentum + wander is the best setup.
 - To separate setups that differ by about 15 percentage points in stuck rate, use about 64 seeds each: 448 runs ≈ 30 minutes on the WASM engine.
+
+### Memory + momentum + wander heading vs memory + momentum + age + noise (WASM engine, 64 seeds each, 200k ticks)
+
+Far-ponds, high-loss map as above (energy loss 1.5, hydration loss 0.6, 2 hidden layers of 8, momentum 0.9, memory on, position on, result inputs off). **MW** = wander heading on, noise and age off. **MNA** = noise and age on, wander heading off. Value = mean population over ticks 100k–200k. Outcomes now fall into three groups: *collapsed* (under 60: the population never takes off and sits at the floor of 20 newcomers), *stuck* (60–129: about one colony, ~85), *good or high* (130 or more).
+
+| Setup | collapsed | stuck | good or high | mean | median |
+|---|---|---|---|---|---|
+| MW (wander) | 14 | 9 | 41 | 125.3 | 168 |
+| MNA (noise + age) | 0 | 28 | 36 | 136.1 | 170 |
+
+- **Overall they are not distinguishable:** mean difference −10.8 with a 95% bootstrap interval of [−29.2, +7.1]; stuck (<130) 23 vs 28 of 64 (p ≈ 0.47); high (>175) 7 vs 9 (p ≈ 0.79).
+- **But they fail in different ways.** The wander heading collapsed in 14 of 64 runs and noise + age in none (p < 0.001). Collapsed runs never take off: for example seed 10 peaked at 67 dots in 200k ticks and ended on the floor of 20, so it is a failure to get started, not a late crash. Among runs that did not collapse, the wander heading was much less often stuck on one colony (9 of 50 vs 28 of 64, p ≈ 0.002), and its mean for those runs is 154 vs 136.
+- **Reading (not tested):** a random heading that the brain can follow, combined with strong momentum, may make the first random brains run past food instead of eating it, so some lineages never start. Once a lineage does take off, the wander heading spreads it over the whole map better. Noise + age never fails to start but often stays on one colony.
+- **Next ideas:** check why the wander runs collapse (for example by comparing early food intake with and without the wander input, or with lower momentum such as 0.7), and see whether a different starting condition (more newcomers, or a longer period of safe starting resources) removes the collapses while keeping the wander advantage.
