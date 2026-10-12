@@ -43,10 +43,10 @@ check('log approximation', maxL < 1e-9, 'max abs error ' + maxL.toExponential(2)
 
 // 3. forward pass equals a plain JS implementation (Math.tanh, doubles), for 1 and 2 hidden layers and with memory on and off.
 //    Weight layout: input-major rows, columns padded to a multiple of 4; only inputs that can be non-zero have rows.
-for (const layers of [1, 2]) for (const memory of [true, false]) {
-  const e = new Engine({ layout: 'circles', layers, memory, hidden: 8, position: true, noise: true, age: true, feedback: true, tumble: true }, 3), x = e.x;
+for (const layers of [1, 2]) for (const memory of [true, false]) for (const grip of [false, true]) {
+  const e = new Engine({ layout: 'circles', layers, memory, brainMomentum: grip, hidden: 8, position: true, noise: true, age: true, feedback: true, tumble: true }, 3), x = e.x;
   const NW = x.genome_stride(), NH = 8, N_IN = 23, HP = x.layout_info(0), OP = x.layout_info(1), OFF2 = x.layout_info(2), OFFO = x.layout_info(3), NACT = x.layout_info(4);
-  const NOUT = memory ? 11 : 3;
+  const NOUT = (memory ? 11 : 3) + (grip ? 1 : 0);
   const act = Array.from(new Int32Array(e.mem, x.act_ptr(), NACT));
   check('active inputs, memory ' + (memory ? 'on' : 'off'), act.length === (memory ? 23 : 19), act.length + ' of 23');
   const ord = new Int32Array(e.mem, x.ord_ptr(), 40), G = new Float32Array(e.mem, x.genome_ptr(), 2048 * NW), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * N_IN);
@@ -64,7 +64,7 @@ for (const layers of [1, 2]) for (const memory of [true, false]) {
     // padding columns must stay zero
     for (let k = 0; k < NACT; k++) for (let c = NH; c < HP; c++) if (g[k * HP + c] !== 0) maxErr = 1e9;
   }
-  check('forward pass, ' + layers + ' layer(s), memory ' + (memory ? 'on' : 'off'), maxErr < 5e-4, 'max abs error on outputs ' + maxErr.toExponential(2));
+  check('forward pass, ' + layers + ' layer(s), memory ' + (memory ? 'on' : 'off') + ', brain momentum ' + (grip ? 'on' : 'off'), maxErr < 5e-4, 'max abs error on outputs ' + maxErr.toExponential(2));
 }
 console.log(failed ? failed + ' check(s) FAILED' : 'all checks passed');
 process.exit(failed ? 1 : 0);

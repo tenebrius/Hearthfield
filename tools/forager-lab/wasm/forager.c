@@ -32,7 +32,7 @@ enum Cfg {
   C_REGROW, C_WREGROW, C_LOSSE, C_LOSSW, C_MOVEE, C_MOVEW, C_GAINE, C_GAINW, C_MAXE, C_MAXW,
   C_STARTE, C_STARTW, C_REQE, C_REQW, C_PAYE, C_PAYW, C_KIDE, C_KIDW, C_STEPLEN, C_COOLDOWN,
   C_SIGHT, C_HIDDEN, C_LAYERS, C_MEMORY, C_POSITION, C_NOISE, C_AGE, C_FEEDBACK, C_TUMBLE,
-  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_COUNT
+  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_COUNT
 };
 static double CFG[64];
 EXPORT("cfg_ptr") double *cfg_ptr(void) { return CFG; }
@@ -105,10 +105,10 @@ EXPORT("rebuild_masks") void rebuild_masks_export(void) { rebuild_masks(); }
 // ---------- agents (struct of arrays, indexed by slot; ord[] is the iteration order) ----------
 static float G[(u64)MAXA * MAXG], INP[MAXA * N_IN], MEM[MAXA * N_MEM];
 static double AX[MAXA], AY[MAXA], AE[MAXA], AW[MAXA], AVX[MAXA], AVY[MAXA], AMX[MAXA], AMY[MAXA];
-static double ABLK[MAXA], AEATRES[MAXA], AHX[MAXA], AHY[MAXA], AHT[MAXA];
+static double AGRIP[MAXA], ABLK[MAXA], AEATRES[MAXA], AHX[MAXA], AHY[MAXA], AHT[MAXA];
 static int ACD[MAXA], AAGE[MAXA], AGEN[MAXA], AEAT[MAXA];
 static int ORD[MAXA], ORD2[MAXA], FREE[MAXA], KIDS[MAXA], NFREE, NAG;
-static int NH, NL, NW, ACT[N_IN], NACT, HP, OP, NOUT, OFF2, OFFO, NREAL, REAL[MAXG];
+static int NH, NL, NW, ACT[N_IN], NACT, HP, OP, NOUT, GRIPIDX, OFF2, OFFO, NREAL, REAL[MAXG];
 static long long TICK, BORN, STARVED, THIRSTY;
 
 EXPORT("n_agents") int n_agents(void) { return NAG; }
@@ -129,7 +129,9 @@ EXPORT("act_ptr") int *act_ptr(void) { return ACT; }
 
 static void setup_brain(void) {
   NH = (int)CFG[C_HIDDEN]; NL = (int)CFG[C_LAYERS];
-  HP = (NH + 3) & ~3; NOUT = CFG[C_MEMORY] != 0 ? N_OUT : 3; OP = (NOUT + 3) & ~3;
+  HP = (NH + 3) & ~3; NOUT = CFG[C_MEMORY] != 0 ? N_OUT : 3;
+  GRIPIDX = NOUT; if (CFG[C_BRAINMOM] != 0) NOUT += 1;   // the momentum output comes after the memory outputs (or after eat when memory is off)
+  OP = (NOUT + 3) & ~3;
   NACT = 0;
   for (int i = 0; i < N_IN; i++) {
     int on = 1;
@@ -153,7 +155,7 @@ static int alloc_slot(void) { return FREE[--NFREE]; }
 static void new_agent(int s, double x, double y, int gen) {
   AX[s] = x; AY[s] = y; AE[s] = CFG[C_STARTE]; AW[s] = CFG[C_STARTW];
   AVX[s] = AVY[s] = AMX[s] = AMY[s] = 0; ABLK[s] = AEATRES[s] = 0; AHX[s] = AHY[s] = 0; AHT[s] = 0;
-  ACD[s] = 0; AAGE[s] = 0; AGEN[s] = gen; AEAT[s] = 0;
+  AGRIP[s] = 0; ACD[s] = 0; AAGE[s] = 0; AGEN[s] = gen; AEAT[s] = 0;
   for (int m = 0; m < N_MEM; m++) MEM[s * N_MEM + m] = 0;
 }
 static int random_agent(void) {
@@ -312,7 +314,8 @@ static void think(int s) {
   for (int v = 0; v < (OP >> 2); v++) *(v4f *)(OUTV + 4 * v) = oacc[v];
   v4f mv = vtanh(*(v4f *)OUTV);
   AMX[s] = mv[0]; AMY[s] = mv[1]; AEAT[s] = OUTV[2] > 0;
-  if (NOUT == N_OUT) {   // memory: mem = gate * tanh(value) + (1 - gate) * mem, four registers at once
+  if (CFG[C_BRAINMOM] != 0) AGRIP[s] = 0.95 * 0.5 * (1 + ftanh(0.5 * OUTV[GRIPIDX]));
+  if (CFG[C_MEMORY] != 0) {   // memory: mem = gate * tanh(value) + (1 - gate) * mem, four registers at once
     v4f nv = vtanh(*(v4f *)(OUTV + 3));
     v4f gate = splat(0.5f) * (splat(1) + vtanh(splat(0.5f) * *(v4f *)(OUTV + 3 + N_MEM)));
     v4f *mem = (v4f *)(MEM + s * N_MEM);
@@ -330,7 +333,7 @@ void step(int count) {
   const double gainE = CFG[C_GAINE], gainW = CFG[C_GAINW], maxE = CFG[C_MAXE], maxW = CFG[C_MAXW];
   const double reqE = CFG[C_REQE], reqW = CFG[C_REQW], payE = CFG[C_PAYE], payW = CFG[C_PAYW];
   const double kidE = CFG[C_KIDE], kidW = CFG[C_KIDW], stepLen = CFG[C_STEPLEN], inertia = CFG[C_INERTIA];
-  const int baseline = CFG[C_BASELINE] != 0, maxPop = (int)CFG[C_MAXPOP], floorN = (int)CFG[C_FLOORN], cooldown = (int)CFG[C_COOLDOWN];
+  const int brainMom = CFG[C_BRAINMOM] != 0, baseline = CFG[C_BASELINE] != 0, maxPop = (int)CFG[C_MAXPOP], floorN = (int)CFG[C_FLOORN], cooldown = (int)CFG[C_COOLDOWN];
   const double needE = reqE > payE + 1 ? reqE : payE + 1, needW = reqW > payW + 1 ? reqW : payW + 1;
   while (count-- > 0) {
     int nold = NAG, nalive = 0, nkids = 0;
@@ -342,9 +345,10 @@ void step(int count) {
         do { u = 2 * rng() - 1; v = 2 * rng() - 1; q = u * u + v * v; } while (q >= 1.0 || q < 1e-12);
         double r = __builtin_sqrt(q); AMX[s] = u / r; AMY[s] = v / r; AEAT[s] = rng() < 0.2;
       } else { sense(s); think(s); }
-      if (!baseline && inertia > 0) {
+      if (!baseline && (brainMom || inertia > 0)) {
+        double al = brainMom ? AGRIP[s] : inertia;
         double cmx = AEAT[s] ? 0 : AMX[s], cmy = AEAT[s] ? 0 : AMY[s];
-        AVX[s] = inertia * AVX[s] + (1 - inertia) * cmx; AVY[s] = inertia * AVY[s] + (1 - inertia) * cmy;
+        AVX[s] = al * AVX[s] + (1 - al) * cmx; AVY[s] = al * AVY[s] + (1 - al) * cmy;
         AMX[s] = AVX[s]; AMY[s] = AVY[s];
       }
       double le = lossE, lw = lossW;
