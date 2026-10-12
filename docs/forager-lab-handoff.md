@@ -333,3 +333,25 @@ Far-ponds, high-loss map as above (energy loss 1.5, hydration loss 0.6, 2 hidden
 - **But they fail in different ways.** The wander heading collapsed in 14 of 64 runs and noise + age in none (p < 0.001). Collapsed runs never take off: for example seed 10 peaked at 67 dots in 200k ticks and ended on the floor of 20, so it is a failure to get started, not a late crash. Among runs that did not collapse, the wander heading was much less often stuck on one colony (9 of 50 vs 28 of 64, p ≈ 0.005), and its mean for those runs is 154 vs 136.
 - **Reading (not tested):** a random heading that the brain can follow, combined with strong momentum, may make the first random brains run past food instead of eating it, so some lineages never start. Once a lineage does take off, the wander heading spreads it over the whole map better. Noise + age never fails to start but often stays on one colony.
 - **Next ideas:** check why the wander runs collapse (for example by comparing early food intake with and without the wander input, or with lower momentum such as 0.7), and see whether a different starting condition (more newcomers, or a longer period of safe starting resources) removes the collapses while keeping the wander advantage.
+
+### Momentum sweep: wander heading vs noise + age at momentum 0.9, 0.7 and 0.4 (WASM engine, 64 seeds each, 200k ticks)
+
+Same setups and map as the previous section (MW = memory + momentum + wander heading; MNA = memory + momentum + noise + age, wander off). Momentum is the fixed carry-over of velocity per tick (the brain's move output is the target velocity; see section 7). The 0.9 rows are the previous run.
+
+| Momentum | Setup | mean | median | collapsed (<60) | stuck (60–129) | good or high (130+) | high (>175) |
+|---|---|---|---|---|---|---|---|
+| 0.9 | MW | 125.3 | 168 | 14 | 9 | 41 | 7 |
+| 0.9 | MNA | 136.1 | 170 | 0 | 28 | 36 | 9 |
+| 0.7 | MW | **155.5** | 170 | 0 | 11 | **53** | 4 |
+| 0.7 | MNA | 116.3 | 87 | 0 | 40 | 24 | 4 |
+| 0.4 | MW | 140.2 | 166 | 0 | 21 | 43 | 0 |
+| 0.4 | MNA | 106.0 | 85 | 0 | 47 | 17 | 0 |
+
+Differences in mean (MW − MNA, 95% bootstrap interval): 0.9: −10.8 [−29.2, +7.1]; **0.7: +39.2 [+26.1, +51.4]**; **0.4: +34.2 [+21.0, +47.0]**. Stuck among non-collapsed runs: wander is much less often stuck at every momentum (0.9: 9/50 vs 28/64, p ≈ 0.005; 0.7: 11/64 vs 40/64 and 0.4: 21/64 vs 47/64, both p < 0.001).
+
+- **The wander heading beats noise + age at 0.7 and 0.4, by about 35–40 dots with intervals well away from zero.** The tie at 0.9 came from the wander setup's collapses, not from noise + age matching it. So noise + age with memory does not replace the wander heading in these tests.
+- **The collapses are a high-momentum problem:** 14 of 64 collapsed at 0.9 and none at 0.7 or 0.4. This fits the guess that very strong momentum makes the first random dots run past food (not proven, since only momentum was varied).
+- **Best setting so far: wander heading + memory at momentum 0.7** (mean 155.5, 53 of 64 runs at 130+, none collapsed).
+- **Noise + age depends on high momentum** (mean 136 → 116 → 106 as momentum falls): without strong momentum it has nothing that keeps a dot travelling in one direction.
+- Momentum lowers the ceiling for successful runs: runs above 175 fall from 7 to 4 to 0 for the wander setup as momentum falls from 0.9 to 0.4. 0.7 is a compromise between starting reliably and reaching high populations.
+- **Next ideas:** 0.8 and 0.6 for the wander setup; a brain-controlled momentum output (the dot sets how much velocity carries over each tick) as a way to remove the hand-picked value; check the JS engine at momentum 0.7 to confirm the engines agree.
