@@ -174,6 +174,8 @@ So evolution does produce real, non-random behaviour (local food-seeking), but i
 
 ## 7. Changes made after the first handoff
 
+(Later additions, in order: hand-made layouts `handmade` and `handfar`; the **Momentum** slider (`inertia`, 0–0.95). With momentum α the dot's velocity each tick is `α × old velocity + (1 − α) × the brain's move output`; 0 is the old behaviour. An eating tick counts as a zero command and the dot does not move; hitting an edge zeroes that velocity component; the random baseline ignores it. Results are at the end of this document.)
+
 All in `tools/forager-lab/forager-lab.html`:
 
 - **Result of last action** (checkbox `cFb`, on by default): inputs 18 (move blocked, 0 to 1) and 19 (eat result: amount, −1 for nothing found, 0 for not tried).
@@ -278,3 +280,22 @@ Scouting (seed 1, 100k ticks) first: with far ponds and the old losses (1.0 / 0.
 - **Wander heading looks like it makes success more reliable:** 8/8 good with wander only, 7/8 with memory + wander, against 5/8 without wander (memory only and neither). Wander only vs neither: +33 ± 15 (t = 2.2). That is suggestive but not conclusive with 8 seeds (8/8 vs 5/8 is within what chance can produce, roughly p = 0.2 by Fisher's exact test). It also fits the earlier food-only two-circle result.
 - **Memory does not help here:** memory only equals neither (136.2 vs 136.4), and memory + wander is not better than wander only (156 vs 170; one stuck seed drives the difference).
 - **Next:** to settle wander vs no wander, run only those two setups on many more seeds (for example 24–32 each) at the same settings, and count good vs stuck runs. Also look at what the stuck colonies are doing (which pond, which circle) to see why they stop at ~85.
+
+### Momentum (velocity blend) on the far-ponds, high-loss map (16 seeds, 200k ticks)
+
+Same map and settings as the far-ponds test above (`handfar`, energy loss 1.5, hydration loss 0.6, 2 hidden layers of 8, position on, memory off, noise off, result inputs off). Momentum α = 0.9. Per seed (1–16), mean population over ticks 100k–200k. Seeds 1–8 of "neither" and "wander" are the earlier far-ponds runs (identical settings); seeds 9–16 were added.
+
+| Setup | per seed | mean | stuck (<130) | good (130–175) | high (>175) |
+|---|---|---|---|---|---|
+| Neither | 170 167 89 169 166 81 82 167 89 90 172 82 85 171 185 87 | 128 | 8 | 7 | 1 |
+| Wander heading | 166 176 174 167 169 169 164 171 168 169 85 90 81 164 167 83 | 148 | 4 | 11 | 1 |
+| Momentum 0.9 | 87 187 179 93 171 85 88 174 89 91 85 178 89 86 118 179 | 124 | 10 | 2 | 4 |
+| Momentum 0.9 + wander | 82 174 115 176 186 178 172 179 160 174 179 176 175 178 178 176 | 166 | 2 | 5 | 9 |
+
+(Random movers on this map: 101.)
+
+- **Momentum + wander heading is the best setup:** 14 of 16 runs above 130, mean 166, and 9 of 16 runs above 175. No other setup gets more than 4 runs above 175 (1 for neither and wander only; 4 for momentum alone). The "high" count differs from wander-only at p ≈ 0.006 (Fisher's exact), so that part is solid.
+- **Fewer stuck runs:** 2 of 16, against 8 of 16 for neither. That comparison is borderline (p ≈ 0.05). Against wander only (4 of 16) it is not significant (p ≈ 0.65).
+- **Momentum alone does not fix getting stuck:** 10 of 16 runs stuck, no better than neither (p ≈ 0.7). It does raise the ceiling for runs that succeed (4 runs at 171–187), so it changes the level reached, not the reliability.
+- **Reading:** the two ideas do different jobs. Wander heading makes colonising everything more likely; momentum lets dots that do colonise it use the map better. Together they do both. This is a hypothesis fitted to these counts, not tested directly (for example by looking at which circles and ponds the high runs use).
+- Not tested: other momentum values on many seeds (a 4-seed scouting run at 0, 0.5, 0.8, 0.9, 0.95 was inconclusive because outcomes jump between ~85 and ~170), momentum with memory, the random number input with or without memory, and the age counter (not built).
