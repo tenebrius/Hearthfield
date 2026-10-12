@@ -175,6 +175,8 @@ So evolution does produce real, non-random behaviour (local food-seeking), but i
 
 ## 7. Changes made after the first handoff
 
+(Also added: **Brain sets momentum** (`brainMomentum`): one extra output (index 11, after the memory outputs; index 3 when memory is off) gives the carry-over each tick as `0.95 × sigmoid(output)`, replacing the Momentum slider. N_OUT is now 12 in the page, so genome sizes changed again. The WASM engine supports it.)
+
 (Later additions, in order: hand-made layouts `handmade` and `handfar`; the **Momentum** slider (`inertia`, 0–0.95). With momentum α the dot's velocity each tick is `α × old velocity + (1 − α) × the brain's move output`; 0 is the old behaviour. An eating tick counts as a zero command and the dot does not move; hitting an edge zeroes that velocity component; the random baseline ignores it. Results are at the end of this document.)
 
 All in `tools/forager-lab/forager-lab.html`:
@@ -355,3 +357,23 @@ Differences in mean (MW − MNA, 95% bootstrap interval): 0.9: −10.8 [−29.2,
 - **Noise + age depends on high momentum** (mean 136 → 116 → 106 as momentum falls): without strong momentum it has nothing that keeps a dot travelling in one direction.
 - Momentum lowers the ceiling for successful runs: runs above 175 fall from 7 to 4 to 0 for the wander setup as momentum falls from 0.9 to 0.4. 0.7 is a compromise between starting reliably and reaching high populations.
 - **Next ideas:** 0.8 and 0.6 for the wander setup; a brain-controlled momentum output (the dot sets how much velocity carries over each tick) as a way to remove the hand-picked value; check the JS engine at momentum 0.7 to confirm the engines agree.
+
+### Brain-controlled momentum (WASM engine, 64 seeds each, 200k ticks)
+
+Far-ponds, high-loss map as above; momentum is chosen by the brain every tick (0 to 0.95); the slider is ignored. BM = memory only, BMW = memory + wander heading, BMNA = memory + noise + age. Fixed-momentum rows are from the earlier runs (same seeds).
+
+| Setup | mean | median | collapsed | stuck | good or high | high (>175) |
+|---|---|---|---|---|---|---|
+| Fixed 0.7: wander + memory | 155.5 | 170 | 0 | 11 | 53 | 4 |
+| Fixed 0.9: noise + age + memory | 136.1 | 170 | 0 | 28 | 36 | 9 |
+| Fixed 0.7: noise + age + memory | 116.3 | 87 | 0 | 40 | 24 | 4 |
+| **BMW** brain momentum + wander + memory | **152.2** | 167 | 1 | 10 | 53 | 3 |
+| BMNA brain momentum + noise + age + memory | 120.4 | 90 | 0 | 37 | 27 | 1 |
+| BM brain momentum + memory only | 125.4 | 111 | 0 | 34 | 30 | 4 |
+
+Differences in mean (95% bootstrap interval): BMW − fixed 0.7 wander: −3.4 [−14.9, +8.5] (no difference); BMNA − fixed 0.9 noise + age: −15.8 [−29.8, −1.5] (slightly worse than the best fixed value); BMW − BMNA: +31.8 [+18.9, +44.5]; BMNA − BM: −5.0 [−19.3, +9.0].
+
+- **Brain-set momentum matches the best hand-picked value when the wander heading is present** (152 vs 155.5, same 53 of 64 good runs) and almost removes the collapses seen at fixed 0.9 (1 of 64 vs 14). So the value no longer needs to be tuned by hand.
+- **It does not replace the wander heading.** Noise + age under brain-set momentum is no better than memory alone (120 vs 125) and 32 dots below the wander setup.
+- Memory alone with brain-set momentum is no better than with a fixed value (125 vs about 125 to 130 for fixed 0.9 momentum only). The wander heading remains the one input that clearly improves exploration in these tests.
+- Not tested: what the brains actually do with the momentum output (for example whether they coast while travelling and drop it near food); other maps; more ticks.
