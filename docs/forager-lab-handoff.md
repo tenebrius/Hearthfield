@@ -258,3 +258,23 @@ Same map and settings as above (energy loss 1.0, hydration loss 0.3, 2 hidden la
 - **Memory and wander heading do not explain it on this map.** Setup E (no memory, no wander heading) is as good as the others. The differences among B, C, D and E (260–266) are small next to their seed-to-seed spread (sd 2.5–6) and are not shown to be real. Nominally wander-only is highest and memory + wander is lowest.
 - **So the advantage over random here comes from evolved local food and water seeking,** not from memory or exploration. The earlier two-circle food-only map is where the wander heading mattered (4 of 4 seeds colonised both circles vs 2 of 4 without it). On this map each food circle is large and ponds are reachable, so exploration may not be the limiting step.
 - Not tested, so treat as open: whether ~260 is a ceiling set by water supply (rough estimate ~290), harder maps (circles farther apart, ponds farther from food, higher hydration loss, moving food), and longer or larger-population runs. A test that could show memory or wander matters needs a map where they are needed: e.g. ponds out of sight of food, or food that moves.
+
+### Harder map: far ponds, high energy and hydration loss (8 seeds, 200k ticks)
+
+New layout `handfar`: same two food circles; ponds 7×7 in the top-left (tiles 2–8) and bottom-right (55–61) corners, about 45 tiles from the food. Energy loss 1.5, hydration loss 0.6, 2 hidden layers of 8, position on, result inputs off, cap 800. Value = mean population over ticks 100k–200k.
+
+Scouting (seed 1, 100k ticks) first: with far ponds and the old losses (1.0 / 0.3) random movers got 233, the same as with near ponds, so pond distance does not hurt a random walker. Raising the losses does: random movers fell to 170 (1.0 / 0.6), 120 (1.5 / 0.45) and 101 (1.5 / 0.6). The evolved lead grew with the harshness. 1.5 / 0.6 was used for the full test.
+
+| Setup | per seed (1–8) | mean | seeds near 167 ("good") | seeds near 85 ("stuck") |
+|---|---|---|---|---|
+| Random movers | 101 on every seed | 101 | n/a | n/a |
+| Memory + wander | 166 167 167 168 164 **87** 164 167 | 156 | 7 | 1 |
+| Wander only | 166 176 174 167 169 169 164 171 | 170 | 8 | 0 |
+| Memory only | 167 167 167 **85** 168 **84 86** 166 | 136 | 5 | 3 |
+| Neither | 170 167 **89** 169 166 **81 82** 167 | 136 | 5 | 3 |
+
+- **Evolved dots clearly beat random movers when they succeed:** a good run reaches ~167 against 101 for random, about 65% more. Every wander-only run did (+68.5 ± 1.4 vs random, 8/8).
+- **Outcomes are two-valued, not a spread.** A run lands near 167 (probably both food circles and both ponds in use) or near 85, which is below random (about half the map, most likely one colony). So the means (136–170) mix the two groups and understate how clean the pattern is. Compare the counts of good runs.
+- **Wander heading looks like it makes success more reliable:** 8/8 good with wander only, 7/8 with memory + wander, against 5/8 without wander (memory only and neither). Wander only vs neither: +33 ± 15 (t = 2.2). That is suggestive but not conclusive with 8 seeds (8/8 vs 5/8 is within what chance can produce, roughly p = 0.2 by Fisher's exact test). It also fits the earlier food-only two-circle result.
+- **Memory does not help here:** memory only equals neither (136.2 vs 136.4), and memory + wander is not better than wander only (156 vs 170; one stuck seed drives the difference).
+- **Next:** to settle wander vs no wander, run only those two setups on many more seeds (for example 24–32 each) at the same settings, and count good vs stuck runs. Also look at what the stuck colonies are doing (which pond, which circle) to see why they stop at ~85.
