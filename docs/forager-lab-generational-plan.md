@@ -330,3 +330,22 @@ Evolved gene period (median of the population, averaged over seeds; 10th to 90th
 - **The resettable timer did not help:** timer alone was below no clock in W0 (800 vs 819) and about equal elsewhere; gene + timer is about the same as the gene clock. Evolution did not find a use for it in 1000 generations.
 - **Worlds with fast thirst (W1) and slow thirst (W2) show small differences** between setups (W1: 578 to 643; W2: 685 to 721) and almost nobody survives the full round, so those worlds say less than W0. Eight seeds per cell is small; differences of under about 30 ticks should not be ranked.
 - **Run note:** the batch (216 runs) took 53 minutes against my estimate of 65 to 80.
+
+## Pond curriculum with self-tuning clocks, and a lower clock-gene mutation (8 seeds per cell)
+
+World: hydration loss 0.6, stores of 500, centre start, memory on, survival score. Curriculum: ponds slide from touching the food circles to the far corners in 8 steps (shift 0, 0.15, ... 1; a step ends when at least 15% of dots survive the whole round, averaged over 10 generations, or at the cap of 1000 generations for the first step and 400 for the others), keeping the population; after the last step it trains 300 more generations on the far map (the last step always runs its 400 generations because it has no early exit). Control: the same setup trained directly on the far map for 4000 generations. "Low mutation" sets `geneMut` to 0.05 (about 3.5% change in the period per generation) instead of 0.25 (about 19%). Cells are survived / full-round share / share that drank, on the far map, over the last generations.
+
+| Setup | After the curriculum (about 870 generations in total) | Direct, 4000 generations | Direct, 1000 generations (earlier W0 run) |
+|---|---|---|---|
+| Fixed period 200 | 893 / 50.5% / 87% | **921** / 63.5% / 91% | 887 / 50% / 87% |
+| Brain-set oscillator | 911 / 59.0% / 88% | 892 / 49.6% / 81% | 871 / 36% / 67% |
+| Gene clock + timer | **915** / 61.8% / 89% | 878 / 37.5% / 59% | 836 / 22% / 43% |
+| Gene clock + timer, low mutation | **915** / 57.4% / 92% | 870 / 39.2% / 59% | not run |
+
+- **The curriculum solves the far-pond task quickly:** every step took only 10 to 70 generations on average (one seed needed about 60 at the 0.75 step), compared with about 500 generations when the near ponds were learned with stores of 100. With stores of 500 the whole walk to the far corners took about 170 generations, plus the final 400 and 300.
+- **The curriculum helps the self-tuning clocks most.** Against direct training for a similar number of generations (the 1000-generation column), the curriculum gives gene clock + timer 915 against 836 (full-round share 62% against 22%) and the brain-set oscillator 911 against 871 (59% against 36%), but the fixed period only 893 against 887. After the curriculum the self-tuning versions are as good as the hand-picked fixed 200 (911 and 915 against 893; differences of this size are within the noise for 8 seeds). So with a curriculum nobody has to choose the period.
+- **More training helps the fixed clock more than the others:** direct training for 4000 generations takes fixed 200 to 921 (63.5%), above the self-tuning versions (870 to 892).
+- **Lower clock-gene mutation made no difference:** 915 / 57% against 915 / 62% after the curriculum, and 870 against 878 with direct training.
+- **Correction to the three-world section:** I wrote that the gene's period "tracks the world" because the averaged per-seed medians (281, 321, 70) were near each world's best fixed period. The per-seed values here show the average hides a split. In the direct 4000-generation runs the evolved median period was about 500 to 610 ticks in some seeds (550, 511, 536, 609 with the default mutation; 397, 322, 340 with low mutation) and only 11 to 50 ticks in others (15, 22, 47 and 11, 28, 48), with a few in between. Both short and long periods did well (a median period of 15 gave 925 survived; seeds with 540 to 610 gave 935 to 961), so the gene clock does not converge on one period. The claim that it finds each world's best period without being told is not supported.
+- **Not tested:** why short periods work as well (with the timer present the clock may be doing something else); the gene clock without the timer in the curriculum; more than 8 seeds.
+- **Run note:** the batch (64 runs) took 51 minutes against my estimate of 50 to 60.
