@@ -223,3 +223,23 @@ For comparison, no extras scored 804 survived with 8.0% full-round survivors (24
 - **The oscillator is still the strongest** (fixed 885 and 45% full; and the biggest drop when off, 287 ticks, in every seed).
 - **Caveat:** `age / 1000` uses the round length (1000 ticks) as its scale, so I handed the dots the horizon. A fair check would try scales unrelated to the round length (for example 500 and 2000), and a thermometer-style encoding (several threshold inputs).
 - **Run note:** the batch took 18 minutes, longer than my 12–15 minute estimate.
+
+## Combining clocks, and the age thermometer (16 seeds each, store 500)
+
+Same setup as the previous sections (far ponds, centre start, memory on, survival score, 1000 generations of training, then 10 evaluation rounds on and off). Thermometer = `ageTherm`: six inputs that switch on once a dot is at least 50, 100, 200, 400, 800 and 1600 ticks old. The "drop when off" columns switch one feature off at a time while the other stays on.
+
+| Setup | survived | full round | drank | drop when age feature off (se) | drop when oscillator off (se) |
+|---|---|---|---|---|---|
+| Oscillator (brain period) + linear age | 837 | 30.0% | 76% | 112 (15), 12 of 16 seeds | 211 (23), 15 of 16 |
+| Oscillator (brain period) + old age | 820 | 24.8% | 67% | 52 (9), 10 of 16 | 198 (29), 14 of 16 |
+| Oscillator (fixed 300) + linear age | 876 | 35.2% | 77% | 107 (17), 14 of 16 | 200 (23), 15 of 16 |
+| Thermometer alone | 826 | 24.9% | 81% | 198 (21), 16 of 16 | n/a |
+| Oscillator (brain period) + thermometer | 817 | 18.8% | 86% | 212 (22), 16 of 16 | 163 (18), 15 of 16 |
+
+References (earlier runs, same settings): no extras 804 survived and 8.0% full-round; brain-set oscillator alone 853 to 856 and 30% to 34%; fixed oscillator alone 884 and 45%; linear age alone 856 and 28%; old age alone 807 and 9%. The build was checked to reproduce the earlier numbers exactly.
+
+- **Time signals do not stack.** Adding linear age or the old age to the brain-set oscillator gives 837 and 820, no better than the oscillator alone (about 855). Adding linear age to the fixed oscillator gives 876 against 884 alone. The thermometer together with the oscillator is lower than either alone (817, 18.8% full). The dots use both signals when both are present (switching either off costs 100 to 200 ticks), so this is not a case of one being ignored, but the second signal brings no extra survival.
+- **The thermometer works as a clock on its own:** 826 survived, 25% full-round survivors (vs 8% with nothing) and 81% of dots drink (vs 25%). Its survival is below the linear age and the brain-set oscillator (about 855), by roughly 2 standard errors, so I would not call that difference settled.
+- **The best setup stays the fixed-period oscillator alone** (884 and 45%). It beats the thermometer by about 58 ticks (about 4 standard errors).
+- **Reading (reasoning, not tested):** any clean time signal gets most of the benefit; a second one adds inputs and weights for evolution to tune without adding information. The more opinionated the signal (fixed period 300), the better it did here.
+- **Run note:** the batch took 24 minutes (estimate 23 to 28).
