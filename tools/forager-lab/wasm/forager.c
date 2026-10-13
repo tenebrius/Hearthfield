@@ -33,7 +33,7 @@ enum Cfg {
   C_REGROW, C_WREGROW, C_LOSSE, C_LOSSW, C_MOVEE, C_MOVEW, C_GAINE, C_GAINW, C_MAXE, C_MAXW,
   C_STARTE, C_STARTW, C_REQE, C_REQW, C_PAYE, C_PAYW, C_KIDE, C_KIDW, C_STEPLEN, C_COOLDOWN,
   C_SIGHT, C_HIDDEN, C_LAYERS, C_MEMORY, C_POSITION, C_NOISE, C_AGE, C_FEEDBACK, C_TUMBLE,
-  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_COUNT
+  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_COUNT
 };
 static double CFG[64];
 EXPORT("cfg_ptr") double *cfg_ptr(void) { return CFG; }
@@ -483,7 +483,10 @@ void gen_round(void) {
   double sumSurv = 0, sumF = 0, sumW = 0, sumKey = 0; int full = 0, pond = 0, both = 0, drank = 0;
   for (int s = 0; s < GP; s++) {
     double surv = GDEAD[s] < 0 ? (double)L : (double)GDEAD[s], ft = GFOOD[s] / gE, wt = GWATER[s] / gW;
-    GKEY[s] = wS * surv + wF * ft + wW * wt + (GFOOD[s] + GWATER[s]) * 1e-6;
+    if (CFG[C_GSCOREMODE] == 1) {   // both are needed: score = the smaller of the weighted food and water totals (plus a small survival term)
+      double a = wF * ft, b = wW * wt;
+      GKEY[s] = (a < b ? a : b) + wS * surv * 1e-3 + (GFOOD[s] + GWATER[s]) * 1e-6;
+    } else GKEY[s] = wS * surv + wF * ft + wW * wt + (GFOOD[s] + GWATER[s]) * 1e-6;
     sumSurv += surv; sumF += ft; sumW += wt; sumKey += GKEY[s];
     if (GDEAD[s] < 0) full++;
     if (GVIS[s] & 1) pond++;
