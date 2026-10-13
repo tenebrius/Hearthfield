@@ -243,3 +243,20 @@ References (earlier runs, same settings): no extras 804 survived and 8.0% full-r
 - **The best setup stays the fixed-period oscillator alone** (884 and 45%). It beats the thermometer by about 58 ticks (about 4 standard errors).
 - **Reading (reasoning, not tested):** any clean time signal gets most of the benefit; a second one adds inputs and weights for evolution to tune without adding information. The more opinionated the signal (fixed period 300), the better it did here.
 - **Run note:** the batch took 24 minutes (estimate 23 to 28).
+
+## Brain-set age thermometer (16 seeds each, store 500)
+
+`thermMode` 1: one extra output sets the unit u = 12.5 x 16^sigmoid (12.5 to 200 ticks), steps at u x 1, 2, 4, 8, 16, 32. `thermMode` 2: six extra outputs, each step picks its own threshold, 10 x 200^sigmoid (10 to 2000 ticks). Thresholds change from the next tick on. Same setup as the other store-500 sections; evaluated on and off after training.
+
+| Setup | survived | full round | drank | off: survived | off: full | drop when off (se) |
+|---|---|---|---|---|---|---|
+| Thermometer, fixed steps (earlier) | 826 | 24.9% | 81% | n/a | n/a | 198 (21) |
+| Thermometer, brain sets the scale (1 output) | 804 | 18.2% | 77% | 541 | 3.6% | 263 (20), 16 of 16 seeds |
+| Thermometer, brain sets each step (6 outputs) | 840 | 22.0% | 47% | 472 | 1.4% | 368 (25), 16 of 16 seeds |
+
+References: no extras 804 and 8.0% full; fixed oscillator 885 and 45%; brain-set oscillator 853 and 30%.
+
+- **The dots depend on the brain-set thermometer in every seed** (switching it off costs 263 and 368 ticks), but neither version beats the fixed one: 804 and 840 against 826 survived, and 18% and 22% against 25% full-round survivors. The differences are within about 2 standard errors (about 12 each), so I would not rank them.
+- **Same pattern as the oscillator:** the hand-set version (fixed period, fixed steps) was as good as or better than the version where the brain sets the numbers. Letting the brain choose probably adds outputs and weights to tune without adding information. The cost of a fixed clock is that we chose the numbers.
+- **Odd detail, not explained:** with six outputs the dots survive longer (840) but only 47% drink, against 77% with one output and 81% with the fixed steps. Survival and drinking do not move together here, so something else must be adding survival; I have not looked.
+- **Run note:** the batch took 11 minutes (estimate 10 to 12).
