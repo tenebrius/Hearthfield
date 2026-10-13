@@ -185,3 +185,22 @@ Survived per seed: no extras 898, 891, 789, 799, 816, 718, 808, 833 (mean 819); 
 - **Caveats:** one batch of 8 seeds; the survived difference (about 52 ticks, seed spread 40–55) is suggestive (t about 2.2), the full-round share is the larger effect. Not tested: the age input as a clock, a fixed-period oscillator, store 500 without memory, other sight ranges.
 - **Run note:** the first attempt at this batch stopped part-way (33 of 56 runs finished) and I re-ran the 23 missing ones; the numbers above come from complete runs.
 - **Next:** repeat store 500 with 24 seeds for no extras, oscillator, age and fixed-period variants; look into why latch + oscillator is worse.
+
+## Oscillator, age input and fixed-period oscillator at store 500 (24 seeds, 1000 generations each)
+
+Far ponds, centre start, memory on, survival score, `maxE`, `maxW`, `startE`, `startW` = 500. Values are means over the last 20 generations, averaged over seeds. "oscfix" is `oscillator` with `oscPeriod` 300 (the brain has no period output).
+
+| Setup | survived | food | water | drank | full round |
+|---|---|---|---|---|---|
+| No extras | 804 | 48.0 | 1.1 | 25% | 8.0% |
+| Oscillator (brain sets period) | 856 | 48.8 | 3.9 | 65% | 33.5% |
+| Age input | 800 | 46.9 | 1.3 | 27% | 7.7% |
+| Oscillator, fixed period 300 | **884** | 51.8 | **5.0** | **85%** | **44.9%** |
+
+- **Survival gain over no extras (95% bootstrap interval):** oscillator +53 [+24, +80]; age −4 [−28, +20]; fixed oscillator +80 [+59, +102].
+- **Seeds where at least 15% of dots survive the full round:** no extras 5 of 24; oscillator 17 of 24 (p = 0.001, Fisher's exact test); age 5 of 24; fixed oscillator 22 of 24 (p < 0.001).
+- **The oscillator effect is confirmed:** the 8-seed result was not luck. A cycling clock roughly quadruples the share of dots that survive the whole round (8% to 34% or 45%).
+- **A rising counter does not help:** the age input is no better than nothing, so the benefit comes from a clock that cycles, not from any time signal.
+- **Letting the brain choose the period was worse than fixing it at 300** (856 vs 884, and 17 vs 22 good seeds); the fixed version also varies less between seeds (sd 31 vs 53). The period output is probably one more thing evolution has to get right. Caveat: 300 was my guess and not tuned, and a fixed period is more opinionated than a brain-set one.
+- **Not tested:** other fixed periods; why a cycle helps (my reading is that it times the pond trip, not checked by looking at what the dots do); stores below 500, where the extras made no difference earlier because the thirst wall is too close.
+- **Run note:** this batch also stopped twice part-way (28, then the rest re-run as a tracked task); all 96 runs are complete in the numbers above.
