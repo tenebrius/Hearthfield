@@ -53,6 +53,12 @@ All optional, so evolution can use whichever helps:
 3. **New building blocks:** latch registers and the oscillator input, in both engines, with checks.
 4. **Page:** a generational mode in the browser, to watch rounds play out with a score-per-generation chart.
 
+## What was added after the first results
+
+- `genSpawn` 1: every dot starts each round at the centre (32, 32).
+- Score weights `genWSurv`, `genWFood`, `genWWater` (defaults 1, 0, 0): score = wSurv × ticks survived + wFood × food tiles eaten + wWater × water tiles drunk. Each term is reported separately, plus the share of dots that drank.
+- Layout `handnear`: same food circles, one pond touching each (also in the browser page).
+
 ## How to run it
 
 ```sh
@@ -86,3 +92,28 @@ On the near-ponds map (`handmade`), memory, wander and wander + brain-set moment
 - **Evolved dots reach ponds no more often than random movers** (3–4% vs 6.8%). Staying on food and farming it is a good strategy up to the thirst wall, and leaving costs food, so selection does not push towards water.
 - **Why it is hard (reasoning, not tested):** to live past 167 ticks a dot must find food within about 65 ticks, then travel about 45 tiles to a pond it cannot see and drink, and later return to food. That is a coordinated plan with no reward until it all works.
 - **Ideas, in rough order of cost:** (1) make water the binding need earlier or food less binding (for example lower energy loss), so drinking is selected sooner; (2) a curriculum: ponds touching the food first, then moving them away; (3) the planned latch register and oscillator building blocks; (4) shape the score to reward drinking (more opinionated); (5) longer rounds or more dots.
+
+## Centre start, separate scoring, lower energy loss and near ponds (8 seeds, 1000 generations each, memory on)
+
+All rows start every dot in the centre. "survived" = mean ticks survived over the last 20 generations; food and water are tiles eaten and drunk per dot; "stood on pond" is the share of dots that stood on a water tile; "full" is the share that survived all 1000 ticks. Energy loss 1.5 and hydration loss 0.6 unless stated.
+
+| Map and setup | survived | food | water | drank | stood on pond | full |
+|---|---|---|---|---|---|---|
+| Far ponds, random movers | 64 | 0 | 0 | 0% | 0% | 0% |
+| Far, score = survival | 159 | 10.7 | 0.0 | 0% | 0% | 0% |
+| Far, score = food only | 159 | 10.7 | 0.0 | 0% | 0% | 0% |
+| Far, score = water only | 64 | 0.0 | 0.6 | 51% | 92% | 0% |
+| Far, score = food + water (equal weights) | 159 | 10.7 | 0.0 | 0% | 0% | 0% |
+| Far, energy loss 0.3, score = survival | 232 | 0.0 | 3.0 | 52% | 91% | 0% |
+| Far, energy loss 0.3, score = food + water | 213 | 11.9 | 2.4 | 21% | 21% | 3% |
+| Near ponds, random movers | 64 | 0 | 0 | 1% | 1% | 0% |
+| Near, score = survival | 415 | 35.6 | 8.2 | 76% | 77% | 25% |
+| Near, score = water only | 401 | 25.2 | 9.5 | 92% | 93% | 24% |
+| Near, score = food + water | 397 | 35.0 | 7.9 | 73% | 74% | 23% |
+
+- **From the centre, random movers all die at tick 64** (they never reach food), so the centre start is a much harder task than random starts. Evolved dots with survival scoring reach 159: they find food but not water.
+- **Scoring drinking directly works only when it is the only reward:** with water-only scoring 92% of dots walk to a pond (about 38 tiles away, out of sight) and half drink, so evolution *can* find far ponds from the centre. But those dots never eat and starve at tick 64.
+- **Summing food and water does not escape the food trap:** with equal weights evolution takes the easy reward (10.7 food tiles) and gets no water, because a pond trip earns less than a food tile does and costs the food. Both rewards are needed together, which a sum does not demand (a minimum or product would).
+- **Lower energy loss (0.3) makes survival scoring evolve water seeking** (91% stand on a pond) but at the cost of food: dots live on their starting energy (about 250 ticks) and ignore food. Mixed scoring gives mixed behaviour; one seed reached 363.
+- **The near-ponds map is solved in most seeds:** 25% of dots survive the full 1000 ticks and 76% drink, with survival scoring alone. Per seed (survival scoring): 498, 492, 469, 208, 475, 505, 176, 496; two seeds stalled near 180–210. So the curriculum idea works as a first step, and direct scoring of water is not needed once water is easy to find.
+- **Next candidates:** a score that needs both (minimum or product of food and water tiles); a curriculum that moves the ponds away in steps, starting from the near-ponds solution; then the planned latch register and oscillator input.
