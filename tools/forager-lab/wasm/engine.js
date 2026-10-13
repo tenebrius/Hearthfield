@@ -7,7 +7,7 @@ const W = 64, H = 64;
 const CFG_KEYS = ['regrow', 'waterRegrow', 'lossE', 'lossW', 'moveE', 'moveW', 'gainE', 'gainW', 'maxE', 'maxW',
   'startE', 'startW', 'reqE', 'reqW', 'payE', 'payW', 'kidE', 'kidW', 'stepLen', 'cooldown',
   'sight', 'hidden', 'layers', 'memory', 'position', 'noise', 'age', 'feedback', 'tumble',
-  'tumbleEvery', 'inertia', 'mutRate', 'mutSize', 'baseline', 'floorN', 'maxPop', 'brainMomentum'];
+  'tumbleEvery', 'inertia', 'mutRate', 'mutSize', 'baseline', 'floorN', 'maxPop', 'brainMomentum', 'genP', 'genLen', 'genElite', 'genTourn', 'genXover'];
 const CIRCLES = [[W * 0.75, H * 0.25], [W * 0.25, H * 0.75]], CR = 9;
 
 function pageDefaults() {
@@ -34,7 +34,7 @@ function buildMap(layout) {
 let moduleCache = null;
 class Engine {
   constructor(overrides, seed) {
-    this.cfg = Object.assign(pageDefaults(), overrides || {});
+    this.cfg = Object.assign(pageDefaults(), { genP: 200, genLen: 1000, genElite: 2, genTourn: 3, genXover: 0 }, overrides || {});
     if (this.cfg.shiftEvery > 0) throw new Error('food relocation (shiftEvery) is not supported by the WASM engine');
     if (this.cfg.archive) throw new Error('"newcomers copy parents" (archive) is not supported by the WASM engine');
     if (this.cfg.maxPop > 2000) throw new Error('maxPop above 2000 is not supported');
@@ -52,6 +52,13 @@ class Engine {
     x.init_world(seed >>> 0);
   }
   step(n) { this.x.step(n); }
+  // generational mode: genInit(seed) once, then genRound() per generation; stats describe the generation just evaluated
+  genInit(seed) { this.x.gen_init(seed >>> 0); }
+  genRound() {
+    this.x.gen_round();
+    const s = new Float64Array(this.mem, this.x.gen_stats_ptr(), 16);
+    return { gen: s[0], best: s[1], mean: s[2], median: s[3], fullShare: s[4], food: s[5], water: s[6], pondShare: s[7], bothShare: s[8], diversity: s[9], aliveAtEnd: s[10] };
+  }
   get pop() { return this.x.n_agents(); }
   stats() { const x = this.x; return { tick: x.tick(), pop: x.n_agents(), born: x.born(), starved: x.starved(), thirsty: x.thirsty() }; }
   // positions of all living dots, in the order the engine updates them

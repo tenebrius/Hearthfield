@@ -22,7 +22,7 @@ In the open-ended mode, dots live, eat, split and die whenever their energy allo
 | Start positions | **Random anywhere.** Centre start can be added later as an option. |
 | Selection | Tournament of 3 for each child, plus **elitism**: the best 2 are copied unchanged. |
 | Mutation | As in the open-ended mode: rate 0.1, size 0.2. |
-| Crossover | **Option, off by default:** uniform crossover (each weight from one of two parents). |
+| Crossover | **Option, off by default.** Mode 1: whole-neuron swap, so each hidden neuron index arrives intact from one parent (its incoming weights in layer 1, its outgoing weights in layer 2 and to the outputs). Mode 2: each weight from one of the two parents at random, for comparison. Crossover happens before mutation. |
 | Competition | All 200 dots share one map, so they compete for food and water within a round. |
 
 ## Measured every generation (measured, not rewarded)

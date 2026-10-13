@@ -10,6 +10,7 @@
 //     they could never change behaviour, so this only changes how many (neutral) mutations a genome would carry
 //   - forward pass in f32 with SIMD (weights stored input-major, so each input adds a whole row to the hidden layer,
 //     and inputs that are zero this tick are skipped)
+//   - generational mode (gen_init / gen_round): fixed-size rounds, tournament selection, elitism, optional crossover
 //   - not supported: food relocation (shiftEvery), the "newcomers copy parents" archive, mixed/split maps
 // Build: see build.sh. Config layout: keep CFG_KEYS in engine.js in the same order as enum Cfg.
 
@@ -32,7 +33,7 @@ enum Cfg {
   C_REGROW, C_WREGROW, C_LOSSE, C_LOSSW, C_MOVEE, C_MOVEW, C_GAINE, C_GAINW, C_MAXE, C_MAXW,
   C_STARTE, C_STARTW, C_REQE, C_REQW, C_PAYE, C_PAYW, C_KIDE, C_KIDW, C_STEPLEN, C_COOLDOWN,
   C_SIGHT, C_HIDDEN, C_LAYERS, C_MEMORY, C_POSITION, C_NOISE, C_AGE, C_FEEDBACK, C_TUMBLE,
-  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_COUNT
+  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_COUNT
 };
 static double CFG[64];
 EXPORT("cfg_ptr") double *cfg_ptr(void) { return CFG; }
@@ -107,6 +108,12 @@ static float G[(u64)MAXA * MAXG], INP[MAXA * N_IN], MEM[MAXA * N_MEM];
 static double AX[MAXA], AY[MAXA], AE[MAXA], AW[MAXA], AVX[MAXA], AVY[MAXA], AMX[MAXA], AMY[MAXA];
 static double AGRIP[MAXA], ABLK[MAXA], AEATRES[MAXA], AHX[MAXA], AHY[MAXA], AHT[MAXA];
 static int ACD[MAXA], AAGE[MAXA], AGEN[MAXA], AEAT[MAXA];
+// generational mode
+#define MAXGP 1000
+static int GENMODE, GP, GEN, ROUNDTICK, GDEAD[MAXA];
+static double GFOOD[MAXA], GWATER[MAXA], GKEY[MAXA], GSTATS[16];
+static u8 GVIS[MAXA];   // bit 0: stood on water, bit 1: on food circle A, bit 2: on food circle B
+static float G2[(u64)MAXGP * MAXG];
 static int ORD[MAXA], ORD2[MAXA], FREE[MAXA], KIDS[MAXA], NFREE, NAG;
 static int NH, NL, NW, ACT[N_IN], NACT, HP, OP, NOUT, GRIPIDX, OFF2, OFFO, NREAL, REAL[MAXG];
 static long long TICK, BORN, STARVED, THIRSTY;
@@ -327,6 +334,16 @@ EXPORT("out_ptr") float *out_ptr(void) { return OUTV; }
 EXPORT("mx_ptr") double *mx_ptr(void) { return AMX; }
 
 // ---------- one tick ----------
+static inline void mark_visit(int s) {
+  int kd = KIND[((int)AY[s]) * W + (int)AX[s]];
+  if (kd == 3) GVIS[s] |= 1;
+  else if (kd == 1) {
+    double dx = AX[s] - W * 0.75, dy = AY[s] - H * 0.25;
+    if (dx * dx + dy * dy <= 81) GVIS[s] |= 2;
+    else { dx = AX[s] - W * 0.25; dy = AY[s] - H * 0.75; if (dx * dx + dy * dy <= 81) GVIS[s] |= 4; }
+  }
+}
+
 EXPORT("step")
 void step(int count) {
   const double lossE = CFG[C_LOSSE], lossW = CFG[C_LOSSW], moveE = CFG[C_MOVEE], moveW = CFG[C_MOVEW];
@@ -355,8 +372,8 @@ void step(int count) {
       if (AEAT[s]) {
         ABLK[s] = 0;
         int idx = ((int)AY[s]) * W + (int)AX[s]; double amt = FOOD[idx]; int kd = KIND[idx];
-        if (kd == 1) { double v = AE[s] + amt * gainE; if (v > maxE) v = maxE; if (v > AE[s]) AE[s] = v; FOOD[idx] = 0; FM[idx / W] &= ~(1ULL << (idx % W)); }
-        else if (kd == 3) { double v = AW[s] + amt * gainW; if (v > maxW) v = maxW; if (v > AW[s]) AW[s] = v; FOOD[idx] = 0; WM[idx / W] &= ~(1ULL << (idx % W)); }
+        if (kd == 1) { double v = AE[s] + amt * gainE; if (v > maxE) v = maxE; if (v > AE[s]) AE[s] = v; GFOOD[s] += amt * gainE; FOOD[idx] = 0; FM[idx / W] &= ~(1ULL << (idx % W)); }
+        else if (kd == 3) { double v = AW[s] + amt * gainW; if (v > maxW) v = maxW; if (v > AW[s]) AW[s] = v; GWATER[s] += amt * gainW; FOOD[idx] = 0; WM[idx / W] &= ~(1ULL << (idx % W)); }
         AEATRES[s] = ((kd == 1 || kd == 3) && amt > 0.001) ? amt : -1;
       } else {
         AEATRES[s] = 0;
@@ -373,11 +390,12 @@ void step(int count) {
           le += moveE * speed; lw += moveW * speed;
         } else ABLK[s] = 0;
       }
+      if (GENMODE) mark_visit(s);
       AE[s] -= le; AW[s] -= lw;
       if (ACD[s] > 0) ACD[s]--;
-      if (AE[s] <= 0) { STARVED++; FREE[NFREE++] = s; continue; }
-      if (AW[s] <= 0) { THIRSTY++; FREE[NFREE++] = s; continue; }
-      if (ACD[s] <= 0 && AE[s] >= needE && AW[s] >= needW && nold + nkids < maxPop) {
+      if (AE[s] <= 0) { STARVED++; if (GENMODE) GDEAD[s] = ROUNDTICK + 1; else FREE[NFREE++] = s; continue; }
+      if (AW[s] <= 0) { THIRSTY++; if (GENMODE) GDEAD[s] = ROUNDTICK + 1; else FREE[NFREE++] = s; continue; }
+      if (!GENMODE && ACD[s] <= 0 && AE[s] >= needE && AW[s] >= needW && nold + nkids < maxPop) {
         AE[s] -= payE; AW[s] -= payW; ACD[s] = cooldown;
         int c = mutate_child(s); AE[c] = kidE; AW[c] = kidW; ACD[c] = 0;
         KIDS[nkids++] = c; BORN++;
@@ -387,7 +405,7 @@ void step(int count) {
     for (int k = 0; k < nkids; k++) ORD2[nalive++] = KIDS[k];
     for (int k = 0; k < nalive; k++) ORD[k] = ORD2[k];
     NAG = nalive;
-    while (NAG < floorN) ORD[NAG++] = random_agent();
+    if (!GENMODE) while (NAG < floorN) ORD[NAG++] = random_agent();
     const double rf = CFG[C_REGROW], rw = CFG[C_WREGROW];
     for (int k = 0; k < NFERT; k++) {
       int i = FERTILE[k];
@@ -405,3 +423,96 @@ void step(int count) {
     TICK++;
   }
 }
+
+// ---------- generational mode ----------
+static void random_genome(float *g) {
+  for (int i = 0; i < NW; i++) g[i] = 0;
+  for (int k = 0; k < NREAL; k++) g[REAL[k]] = (float)(gauss() * 0.5);
+}
+static void mutate_genome(float *g) {
+  double mr = CFG[C_MUTRATE], ms = CFG[C_MUTSIZE];
+  for (int k = 0; k < NREAL; k++) if (rng() < mr) g[REAL[k]] = (float)((double)g[REAL[k]] + gauss() * ms);
+}
+// child = mix of parents a and b. mode 1: whole hidden neurons from one parent (neuron h owns its layer-1 column,
+// its layer-2 row when there are two layers, and its output row); mode 2: every weight from one parent at random.
+static void crossover(float *child, const float *A, const float *B, int mode) {
+  for (int i = 0; i < NW; i++) child[i] = 0;
+  if (mode == 2) {
+    for (int k = 0; k < NREAL; k++) child[REAL[k]] = rng() < 0.5 ? A[REAL[k]] : B[REAL[k]];
+    return;
+  }
+  for (int h = 0; h < NH; h++) {
+    const float *src = rng() < 0.5 ? A : B;
+    for (int k = 0; k < NACT; k++) child[k * HP + h] = src[k * HP + h];
+    if (NL == 2) for (int c2 = 0; c2 < HP; c2++) child[OFF2 + h * HP + c2] = src[OFF2 + h * HP + c2];
+    for (int o = 0; o < OP; o++) child[OFFO + h * OP + o] = src[OFFO + h * OP + o];
+  }
+}
+EXPORT("cross_test") void cross_test(int a, int b, int mode, int out) { crossover(G + (u64)out * NW, G + (u64)a * NW, G + (u64)b * NW, mode); }
+
+EXPORT("gen_init")
+void gen_init(u32 seed) {
+  setup_brain();
+  rs = seed; as = seed * 7919u + 13u;
+  GENMODE = 1; GEN = 0; TICK = 0; BORN = 0; STARVED = 0; THIRSTY = 0;
+  GP = (int)CFG[C_GENP]; if (GP > MAXGP) GP = MAXGP; if (GP < 2) GP = 2;
+  for (int s = 0; s < GP; s++) random_genome(G + (u64)s * NW);
+}
+static int tournament(int T) {
+  int best = -1;
+  for (int j = 0; j < T; j++) { int i = (int)(rng() * GP); if (best < 0 || GKEY[i] > GKEY[best]) best = i; }
+  return best;
+}
+// runs one round on the current genomes, records GSTATS for it, then breeds the next generation in place
+EXPORT("gen_round")
+void gen_round(void) {
+  const int L = (int)CFG[C_GENLEN], E = (int)CFG[C_GENELITE], T = (int)CFG[C_GENTOURN], X = (int)CFG[C_GENXOVER];
+  for (int i = 0; i < W * H; i++) FOOD[i] = FERT[i];
+  rebuild_masks();
+  NAG = GP; TICK = 0;
+  for (int s = 0; s < GP; s++) {
+    ORD[s] = s; double x = rng() * W, y = rng() * H; new_agent(s, x, y, 0);
+    GDEAD[s] = -1; GFOOD[s] = 0; GWATER[s] = 0; GVIS[s] = 0;
+  }
+  for (int t = 0; t < L && NAG > 0; t++) { ROUNDTICK = t; step(1); }
+  // scores
+  static int idx[MAXGP]; double sumSurv = 0, sumF = 0, sumW = 0; int full = 0, pond = 0, both = 0;
+  for (int s = 0; s < GP; s++) {
+    double surv = GDEAD[s] < 0 ? (double)L : (double)GDEAD[s];
+    GKEY[s] = surv + (GFOOD[s] + GWATER[s]) * 1e-6;
+    sumSurv += surv; sumF += GFOOD[s]; sumW += GWATER[s];
+    if (GDEAD[s] < 0) full++;
+    if (GVIS[s] & 1) pond++;
+    if ((GVIS[s] & 6) == 6) both++;
+    idx[s] = s;
+  }
+  for (int i = 1; i < GP; i++) { int v = idx[i], j = i - 1; while (j >= 0 && GKEY[idx[j]] < GKEY[v]) { idx[j + 1] = idx[j]; j--; } idx[j + 1] = v; }
+  double diff = 0; int pairs = 0;
+  for (int i = 0; i < 100 && i < GP; i++) {
+    const float *a = G + (u64)i * NW, *b = G + (u64)((i * 7 + 3) % GP) * NW; double d = 0;
+    for (int k = 0; k < NREAL; k++) { double e2 = (double)a[REAL[k]] - (double)b[REAL[k]]; d += e2 < 0 ? -e2 : e2; }
+    diff += d / NREAL; pairs++;
+  }
+  GSTATS[0] = GEN;
+  GSTATS[1] = (double)(int)GKEY[idx[0]];
+  GSTATS[2] = sumSurv / GP;
+  GSTATS[3] = (double)(int)GKEY[idx[GP / 2]];
+  GSTATS[4] = (double)full / GP;
+  GSTATS[5] = sumF / GP; GSTATS[6] = sumW / GP;
+  GSTATS[7] = (double)pond / GP; GSTATS[8] = (double)both / GP;
+  GSTATS[9] = pairs ? diff / pairs : 0;
+  GSTATS[10] = NAG;
+  // next generation, bred into G2 then copied back
+  for (int c = 0; c < GP; c++) {
+    float *g = G2 + (u64)c * NW;
+    if (c < E) { const float *p = G + (u64)idx[c] * NW; for (int i = 0; i < NW; i++) g[i] = p[i]; continue; }
+    int a = tournament(T);
+    if (X) { int b = tournament(T); crossover(g, G + (u64)a * NW, G + (u64)b * NW, X); }
+    else { const float *p = G + (u64)a * NW; for (int i = 0; i < NW; i++) g[i] = p[i]; }
+    mutate_genome(g);
+  }
+  for (int c = 0; c < GP; c++) { float *g = G + (u64)c * NW; const float *p = G2 + (u64)c * NW; for (int i = 0; i < NW; i++) g[i] = p[i]; }
+  GEN++;
+}
+EXPORT("gen_stats_ptr") double *gen_stats_ptr(void) { return GSTATS; }
+EXPORT("gen_index") int gen_index(void) { return GEN; }

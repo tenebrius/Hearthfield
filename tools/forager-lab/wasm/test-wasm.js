@@ -66,5 +66,29 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const grip
   }
   check('forward pass, ' + layers + ' layer(s), memory ' + (memory ? 'on' : 'off') + ', brain momentum ' + (grip ? 'on' : 'off'), maxErr < 5e-4, 'max abs error on outputs ' + maxErr.toExponential(2));
 }
+// 4. crossover builds children from the two parents as described
+{
+  const e = new Engine({ layout: 'handfar', layers: 2, hidden: 8, memory: true, position: true, tumble: true }, 5), x = e.x;
+  x.gen_init(5);
+  const NW = x.genome_stride(), HP = x.layout_info(0), OP = x.layout_info(1), OFF2 = x.layout_info(2), OFFO = x.layout_info(3), NACT = x.layout_info(4), NH = 8;
+  const G = new Float32Array(e.mem, x.genome_ptr(), 2048 * NW);
+  const row = s => G.subarray(s * NW, (s + 1) * NW);
+  // identical parents give an identical child, in both modes
+  for (const mode of [1, 2]) { x.cross_test(0, 0, mode, 10); check('crossover of identical parents, mode ' + mode, row(10).every((v, i) => v === row(0)[i])); }
+  // mode 2: every weight comes from one of the parents, padding stays zero
+  x.cross_test(1, 2, 2, 11);
+  let bad = 0, fromA = 0, fromB = 0; const A = row(1), B = row(2), C = row(11);
+  for (let i = 0; i < NW; i++) { if (C[i] !== A[i] && C[i] !== B[i]) bad++; if (C[i] === A[i] && A[i] !== B[i]) fromA++; if (C[i] === B[i] && A[i] !== B[i]) fromB++; }
+  check('crossover mode 2 weights come from the parents', bad === 0 && fromA > 50 && fromB > 50, fromA + ' from A, ' + fromB + ' from B');
+  // mode 1: each hidden neuron (layer-1 column, layer-2 row, output row) is entirely from one parent
+  x.cross_test(1, 2, 1, 12);
+  const D = row(12); let split = 0, ca = 0, cb = 0;
+  for (let h = 0; h < NH; h++) {
+    const same = (P) => { for (let k = 0; k < NACT; k++) if (D[k * HP + h] !== P[k * HP + h]) return false; for (let c = 0; c < HP; c++) if (D[OFF2 + h * HP + c] !== P[OFF2 + h * HP + c]) return false; for (let o = 0; o < OP; o++) if (D[OFFO + h * OP + o] !== P[OFFO + h * OP + o]) return false; return true; };
+    const a = same(A), b = same(B); if (!a && !b) split++; if (a) ca++; if (b) cb++;
+  }
+  let padOk = true; for (let k = 0; k < NACT; k++) for (let c = NH; c < HP; c++) if (D[k * HP + c] !== 0) padOk = false;
+  check('crossover mode 1 keeps each neuron intact', split === 0 && padOk, ca + ' neurons from A, ' + cb + ' from B, ' + split + ' split');
+}
 console.log(failed ? failed + ' check(s) FAILED' : 'all checks passed');
 process.exit(failed ? 1 : 0);
