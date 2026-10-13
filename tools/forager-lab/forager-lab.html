@@ -263,6 +263,8 @@
           <input type="range" id="rTumble" min="10" max="1000" step="10" value="100"><small>Average ticks before a dot's wander heading is redrawn. Each redraw varies from half to one and a half times this.</small></div>
         <label class="check"><input type="checkbox" id="cAge"><span>Age input<small>Gives each dot a counter of how long it has lived, as one more input. It starts at 0 and climbs toward 1 (half way at 250 ticks), so a brain can change what it does as it gets older. Off: that input is always 0.</small></span></label>
         <label class="check"><input type="checkbox" id="cGrip"><span>Brain sets momentum<small>One extra output decides, every tick, how much of its velocity the dot keeps (between 0 and 0.95). The dot can coast at high momentum while travelling and drop it to turn or stop. On: the Momentum slider is ignored. Off: that output does nothing.</small></span></label>
+        <label class="check"><input type="checkbox" id="cLatch"><span>Latch register<small>Two extra inputs hold a random number each, and one extra output ("take a new sample") replaces both with fresh random numbers whenever it is above 0; otherwise they stay exactly as they were. A dot can use the held pair as a random heading that it keeps as long as it likes. Off: both inputs are 0.</small></span></label>
+        <label class="check"><input type="checkbox" id="cOsc"><span>Oscillator<small>Two extra inputs are a sine and cosine wave, a clock that cycles. One extra output sets how long a cycle lasts (4 to 400 ticks). Off: both inputs are 0.</small></span></label>
         <label class="check"><input type="checkbox" id="cBase"><span>Random baseline<small>Ignore the brains and move at random, to see what evolution adds.</small></span></label>
         <label class="check"><input type="checkbox" id="cArch"><span>Newcomers copy recent parents<small>On: replacement dots are mutated copies of dots that recently had children. That can favour dots that simply had spare resources, not skilled ones. Off: newcomers are random.</small></span></label>
       </section>
@@ -282,7 +284,7 @@
 <script>
 (function () {
   var W = 64, H = 64, CELL = 8;
-  var N_IN = 23, N_MEM = 4, N_OUT = 3 + 2 * N_MEM + 1, N_HID = 8, N_LAY = 1, N_W = N_IN * N_HID + N_HID * N_OUT;
+  var N_IN = 27, N_MEM = 4, N_OUT = 3 + 2 * N_MEM + 1 + 2, N_HID = 8, N_LAY = 1, N_W = N_IN * N_HID + N_HID * N_OUT;
   var ACTION_NAMES = ['resting', 'moving', 'eating'];
 
   var $ = function (id) { return document.getElementById(id); };
@@ -294,7 +296,7 @@
   var foodX0 = 0, foodX1 = 64, watX0 = 0, watX1 = 64;
   var pinned = new Uint8Array(64 * 64), paintMode = false, paintBrush = 'food', hoverTile = null, painting = false, lastPaint = null;
   var archive = [], safeBlobs, shifts = 0, shiftInfo = null, shiftTicks = [], selectedId = 0, rng, food, fert, kind, agents, tick, born, starved, thirsty, hist, nextId, paused = false;
-  var cfg = { regrow: 0.03, waterRegrow: 0.03, lossE: 0.3, lossW: 0.6, moveE: 0.1, moveW: 0, gainE: 30, gainW: 30, maxE: 100, maxW: 100, startE: 50, startW: 150, reqE: 85, reqW: 40, payE: 60, payW: 0, kidE: 40, kidW: 100, islands: 6, islandSize: 4, brush: 3, stepLen: 1, layout: 'mixed', cooldown: 0, archive: false, shiftEvery: 0, shiftPct: 50, sight: 5, hidden: 8, layers: 1, memory: true, position: true, noise: false, age: false, inertia: 0, brainMomentum: false, feedback: true, tumble: false, tumbleEvery: 100, mutRate: 0.1, mutSize: 0.2, speed: 12, baseline: false, floorN: 20, maxPop: 800 };
+  var cfg = { regrow: 0.03, waterRegrow: 0.03, lossE: 0.3, lossW: 0.6, moveE: 0.1, moveW: 0, gainE: 30, gainW: 30, maxE: 100, maxW: 100, startE: 50, startW: 150, reqE: 85, reqW: 40, payE: 60, payW: 0, kidE: 40, kidW: 100, islands: 6, islandSize: 4, brush: 3, stepLen: 1, layout: 'mixed', cooldown: 0, archive: false, shiftEvery: 0, shiftPct: 50, sight: 5, hidden: 8, layers: 1, memory: true, position: true, noise: false, age: false, inertia: 0, brainMomentum: false, oscillator: false, latch: false, feedback: true, tumble: false, tumbleEvery: 100, mutRate: 0.1, mutSize: 0.2, speed: 12, baseline: false, floorN: 20, maxPop: 800 };
 
   var rngState = 1;
   function mulberry32(a) {
@@ -408,7 +410,7 @@
   }
 
   function newAgent(x, y, g, gen, hue) {
-    return { id: nextId++, x: x, y: y, e: cfg.startE, w: cfg.startW, g: g, gen: gen, hue: hue, inputs: new Float32Array(N_IN), mem: new Float32Array(N_MEM), last: 0, mx: 0, my: 0, eat: false, cd: 0, blocked: 0, eatRes: 0, hd: 0, hdT: 0, vx: 0, vy: 0, age: 0, grip: 0 };
+    return { id: nextId++, x: x, y: y, e: cfg.startE, w: cfg.startW, g: g, gen: gen, hue: hue, inputs: new Float32Array(N_IN), mem: new Float32Array(N_MEM), last: 0, mx: 0, my: 0, eat: false, cd: 0, blocked: 0, eatRes: 0, hd: 0, hdT: 0, vx: 0, vy: 0, age: 0, grip: 0, ph: 0, l0: cfg.latch ? aux() * 2 - 1 : 0, l1: cfg.latch ? aux() * 2 - 1 : 0 };
   }
 
   function randomAgent() {
@@ -464,6 +466,8 @@
       inp[20] = Math.cos(a.hd); inp[21] = Math.sin(a.hd);
     } else { inp[20] = 0; inp[21] = 0; }
     inp[22] = cfg.age ? a.age / (a.age + 250) : 0;
+    inp[23] = cfg.oscillator ? Math.sin(6.283185307179586 * a.ph) : 0; inp[24] = cfg.oscillator ? Math.cos(6.283185307179586 * a.ph) : 0;
+    inp[25] = cfg.latch ? a.l0 : 0; inp[26] = cfg.latch ? a.l1 : 0;
   }
 
   var hidden = new Float32Array(N_HID), hidden2 = new Float32Array(N_HID);
@@ -497,6 +501,9 @@
       }
     }
     if (cfg.brainMomentum) a.grip = 0.95 / (1 + Math.exp(-outv[3 + 2 * N_MEM]));
+    // extra outputs after the memory outputs: momentum, latch trigger, oscillator period (the page always has all three output slots)
+    if (cfg.latch && outv[3 + 2 * N_MEM + 1] > 0) { a.l0 = aux() * 2 - 1; a.l1 = aux() * 2 - 1; }
+    if (cfg.oscillator) a.ph += 1 / (4 + 396 / (1 + Math.exp(-outv[3 + 2 * N_MEM + 2])));
   }
 
   function relocateFood() {
@@ -684,8 +691,8 @@
 
 
   // ---------- Brain diagram ----------
-  var INPUT_LABELS = ['food on my tile', 'water on my tile', 'nearest food: dir x', 'nearest food: dir y', 'nearest food: closeness', 'nearest water: dir x', 'nearest water: dir y', 'nearest water: closeness', 'my energy', 'my hydration', 'bias (always 1)', 'memory 1', 'memory 2', 'memory 3', 'memory 4', 'my x position', 'my y position', 'random number', 'last move blocked', 'last eat result', 'wander heading x', 'wander heading y', 'my age'];
-  var OUTPUT_LABELS = ['move: x', 'move: y', 'eat or drink', 'new memory 1', 'new memory 2', 'new memory 3', 'new memory 4', 'gate 1 (keep/replace)', 'gate 2', 'gate 3', 'gate 4', 'momentum (0 = steer, high = coast)'];
+  var INPUT_LABELS = ['food on my tile', 'water on my tile', 'nearest food: dir x', 'nearest food: dir y', 'nearest food: closeness', 'nearest water: dir x', 'nearest water: dir y', 'nearest water: closeness', 'my energy', 'my hydration', 'bias (always 1)', 'memory 1', 'memory 2', 'memory 3', 'memory 4', 'my x position', 'my y position', 'random number', 'last move blocked', 'last eat result', 'wander heading x', 'wander heading y', 'my age', 'oscillator: sin', 'oscillator: cos', 'latch value x', 'latch value y'];
+  var OUTPUT_LABELS = ['move: x', 'move: y', 'eat or drink', 'new memory 1', 'new memory 2', 'new memory 3', 'new memory 4', 'gate 1 (keep/replace)', 'gate 2', 'gate 3', 'gate 4', 'momentum (0 = steer, high = coast)', 'latch: take a new random sample', 'oscillator period'];
   var brain = { id: -1, hid: -1, lay: -1, inN: [], hidL: [], outN: [] };
   function svgEl(name, attrs) {
     var e = document.createElementNS('http://www.w3.org/2000/svg', name);
@@ -856,6 +863,8 @@
   bindRange('rTumble', 'oTumble', 'tumbleEvery', function (v) { return v + ' ticks'; });
   $('cAge').addEventListener('change', function (e) { cfg.age = e.target.checked; });
   $('cGrip').addEventListener('change', function (e) { cfg.brainMomentum = e.target.checked; });
+  $('cLatch').addEventListener('change', function (e) { cfg.latch = e.target.checked; });
+  $('cOsc').addEventListener('change', function (e) { cfg.oscillator = e.target.checked; });
   $('cPos').addEventListener('change', function (e) { cfg.position = e.target.checked; });
   $('cBase').addEventListener('change', function (e) { cfg.baseline = e.target.checked; });
   $('cArch').addEventListener('change', function (e) { cfg.archive = e.target.checked; });
@@ -947,7 +956,7 @@
 
   // ---------- Saved configurations (settings only) ----------
   var saves = [], SAVE_KEY = 'forager-lab-configs-v1', MAX_SAVES = 20, persisted = false;
-  var CHECKS = [['cMem', 'memory'], ['cPos', 'position'], ['cNoise', 'noise'], ['cGrip', 'brainMomentum'], ['cAge', 'age'], ['cFb', 'feedback'], ['cTumble', 'tumble'], ['cBase', 'baseline'], ['cArch', 'archive']];
+  var CHECKS = [['cMem', 'memory'], ['cPos', 'position'], ['cNoise', 'noise'], ['cGrip', 'brainMomentum'], ['cLatch', 'latch'], ['cOsc', 'oscillator'], ['cAge', 'age'], ['cFb', 'feedback'], ['cTumble', 'tumble'], ['cBase', 'baseline'], ['cArch', 'archive']];
 
   function captureConfig(label) {
     return { label: label, when: Date.now(), cfg: JSON.parse(JSON.stringify(cfg)), seed: seedVal() };
@@ -961,7 +970,7 @@
 
   function applyConfig(sv) {
     // keys missing from older saves fall back to the original behaviour, not to whatever is currently set
-    cfg.noise = false; cfg.age = false; cfg.inertia = 0; cfg.brainMomentum = false; cfg.feedback = false; cfg.tumble = false; cfg.tumbleEvery = 100; cfg.layers = 1; cfg.layout = 'mixed';
+    cfg.noise = false; cfg.age = false; cfg.inertia = 0; cfg.brainMomentum = false; cfg.latch = false; cfg.oscillator = false; cfg.feedback = false; cfg.tumble = false; cfg.tumbleEvery = 100; cfg.layers = 1; cfg.layout = 'mixed';
     Object.keys(sv.cfg).forEach(function (k) { cfg[k] = sv.cfg[k]; });
     $('iSeed').value = sv.seed;
     syncControls();
@@ -974,7 +983,7 @@
 
   function describe(sv) {
     var c = sv.cfg;
-    return 'seed ' + sv.seed + ' · ' + (c.layout === 'split' ? 'separated' : c.layout === 'circles' ? 'two circles' : c.layout === 'handmade' ? 'hand-made ponds' : c.layout === 'handfar' ? 'hand-made far ponds' : c.layout === 'handnear' ? 'hand-made near ponds' : 'mixed') + ' · ' + c.islands + ' islands · food ' + c.regrow + ' · water ' + c.waterRegrow + (c.lossE !== undefined ? ' · energy −' + c.lossE + '/tick · hydration −' + c.lossW + '/tick' : '') + ' · brain ' + (c.layers || 1) + '×' + c.hidden + (c.noise ? ' · random input' : '') + (c.age ? ' · age input' : '') + (c.feedback ? ' · result inputs' : '') + (c.tumble ? ' · wander ' + c.tumbleEvery : '') + (c.brainMomentum ? ' · brain sets momentum' : c.inertia ? ' · momentum ' + c.inertia : '');
+    return 'seed ' + sv.seed + ' · ' + (c.layout === 'split' ? 'separated' : c.layout === 'circles' ? 'two circles' : c.layout === 'handmade' ? 'hand-made ponds' : c.layout === 'handfar' ? 'hand-made far ponds' : c.layout === 'handnear' ? 'hand-made near ponds' : 'mixed') + ' · ' + c.islands + ' islands · food ' + c.regrow + ' · water ' + c.waterRegrow + (c.lossE !== undefined ? ' · energy −' + c.lossE + '/tick · hydration −' + c.lossW + '/tick' : '') + ' · brain ' + (c.layers || 1) + '×' + c.hidden + (c.noise ? ' · random input' : '') + (c.age ? ' · age input' : '') + (c.latch ? ' · latch' : '') + (c.oscillator ? ' · oscillator' : '') + (c.feedback ? ' · result inputs' : '') + (c.tumble ? ' · wander ' + c.tumbleEvery : '') + (c.brainMomentum ? ' · brain sets momentum' : c.inertia ? ' · momentum ' + c.inertia : '');
   }
 
   function renderSaves() {

@@ -44,11 +44,12 @@ check('log approximation', maxL < 1e-9, 'max abs error ' + maxL.toExponential(2)
 // 3. forward pass equals a plain JS implementation (Math.tanh, doubles), for 1 and 2 hidden layers and with memory on and off.
 //    Weight layout: input-major rows, columns padded to a multiple of 4; only inputs that can be non-zero have rows.
 for (const layers of [1, 2]) for (const memory of [true, false]) for (const grip of [false, true]) {
-  const e = new Engine({ layout: 'circles', layers, memory, brainMomentum: grip, hidden: 8, position: true, noise: true, age: true, feedback: true, tumble: true }, 3), x = e.x;
-  const NW = x.genome_stride(), NH = 8, N_IN = 23, HP = x.layout_info(0), OP = x.layout_info(1), OFF2 = x.layout_info(2), OFFO = x.layout_info(3), NACT = x.layout_info(4);
-  const NOUT = (memory ? 11 : 3) + (grip ? 1 : 0);
+  const extra = grip;   // the 'grip' case also switches on the latch and oscillator, so every extra output is exercised
+  const e = new Engine({ layout: 'circles', layers, memory, brainMomentum: grip, latch: extra, oscillator: extra, hidden: 8, position: true, noise: true, age: true, feedback: true, tumble: true }, 3), x = e.x;
+  const NW = x.genome_stride(), NH = 8, N_IN = 27, HP = x.layout_info(0), OP = x.layout_info(1), OFF2 = x.layout_info(2), OFFO = x.layout_info(3), NACT = x.layout_info(4);
+  const NOUT = (memory ? 11 : 3) + (grip ? 3 : 0);
   const act = Array.from(new Int32Array(e.mem, x.act_ptr(), NACT));
-  check('active inputs, memory ' + (memory ? 'on' : 'off'), act.length === (memory ? 23 : 19), act.length + ' of 23');
+  check('active inputs, memory ' + (memory ? 'on' : 'off') + ', extras ' + (extra ? 'on' : 'off'), act.length === (memory ? 23 : 19) + (extra ? 4 : 0), act.length + ' active');
   const ord = new Int32Array(e.mem, x.ord_ptr(), 40), G = new Float32Array(e.mem, x.genome_ptr(), 2048 * NW), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * N_IN);
   const OUT = new Float32Array(e.mem, x.out_ptr(), 16);
   let maxErr = 0;
@@ -89,6 +90,23 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const grip
   }
   let padOk = true; for (let k = 0; k < NACT; k++) for (let c = NH; c < HP; c++) if (D[k * HP + c] !== 0) padOk = false;
   check('crossover mode 1 keeps each neuron intact', split === 0 && padOk, ca + ' neurons from A, ' + cb + ' from B, ' + split + ' split');
+}
+// 5. oscillator and latch behave as described
+{
+  const e = new Engine({ layout: 'handfar', memory: true, oscillator: true, latch: true, maxPop: 300 }, 7), x = e.x;
+  e.step(300);
+  const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 27);
+  let badOsc = 0, nonZero = 0, outOfRange = 0;
+  for (let i = 0; i < n; i++) {
+    const inp = INP.subarray(ord[i] * 27, (ord[i] + 1) * 27);
+    if (Math.abs(inp[23] * inp[23] + inp[24] * inp[24] - 1) > 1e-3) badOsc++;
+    if (Math.abs(inp[25]) > 1 || Math.abs(inp[26]) > 1) outOfRange++;
+    if (inp[25] !== 0 || inp[26] !== 0) nonZero++;
+  }
+  check('oscillator inputs lie on the unit circle', badOsc === 0 && n > 0, n + ' dots checked');
+  check('latch values are random samples in [-1, 1]', outOfRange === 0 && nonZero === n, nonZero + ' of ' + n + ' non-zero');
+  let maxErr = 0; for (let v = -2; v <= 2; v += 0.001) maxErr = Math.max(maxErr, Math.abs(x.sin2pi_test(v) - Math.sin(2 * Math.PI * v)));
+  check('sin(2 pi x) approximation', maxErr < 1e-5, 'max abs error ' + maxErr.toExponential(2));
 }
 console.log(failed ? failed + ' check(s) FAILED' : 'all checks passed');
 process.exit(failed ? 1 : 0);

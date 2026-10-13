@@ -21,19 +21,19 @@ typedef unsigned long long u64;
 
 #define W 64
 #define H 64
-#define N_IN 23
+#define N_IN 27
 #define N_MEM 4
 #define N_OUT (3 + 2 * N_MEM)
 #define MAXHID 32
 #define MAXA 2048
-#define MAXG (N_IN * MAXHID + MAXHID * MAXHID + MAXHID * 12)   // input-major layers, columns padded to a multiple of 4
+#define MAXG (N_IN * MAXHID + MAXHID * MAXHID + MAXHID * 16)   // input-major layers, columns padded to a multiple of 4
 #define MIN_SEE 0.2
 
 enum Cfg {
   C_REGROW, C_WREGROW, C_LOSSE, C_LOSSW, C_MOVEE, C_MOVEW, C_GAINE, C_GAINW, C_MAXE, C_MAXW,
   C_STARTE, C_STARTW, C_REQE, C_REQW, C_PAYE, C_PAYW, C_KIDE, C_KIDW, C_STEPLEN, C_COOLDOWN,
   C_SIGHT, C_HIDDEN, C_LAYERS, C_MEMORY, C_POSITION, C_NOISE, C_AGE, C_FEEDBACK, C_TUMBLE,
-  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_COUNT
+  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_COUNT
 };
 static double CFG[64];
 EXPORT("cfg_ptr") double *cfg_ptr(void) { return CFG; }
@@ -106,7 +106,7 @@ EXPORT("rebuild_masks") void rebuild_masks_export(void) { rebuild_masks(); }
 // ---------- agents (struct of arrays, indexed by slot; ord[] is the iteration order) ----------
 static float G[(u64)MAXA * MAXG], INP[MAXA * N_IN], MEM[MAXA * N_MEM];
 static double AX[MAXA], AY[MAXA], AE[MAXA], AW[MAXA], AVX[MAXA], AVY[MAXA], AMX[MAXA], AMY[MAXA];
-static double AGRIP[MAXA], ABLK[MAXA], AEATRES[MAXA], AHX[MAXA], AHY[MAXA], AHT[MAXA];
+static double APH[MAXA], ALAT[MAXA][2], AGRIP[MAXA], ABLK[MAXA], AEATRES[MAXA], AHX[MAXA], AHY[MAXA], AHT[MAXA];
 static int ACD[MAXA], AAGE[MAXA], AGEN[MAXA], AEAT[MAXA];
 // generational mode
 #define MAXGP 1000
@@ -115,7 +115,7 @@ static double GFOOD[MAXA], GWATER[MAXA], GKEY[MAXA], GSTATS[24];
 static u8 GVIS[MAXA];   // bit 0: stood on water, bit 1: on food circle A, bit 2: on food circle B
 static float G2[(u64)MAXGP * MAXG];
 static int ORD[MAXA], ORD2[MAXA], FREE[MAXA], KIDS[MAXA], NFREE, NAG;
-static int NH, NL, NW, ACT[N_IN], NACT, HP, OP, NOUT, GRIPIDX, OFF2, OFFO, NREAL, REAL[MAXG];
+static int NH, NL, NW, ACT[N_IN], NACT, HP, OP, NOUT, GRIPIDX, LATIDX, OSCIDX, OFF2, OFFO, NREAL, REAL[MAXG];
 static long long TICK, BORN, STARVED, THIRSTY;
 
 EXPORT("n_agents") int n_agents(void) { return NAG; }
@@ -137,7 +137,10 @@ EXPORT("act_ptr") int *act_ptr(void) { return ACT; }
 static void setup_brain(void) {
   NH = (int)CFG[C_HIDDEN]; NL = (int)CFG[C_LAYERS];
   HP = (NH + 3) & ~3; NOUT = CFG[C_MEMORY] != 0 ? N_OUT : 3;
-  GRIPIDX = NOUT; if (CFG[C_BRAINMOM] != 0) NOUT += 1;   // the momentum output comes after the memory outputs (or after eat when memory is off)
+  // extra outputs come after the memory outputs (or after eat when memory is off), in this order when enabled: momentum, latch trigger, oscillator period
+  GRIPIDX = NOUT; if (CFG[C_BRAINMOM] != 0) NOUT += 1;
+  LATIDX = NOUT; if (CFG[C_LATCH] != 0) NOUT += 1;
+  OSCIDX = NOUT; if (CFG[C_OSC] != 0) NOUT += 1;
   OP = (NOUT + 3) & ~3;
   NACT = 0;
   for (int i = 0; i < N_IN; i++) {
@@ -148,6 +151,8 @@ static void setup_brain(void) {
     else if (i == 18 || i == 19) on = CFG[C_FEEDBACK] != 0;
     else if (i == 20 || i == 21) on = CFG[C_TUMBLE] != 0;
     else if (i == 22) on = CFG[C_AGE] != 0;
+    else if (i == 23 || i == 24) on = CFG[C_OSC] != 0;
+    else if (i == 25 || i == 26) on = CFG[C_LATCH] != 0;
     if (on) ACT[NACT++] = i;
   }
   OFF2 = NACT * HP; OFFO = OFF2 + (NL == 2 ? NH * HP : 0); NW = OFFO + NH * OP;
@@ -162,6 +167,8 @@ static int alloc_slot(void) { return FREE[--NFREE]; }
 static void new_agent(int s, double x, double y, int gen) {
   AX[s] = x; AY[s] = y; AE[s] = CFG[C_STARTE]; AW[s] = CFG[C_STARTW];
   AVX[s] = AVY[s] = AMX[s] = AMY[s] = 0; ABLK[s] = AEATRES[s] = 0; AHX[s] = AHY[s] = 0; AHT[s] = 0;
+  APH[s] = 0; ALAT[s][0] = ALAT[s][1] = 0;
+  if (CFG[C_LATCH] != 0) { ALAT[s][0] = aux() * 2 - 1; ALAT[s][1] = aux() * 2 - 1; }   // a latch starts holding a random sample
   AGRIP[s] = 0; ACD[s] = 0; AAGE[s] = 0; AGEN[s] = gen; AEAT[s] = 0;
   for (int m = 0; m < N_MEM; m++) MEM[s * N_MEM + m] = 0;
 }
@@ -235,6 +242,17 @@ double nearest_test(double x, double y, int R, int want) {
   return (double)i;
 }
 
+// sin(2*pi*x) from a polynomial (no libm here); x is any real number
+static inline double sin2pi(double x) {
+  x -= (double)(long long)x; if (x < 0) x += 1;          // [0, 1)
+  double t = (x - 0.5) * 6.283185307179586;                // [-pi, pi): sin(2*pi*x) = -sin(t)
+  const double half = 1.5707963267948966;
+  if (t > half) t = 3.141592653589793 - t; else if (t < -half) t = -3.141592653589793 - t;
+  double t2 = t * t, r = t * (1 + t2 * (-1.0 / 6 + t2 * (1.0 / 120 + t2 * (-1.0 / 5040 + t2 * (1.0 / 362880)))));
+  return -r;
+}
+EXPORT("sin2pi_test") double sin2pi_test(double x) { return sin2pi(x); }
+
 static void sense(int s) {
   float *inp = INP + s * N_IN;
   double x = AX[s], y = AY[s];
@@ -269,6 +287,8 @@ static void sense(int s) {
     inp[20] = (float)AHX[s]; inp[21] = (float)AHY[s];
   }
   if (CFG[C_AGE] != 0) inp[22] = (float)(AAGE[s] / (AAGE[s] + 250.0));
+  if (CFG[C_OSC] != 0) { inp[23] = (float)sin2pi(APH[s]); inp[24] = (float)sin2pi(APH[s] + 0.25); }
+  if (CFG[C_LATCH] != 0) { inp[25] = (float)ALAT[s][0]; inp[26] = (float)ALAT[s][1]; }
 }
 
 // ---------- thinking ----------
@@ -316,12 +336,14 @@ static void think(int s) {
     for (int v = 0; v < nvh; v++) *(v4f *)(HID2 + 4 * v) = vtanh(acc[v]);
     last = HID2;
   }
-  v4f oacc[3];
+  v4f oacc[4];
   layer(last, NH, g + OFFO, OP, OP, oacc);
   for (int v = 0; v < (OP >> 2); v++) *(v4f *)(OUTV + 4 * v) = oacc[v];
   v4f mv = vtanh(*(v4f *)OUTV);
   AMX[s] = mv[0]; AMY[s] = mv[1]; AEAT[s] = OUTV[2] > 0;
   if (CFG[C_BRAINMOM] != 0) AGRIP[s] = 0.95 * 0.5 * (1 + ftanh(0.5 * OUTV[GRIPIDX]));
+  if (CFG[C_LATCH] != 0 && OUTV[LATIDX] > 0) { ALAT[s][0] = aux() * 2 - 1; ALAT[s][1] = aux() * 2 - 1; }   // trigger: take a new random sample, otherwise hold
+  if (CFG[C_OSC] != 0) APH[s] += 1.0 / (4 + 396 * 0.5 * (1 + ftanh(0.5 * OUTV[OSCIDX])));   // the brain sets the period, 4 to 400 ticks
   if (CFG[C_MEMORY] != 0) {   // memory: mem = gate * tanh(value) + (1 - gate) * mem, four registers at once
     v4f nv = vtanh(*(v4f *)(OUTV + 3));
     v4f gate = splat(0.5f) * (splat(1) + vtanh(splat(0.5f) * *(v4f *)(OUTV + 3 + N_MEM)));
