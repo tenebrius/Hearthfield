@@ -65,6 +65,12 @@ All optional, so evolution can use whichever helps:
 - Layout `handcurr` with `pondShift` 0 to 1: the ponds slide from touching the food circles (same as `handnear`) to the corners (same as `handfar`). `wasm/run-curriculum.js` walks the ponds out in 8 steps (0, 0.15, ... 1) keeping the population.
 - `wasm/run-objective.js`: first reward only drinking until most dots stand on a pond, then switch to the normal score. `Engine.setCfg(key, value)` changes a setting between rounds.
 
+## Added later: latch register, oscillator
+
+- `latch` (inputs 25, 26; output "take a new random sample"): two random numbers held until the brain triggers a new sample; a dot starts with a random sample.
+- `oscillator` (inputs 23, 24; output "period"): sine and cosine of a phase that advances by 1 / period each tick, period set by the brain between 4 and 400 ticks.
+- Both are in the page (checkboxes) and the WASM engine, off by default. `Engine.setCfg` and `run-objective.js` are unchanged.
+
 ## How to run it
 
 ```sh
@@ -142,3 +148,40 @@ Means over the last 20 generations (last 10 of the final far-ponds stage for the
 - **Min score keeps drinking alive but costs food:** with the curriculum, 64% of dots drink, but food falls to 4.2 tiles and survival to 124. The score only counts the smaller total, and water stays near 1 tile, so improving food is not rewarded.
 - **Objective curriculum:** drinking-only scoring gets 80% of dots to a far pond in about 31 generations (so evolution finds the far ponds easily when it is the only reward), but once survival is scored the behaviour vanishes within the 700 generations: a dot that heads for the pond from the start dies of hunger at tick 64, while a dot that farms food lives to 159, so selection removes the pond trip.
 - **What the three failures have in common (reasoning, not tested):** living past about tick 160 needs a trip that comes *after* eating, triggered by thirst, to a pond that is out of sight, and an energy store that is too small (100, only about 65 ticks of energy at loss 1.5) to make that trip affordable. The things to try next target exactly that: a bigger energy and hydration store (`maxE`, `maxW`, `startE`, `startW` 300), a bigger sight range (8), and the planned latch register and oscillator input.
+
+## Bigger stores and sight range (8 seeds, 1000 generations, far ponds, centre start, memory on, survival score)
+
+`maxE`, `maxW`, `startE` and `startW` set together. Baseline (store 100): survived 159, no drinking.
+
+| Setup | survived | food | water | drank | full round |
+|---|---|---|---|---|---|
+| Store 200 | 320 | 20.8 | 0.0 | 0% | 0% |
+| Store 300 | 481 | 29.8 | 0.5 | 17% | 0.5% |
+| Store 500 | 819 | 47.7 | 1.9 | 37% | 14.5% |
+| Sight 8 | 160 | 10.6 | 0.0 | 0% | 0% |
+| Sight 12 | 160 | 10.7 | 0.0 | 0% | 0% |
+| Store 300 + sight 8 | 506 | 31.3 | 1.7 | 27% | 5% |
+
+- **A bigger store mostly moves the thirst wall:** survival tracks store ÷ hydration loss (200 ÷ 0.6 = 333, 300 ÷ 0.6 = 500, 500 ÷ 0.6 = 833) and comes out at 320, 481 and 819. At 200 and 300 the dots still mostly do not drink. At 500 the wall is close enough to the round length that drinking adds survivors: 37% drink and 14.5% survive the whole round, the first time anyone has on the far map.
+- **Sight range makes no difference** (160 vs 159) even at 12: the ponds are 38 or more tiles away.
+
+## Latch register and oscillator (8 seeds, 1000 generations, far ponds, centre start, memory on, survival score)
+
+Store 100 (default): latch 159, oscillator 158, latch + oscillator 159. No effect: the thirst wall at 167 ticks decides everything.
+
+Store 500 (`maxE`, `maxW`, `startE`, `startW` = 500); reference without extras: survived 819, drank 37%, full round 14.5%.
+
+| Setup | survived | food | water | drank | full round |
+|---|---|---|---|---|---|
+| Wander heading | 788 | 44.1 | 0.8 | 12% | 3.6% |
+| Latch | 817 | 50.9 | 1.1 | 18% | 9.1% |
+| **Oscillator** | **871** | 51.2 | **4.1** | **67%** | **36.2%** |
+| Latch + oscillator | 807 | 47.9 | 0.0 | 0.4% | 0% |
+
+Survived per seed: no extras 898, 891, 789, 799, 816, 718, 808, 833 (mean 819); oscillator 943, 898, 863, 894, 889, 828, 810, 841 (mean 871); every oscillator seed is at least 810.
+
+- **The oscillator is the one building block that helped:** at store 500, 67% of dots drink (vs 37%) and 36% survive the whole round (vs 14.5%). The wander heading made it worse (12% drink), the latch alone made no clear difference, and latch + oscillator together was worst (0.4% drink), which I cannot explain yet.
+- **Reading (reasoning, not tested):** a clock lets a dot schedule the trip, eat first and then go drink at a set time, which is the "trip after eating, triggered by time or thirst" the earlier results pointed to. The oscillator also costs nothing unless used.
+- **Caveats:** one batch of 8 seeds; the survived difference (about 52 ticks, seed spread 40–55) is suggestive (t about 2.2), the full-round share is the larger effect. Not tested: the age input as a clock, a fixed-period oscillator, store 500 without memory, other sight ranges.
+- **Run note:** the first attempt at this batch stopped part-way (33 of 56 runs finished) and I re-ran the 23 missing ones; the numbers above come from complete runs.
+- **Next:** repeat store 500 with 24 seeds for no extras, oscillator, age and fixed-period variants; look into why latch + oscillator is worse.
