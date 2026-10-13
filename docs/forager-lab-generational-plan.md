@@ -302,3 +302,31 @@ Share of ALL dots at a pond (%) / share that have drunk (%) / share still alive 
   The best periods are about 200 to 300; 300 is not special. The brain-set oscillator (853, 30%) has an average period inside that band but a blurry clock.
 - **Idea not yet tried:** make the period a per-dot gene (one number that never changes during a life) instead of a network output. If that matches the fixed oscillator, the wobble is the cause. Caveat: four seeds per trace setup is small; for example six-output thermometer shows 89% drinking here against 47% in the 16-seed batch, so its numbers should not be read as typical.
 - **Run note:** the batch took 21 minutes (estimate 17 to 20).
+
+## Clock gene and resettable timer, across three worlds (8 seeds per cell, 1000 generations)
+
+Built: `oscGene` (the oscillator's period is a per-dot gene, log2 of the period, starts uniform over 8 to 800 ticks, always drifts by sd 0.25 log2 units per generation, never changes during a life, no period output) and `timer` (input: log2(1 + ticks since last reset) / 11; output: reset when above 0). Both are in the page and the engine. Model after The Bibites: a clock whose speed is a gene (their ClockSpeed) and a resettable counter (their Minute and ClkReset).
+
+Worlds (far ponds, centre start, memory on, survival score, energy loss 1.5): W0 hydration loss 0.6 with stores of 500 (thirst wall 833 ticks); W1 hydration loss 0.9 with stores of 500 (wall 556); W2 hydration loss 0.4 with stores of 300 (wall 750). Mean ticks survived over the last 20 generations, with the share of dots that drank at least once and the share that survived the full 1000-tick round:
+
+| Setup | W0 survived / drank / full | W1 survived / drank / full | W2 survived / drank / full |
+|---|---|---|---|
+| No clock | 819 / 37% / 14.5% | 595 / 70% / 1.1% | 685 / 1% / 0% |
+| Fixed period 100 | 845 / 62% / 28% | 592 / 84% / 2.1% | **721** / 17% / 4.9% |
+| Fixed period 200 | **887** / 87% / 50% | 609 / 84% / 3.4% | 706 / 48% / 8.8% |
+| Fixed period 400 | 860 / 72% / 31% | **643** / 92% / 3.8% | 686 / 22% / 0.4% |
+| Fixed period 800 | 837 / 48% / 16% | 606 / 87% / 0.1% | 703 / 21% / 0.1% |
+| Oscillator, brain sets the period | 871 / 67% / 36% | 605 / 76% / 2.0% | 709 / 29% / 11% |
+| Oscillator, period is a gene | 846 / 47% / 23% | 609 / 84% / 1.6% | 710 / 0% / 0% |
+| Timer only | 800 / 18% / 2.5% | 578 / 56% / 1.1% | 693 / 15% / 2.9% |
+| Gene clock + timer | 836 / 43% / 22% | 624 / 89% / 4.1% | 706 / 0.2% / 0% |
+
+Evolved gene period (median of the population, averaged over seeds; 10th to 90th percentile): W0 281 (110 to 569); W1 321 (189 to 581); W2 70 (25 to 344). Gene + timer: W0 243, W1 366, W2 53.
+
+- **The gene's period tracks the world.** The best fixed period was 200 in W0, 400 in W1 and 100 in W2 (on a coarse grid), and the evolved gene medians were 281, 321 and 70: the right band each time, without anyone choosing it. The spread inside a population is wide (for example 110 to 569 in W0), so it is far from converged.
+- **But the gene clock performs worse than the best fixed period in every world** (gene minus best fixed: -41 in W0, 95% interval -67 to -10; -35 in W1, -64 to -10; -11 in W2, -27 to +1) and, in W0, worse than the brain-set oscillator (846 vs 871). In W2 the gene clock produced no drinking at all (0%).
+- **The earlier explanation does not hold up.** I had suggested the brain-set period fell short because it wobbles during a life; the gene clock has no wobble at all, yet it did not beat the brain-set one. Wobble is not the main reason, or at least removing it is not enough. Another candidate, not tested: the gene mutates by about 19% per generation, so the weights are tuned to a clock that keeps moving; a smaller gene mutation might help.
+- **The brain-set oscillator is the most robust choice across worlds.** Its shortfall from the best fixed period is 16 ticks (2%) in W0, 38 (6%) in W1 and 12 (2%) in W2, with no period chosen by hand. Any single fixed period is a good choice in one world and a worse one elsewhere (for example 100 is best in W2 and 42 ticks worse in W0). Fixed 200 is the best single hand-pick (regret 0, 34, 15), about the same as the brain-set version's.
+- **The resettable timer did not help:** timer alone was below no clock in W0 (800 vs 819) and about equal elsewhere; gene + timer is about the same as the gene clock. Evolution did not find a use for it in 1000 generations.
+- **Worlds with fast thirst (W1) and slow thirst (W2) show small differences** between setups (W1: 578 to 643; W2: 685 to 721) and almost nobody survives the full round, so those worlds say less than W0. Eight seeds per cell is small; differences of under about 30 ticks should not be ranked.
+- **Run note:** the batch (216 runs) took 53 minutes against my estimate of 65 to 80.
