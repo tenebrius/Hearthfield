@@ -244,6 +244,8 @@
           <input type="range" id="rMutRate" min="0.01" max="0.6" step="0.01" value="0.10"><small>Share of a child's weights that get nudged.</small></div>
         <div class="ctl"><label for="rMutSize">Mutation size</label><output id="oMutSize"></output>
           <input type="range" id="rMutSize" min="0.02" max="1.5" step="0.01" value="0.2"><small>How far each nudged weight moves.</small></div>
+        <div class="ctl"><label for="rGeneMut">Clock gene mutation</label><output id="oGeneMut"></output>
+          <input type="range" id="rGeneMut" min="0.01" max="0.5" step="0.01" value="0.25"><small>How far the clock gene (the oscillator period when "Oscillator period from a gene" is on) drifts in each child, in doublings of the period. 0.25 is about 19% per generation; lower values keep the period steadier from one generation to the next.</small></div>
         <div class="ctl"><label for="rLay">Hidden layers</label><output id="oLay"></output>
           <input type="range" id="rLay" min="1" max="2" step="1" value="1"><small>How many layers of neurons sit between the inputs and the outputs. Two layers can combine the inputs in two steps, but it adds weights to evolve. Takes effect on Reset.</small></div>
         <div class="ctl"><label for="rHid">Neurons per hidden layer</label><output id="oHid"></output>
@@ -301,7 +303,7 @@
   var foodX0 = 0, foodX1 = 64, watX0 = 0, watX1 = 64;
   var pinned = new Uint8Array(64 * 64), paintMode = false, paintBrush = 'food', hoverTile = null, painting = false, lastPaint = null;
   var archive = [], safeBlobs, shifts = 0, shiftInfo = null, shiftTicks = [], selectedId = 0, rng, food, fert, kind, agents, tick, born, starved, thirsty, hist, nextId, paused = false;
-  var cfg = { regrow: 0.03, waterRegrow: 0.03, lossE: 0.3, lossW: 0.6, moveE: 0.1, moveW: 0, gainE: 30, gainW: 30, maxE: 100, maxW: 100, startE: 50, startW: 150, reqE: 85, reqW: 40, payE: 60, payW: 0, kidE: 40, kidW: 100, islands: 6, islandSize: 4, brush: 3, stepLen: 1, layout: 'mixed', cooldown: 0, archive: false, shiftEvery: 0, shiftPct: 50, sight: 5, hidden: 8, layers: 1, memory: true, position: true, noise: false, age: false, inertia: 0, brainMomentum: false, oscillator: false, oscGene: false, timer: false, latch: false, ageTherm: false, thermMode: 0, feedback: true, tumble: false, tumbleEvery: 100, mutRate: 0.1, mutSize: 0.2, speed: 12, baseline: false, floorN: 20, maxPop: 800 };
+  var cfg = { regrow: 0.03, waterRegrow: 0.03, lossE: 0.3, lossW: 0.6, moveE: 0.1, moveW: 0, gainE: 30, gainW: 30, maxE: 100, maxW: 100, startE: 50, startW: 150, reqE: 85, reqW: 40, payE: 60, payW: 0, kidE: 40, kidW: 100, islands: 6, islandSize: 4, brush: 3, stepLen: 1, layout: 'mixed', cooldown: 0, archive: false, shiftEvery: 0, shiftPct: 50, sight: 5, hidden: 8, layers: 1, memory: true, position: true, noise: false, age: false, inertia: 0, brainMomentum: false, oscillator: false, oscGene: false, geneMut: 0.25, timer: false, latch: false, ageTherm: false, thermMode: 0, feedback: true, tumble: false, tumbleEvery: 100, mutRate: 0.1, mutSize: 0.2, speed: 12, baseline: false, floorN: 20, maxPop: 800 };
 
   var rngState = 1;
   function mulberry32(a) {
@@ -434,7 +436,7 @@
   function mutate(parent) {
     var g = parent.g.slice();
     for (var i = 0; i < g.length - 1; i++) if (rng() < cfg.mutRate) g[i] += gauss() * cfg.mutSize;
-    g[g.length - 1] = Math.min(10, Math.max(2, g[g.length - 1] + gauss() * 0.25));   // the clock gene always drifts a little: about 19% in the period per generation
+    g[g.length - 1] = Math.min(10, Math.max(2, g[g.length - 1] + gauss() * cfg.geneMut));   // the clock gene always drifts a little: 0.25 is about 19% in the period per generation
     return newAgent(parent.x, parent.y, g, parent.gen + 1, (parent.hue + (rng() - 0.5) * 6 + 360) % 360);
   }
 
@@ -868,6 +870,7 @@
   bindRange('rCool', 'oCool', 'cooldown', function (v) { return v + ' ticks'; });
   bindRange('rBrush', 'oBrush', 'brush', function (v) { return v + (v === 1 ? ' tile' : ' tiles wide'); });
   bindRange('rMutRate', 'oMutRate', 'mutRate', function (v) { return Math.round(v * 100) + '%'; });
+  bindRange('rGeneMut', 'oGeneMut', 'geneMut', function (v) { return v.toFixed(2) + ' (' + Math.round((Math.pow(2, v) - 1) * 100) + '% per generation)'; });
   bindRange('rMutSize', 'oMutSize', 'mutSize', function (v) { return v.toFixed(2); });
   $('sLayout').addEventListener('change', function (e) { cfg.layout = e.target.value; });
   $('cMem').addEventListener('change', function (e) { cfg.memory = e.target.checked; });
