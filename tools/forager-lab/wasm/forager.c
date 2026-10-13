@@ -33,7 +33,7 @@ enum Cfg {
   C_REGROW, C_WREGROW, C_LOSSE, C_LOSSW, C_MOVEE, C_MOVEW, C_GAINE, C_GAINW, C_MAXE, C_MAXW,
   C_STARTE, C_STARTW, C_REQE, C_REQW, C_PAYE, C_PAYW, C_KIDE, C_KIDW, C_STEPLEN, C_COOLDOWN,
   C_SIGHT, C_HIDDEN, C_LAYERS, C_MEMORY, C_POSITION, C_NOISE, C_AGE, C_FEEDBACK, C_TUMBLE,
-  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_COUNT
+  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_COUNT
 };
 static double CFG[64];
 EXPORT("cfg_ptr") double *cfg_ptr(void) { return CFG; }
@@ -140,7 +140,7 @@ static void setup_brain(void) {
   // extra outputs come after the memory outputs (or after eat when memory is off), in this order when enabled: momentum, latch trigger, oscillator period
   GRIPIDX = NOUT; if (CFG[C_BRAINMOM] != 0) NOUT += 1;
   LATIDX = NOUT; if (CFG[C_LATCH] != 0) NOUT += 1;
-  OSCIDX = NOUT; if (CFG[C_OSC] != 0) NOUT += 1;
+  OSCIDX = NOUT; if (CFG[C_OSC] != 0 && CFG[C_OSCPERIOD] <= 0) NOUT += 1;   // oscPeriod > 0 fixes the period, so there is no period output
   OP = (NOUT + 3) & ~3;
   NACT = 0;
   for (int i = 0; i < N_IN; i++) {
@@ -343,7 +343,7 @@ static void think(int s) {
   AMX[s] = mv[0]; AMY[s] = mv[1]; AEAT[s] = OUTV[2] > 0;
   if (CFG[C_BRAINMOM] != 0) AGRIP[s] = 0.95 * 0.5 * (1 + ftanh(0.5 * OUTV[GRIPIDX]));
   if (CFG[C_LATCH] != 0 && OUTV[LATIDX] > 0) { ALAT[s][0] = aux() * 2 - 1; ALAT[s][1] = aux() * 2 - 1; }   // trigger: take a new random sample, otherwise hold
-  if (CFG[C_OSC] != 0) APH[s] += 1.0 / (4 + 396 * 0.5 * (1 + ftanh(0.5 * OUTV[OSCIDX])));   // the brain sets the period, 4 to 400 ticks
+  if (CFG[C_OSC] != 0) APH[s] += CFG[C_OSCPERIOD] > 0 ? 1.0 / CFG[C_OSCPERIOD] : 1.0 / (4 + 396 * 0.5 * (1 + ftanh(0.5 * OUTV[OSCIDX])));   // the brain sets the period (4 to 400 ticks), or it is fixed by oscPeriod
   if (CFG[C_MEMORY] != 0) {   // memory: mem = gate * tanh(value) + (1 - gate) * mem, four registers at once
     v4f nv = vtanh(*(v4f *)(OUTV + 3));
     v4f gate = splat(0.5f) * (splat(1) + vtanh(splat(0.5f) * *(v4f *)(OUTV + 3 + N_MEM)));
