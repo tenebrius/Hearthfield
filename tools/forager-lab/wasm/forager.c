@@ -33,7 +33,7 @@ enum Cfg {
   C_REGROW, C_WREGROW, C_LOSSE, C_LOSSW, C_MOVEE, C_MOVEW, C_GAINE, C_GAINW, C_MAXE, C_MAXW,
   C_STARTE, C_STARTW, C_REQE, C_REQW, C_PAYE, C_PAYW, C_KIDE, C_KIDW, C_STEPLEN, C_COOLDOWN,
   C_SIGHT, C_HIDDEN, C_LAYERS, C_MEMORY, C_POSITION, C_NOISE, C_AGE, C_FEEDBACK, C_TUMBLE,
-  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_COUNT
+  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_AGESCALE, C_COUNT
 };
 static double CFG[64];
 EXPORT("cfg_ptr") double *cfg_ptr(void) { return CFG; }
@@ -286,7 +286,10 @@ static void sense(int s) {
     AHT[s] -= 1;
     inp[20] = (float)AHX[s]; inp[21] = (float)AHY[s];
   }
-  if (CFG[C_AGE] != 0) inp[22] = (float)(AAGE[s] / (AAGE[s] + 250.0));
+  if (CFG[C_AGE] != 0) {   // ageScale > 0: linear age / ageScale capped at 1; otherwise the saturating age / (age + 250)
+    double a = AAGE[s];
+    inp[22] = (float)(CFG[C_AGESCALE] > 0 ? (a < CFG[C_AGESCALE] ? a / CFG[C_AGESCALE] : 1.0) : a / (a + 250.0));
+  }
   if (CFG[C_OSC] != 0) { inp[23] = (float)sin2pi(APH[s]); inp[24] = (float)sin2pi(APH[s] + 0.25); }
   if (CFG[C_LATCH] != 0) { inp[25] = (float)ALAT[s][0]; inp[26] = (float)ALAT[s][1]; }
 }
@@ -486,8 +489,8 @@ static int tournament(int T) {
   return best;
 }
 // runs one round on the current genomes, records GSTATS for it, then breeds the next generation in place
-EXPORT("gen_round")
-void gen_round(void) {
+EXPORT("gen_round_ex")
+void gen_round_ex(int breed) {
   const int L = (int)CFG[C_GENLEN], E = (int)CFG[C_GENELITE], T = (int)CFG[C_GENTOURN], X = (int)CFG[C_GENXOVER];
   for (int i = 0; i < W * H; i++) FOOD[i] = FERT[i];
   rebuild_masks();
@@ -534,6 +537,7 @@ void gen_round(void) {
   GSTATS[10] = NAG;
   GSTATS[11] = sumKey / GP;               // mean score
   GSTATS[12] = (double)drank / GP;        // share that drank at least once
+  if (!breed) return;   // evaluation only: leave the genomes as they are
   // next generation, bred into G2 then copied back
   for (int c = 0; c < GP; c++) {
     float *g = G2 + (u64)c * NW;
@@ -548,3 +552,4 @@ void gen_round(void) {
 }
 EXPORT("gen_stats_ptr") double *gen_stats_ptr(void) { return GSTATS; }
 EXPORT("gen_index") int gen_index(void) { return GEN; }
+EXPORT("gen_round") void gen_round(void) { gen_round_ex(1); }
