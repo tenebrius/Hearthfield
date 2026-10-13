@@ -17,9 +17,26 @@ function pageDefaults() {
   return new Function('return ' + m[1])();
 }
 
-function buildMap(layout, shift) {
+// small seeded generator for map layouts (separate from the engine's own random streams)
+function mapRng(seed) { let a = seed >>> 0; return () => { a += 0x6D2B79F5; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+// randpond: the food circles stay where they are; `n` 7x7 ponds are placed at random, each at least `minDist` tiles
+// (centre to centre) from both food circle centres, and not touching each other. Same mapSeed gives the same layout.
+function randomPonds(mapSeed, n, minDist) {
+  const r = mapRng(mapSeed * 2654435761 + 12345), out = [];
+  for (let tries = 0; out.length < n; tries++) {
+    if (tries > 10000) throw new Error('could not place ponds with minDist ' + minDist);
+    const x = Math.floor(r() * (W - 6)), y = Math.floor(r() * (H - 6)), cx = x + 3.5, cy = y + 3.5;
+    if (CIRCLES.some(c => Math.hypot(cx - c[0], cy - c[1]) < minDist)) continue;
+    if (out.some(p => Math.max(Math.abs(p[0] - x), Math.abs(p[1] - y)) < 8)) continue;
+    out.push([x, y]);
+  }
+  return out;
+}
+
+function buildMap(layout, shift, mapSeed, pondN, pondMin) {
   const kind = new Uint8Array(W * H), fert = new Float32Array(W * H);
-  if (!['circles', 'handmade', 'handfar', 'handnear', 'handcurr'].includes(layout)) throw new Error('layout "' + layout + '" is not supported by the WASM engine (use circles, handmade, handfar, handnear or handcurr)');
+  if (!['circles', 'handmade', 'handfar', 'handnear', 'handcurr', 'randpond'].includes(layout)) throw new Error('layout "' + layout + '" is not supported by the WASM engine (use circles, handmade, handfar, handnear, handcurr or randpond)');
   for (let i = 0; i < W * H; i++) {
     const px = i % W + 0.5, py = Math.floor(i / W) + 0.5;
     for (const c of CIRCLES) { const dx = px - c[0], dy = py - c[1]; if (dx * dx + dy * dy <= CR * CR) { kind[i] = 1; fert[i] = 0.8; } }
@@ -27,7 +44,7 @@ function buildMap(layout, shift) {
   if (layout !== 'circles') {
     const lerp = (a, b, t) => Math.round(a + (b - a) * t), t = shift || 0;
     // handcurr: ponds slide from touching the food circles (t = 0, same as handnear) out to the corners (t = 1, same as handfar)
-    const ponds = layout === 'handfar' ? [[2, 2], [55, 55]] : layout === 'handnear' ? [[45, 26], [13, 32]] : layout === 'handcurr' ? [[lerp(45, 55, t), lerp(26, 55, t)], [lerp(13, 2, t), lerp(32, 2, t)]] : [[13, 13], [45, 45]];
+    const ponds = layout === 'randpond' ? randomPonds(mapSeed || 0, pondN || 2, pondMin || 30) : layout === 'handfar' ? [[2, 2], [55, 55]] : layout === 'handnear' ? [[45, 26], [13, 32]] : layout === 'handcurr' ? [[lerp(45, 55, t), lerp(26, 55, t)], [lerp(13, 2, t), lerp(32, 2, t)]] : [[13, 13], [45, 45]];
     for (const p of ponds) for (let y = p[1]; y < p[1] + 7; y++) for (let x = p[0]; x < p[0] + 7; x++) { kind[y * W + x] = 3; fert[y * W + x] = 0.8; }
   }
   return { kind, fert };
@@ -47,13 +64,14 @@ class Engine {
     this.mem = mem;
     const c = new Float64Array(mem, x.cfg_ptr(), 64);
     CFG_KEYS.forEach((k, i) => { c[i] = +this.cfg[k]; });
-    this.setMap(this.cfg.layout, this.cfg.pondShift);
+    this.setMap(this.cfg.layout, this.cfg.pondShift, this.cfg.mapSeed, this.cfg.pondN, this.cfg.pondMin);
     this.seed = seed;
     x.init_world(seed >>> 0);
   }
   // replace the map between rounds without touching the dots (used by the curriculum runner)
-  setMap(layout, shift) {
-    const map = buildMap(layout, shift);
+  // randpond takes a mapSeed (which layout), pondN (number of ponds, default 2) and pondMin (minimum distance from the food, default 30)
+  setMap(layout, shift, mapSeed, pondN, pondMin) {
+    const map = buildMap(layout, shift, mapSeed, pondN, pondMin);
     new Uint8Array(this.mem, this.x.kind_ptr(), W * H).set(map.kind);
     new Float32Array(this.mem, this.x.fert_ptr(), W * H).set(map.fert);
   }
@@ -107,4 +125,4 @@ class Engine {
     return o;
   }
 }
-module.exports = { Engine, CFG_KEYS, W, H, CIRCLES, CR, pageDefaults };
+module.exports = { Engine, randomPonds, CFG_KEYS, W, H, CIRCLES, CR, pageDefaults };
