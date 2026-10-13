@@ -204,3 +204,22 @@ Far ponds, centre start, memory on, survival score, `maxE`, `maxW`, `startE`, `s
 - **Letting the brain choose the period was worse than fixing it at 300** (856 vs 884, and 17 vs 22 good seeds); the fixed version also varies less between seeds (sd 31 vs 53). The period output is probably one more thing evolution has to get right. Caveat: 300 was my guess and not tuned, and a fixed period is more opinionated than a brain-set one.
 - **Not tested:** other fixed periods; why a cycle helps (my reading is that it times the pond trip, not checked by looking at what the dots do); stores below 500, where the extras made no difference earlier because the thirst wall is too close.
 - **Run note:** this batch also stopped twice part-way (28, then the rest re-run as a tracked task); all 96 runs are complete in the numbers above.
+
+## Are the dots using the age input and the oscillator? Ablation and a linear age (16 seeds each, store 500)
+
+Setup as above (far ponds, centre start, memory on, survival score, 1000 generations of training). After training, the same population is evaluated for 10 rounds with no breeding, first as trained ("on") and then with the feature switched off so its inputs stay at 0 ("off"). `ageScale` 1000 makes the age input linear (`age / 1000`, capped at 1); without it the input is the saturating `age / (age + 250)`.
+
+| Feature | on: survived | full | drank | off: survived | full | drank | drop when off (se) | seeds with a drop of 50+ ticks |
+|---|---|---|---|---|---|---|---|---|
+| Age, saturating `age / (age + 250)` | 807 | 9.3% | 30% | 687 | 6.2% | 24% | 120 (26) | 10 of 16 |
+| **Age, linear `age / 1000`** | **856** | **27.9%** | **55%** | 735 | 16.3% | 39% | 121 (19) | 13 of 16 |
+| Oscillator, fixed period 300 | 885 | 45.0% | 88% | 599 | 5.1% | 46% | 287 (18) | 16 of 16 |
+| Oscillator, brain-set period | 853 | 29.6% | 63% | 655 | 5.6% | 33% | 199 (21) | 16 of 16 |
+
+For comparison, no extras scored 804 survived with 8.0% full-round survivors (24 seeds, sd 46).
+
+- **The earlier conclusion that age does not help was wrong, or at least premature.** With the saturating encoding the dots do use the input (switching it off costs 120 ticks), but it brings no net gain (807 vs 804). With a linear encoding it helps clearly: 856 survived and 28% full-round survivors vs 804 and 8% with nothing (about +52 ticks, roughly 3.5 standard errors), similar to the brain-set oscillator (853, 30%).
+- **The encoding mattered.** The saturating form changes by only about 0.2 between ticks 300 and 800, exactly where timing matters, so evolution would need very large weights to read it. A straight line gives a clear signal throughout.
+- **The oscillator is still the strongest** (fixed 885 and 45% full; and the biggest drop when off, 287 ticks, in every seed).
+- **Caveat:** `age / 1000` uses the round length (1000 ticks) as its scale, so I handed the dots the horizon. A fair check would try scales unrelated to the round length (for example 500 and 2000), and a thermometer-style encoding (several threshold inputs).
+- **Run note:** the batch took 18 minutes, longer than my 12–15 minute estimate.
