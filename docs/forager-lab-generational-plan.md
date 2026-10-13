@@ -260,3 +260,43 @@ References: no extras 804 and 8.0% full; fixed oscillator 885 and 45%; brain-set
 - **Same pattern as the oscillator:** the hand-set version (fixed period, fixed steps) was as good as or better than the version where the brain sets the numbers. Letting the brain choose probably adds outputs and weights to tune without adding information. The cost of a fixed clock is that we chose the numbers.
 - **Odd detail, not explained:** with six outputs the dots survive longer (840) but only 47% drink, against 77% with one output and 81% with the fixed steps. Survival and drinking do not move together here, so something else must be adding survival; I have not looked.
 - **Run note:** the batch took 11 minutes (estimate 10 to 12).
+
+## What the dots actually do, why a brain-set period falls short, and how special period 300 is
+
+Tool: `wasm/run-trace.js` trains for 1000 generations, then replays one round of the trained population tick by tick (no breeding) and logs where the dots are, their energy and hydration, who has eaten or drunk, and (for the oscillator) the period each dot chooses. 4 seeds per setup, store 500, far ponds, centre start, memory on. "At a pond" means within 8 tiles of a pond centre, "at food" within 9 tiles of a food circle centre.
+
+| Setup (4 seeds) | survived | full | ever drank | median tick of first drink | pond entries per dot |
+|---|---|---|---|---|---|
+| No extras | 794 | 9% | 33% | 270 | 0.5 |
+| Oscillator, fixed 300 | 875 | 42% | 86% | 228 | 1.5 |
+| Oscillator, brain-set | 854 | 23% | 46% | 218 | 1.0 |
+| Linear age | 827 | 14% | 32% | 517 | 0.6 |
+| Thermometer, fixed steps | 831 | 34% | 90% | 272 | 1.5 |
+| Thermometer, six brain-set steps | 872 | 46% | 89% | 250 | 1.6 |
+
+Share of dots at a pond (%) / share that have drunk (%) / share still alive (%), by tick:
+
+| Setup | tick 100 | 300 | 500 | 800 | 900 |
+|---|---|---|---|---|---|
+| No extras | 7 / 20 / 100 | 1 / 22 / 100 | 2 / 25 / 91 | 3 / 32 / 80 | 9 / 66 / 24 |
+| Oscillator, fixed 300 | 33 / 35 / 100 | 4 / 49 / 100 | 11 / 66 / 92 | 16 / 84 / 83 | 11 / 86 / 61 |
+| Linear age | 6 / 8 / 100 | 3 / 11 / 100 | 4 / 15 / 93 | 13 / 29 / 87 | 54 / 64 / 40 |
+| Thermometer, fixed steps | 47 / 45 / 100 | 7 / 53 / 100 | 13 / 72 / 86 | 17 / 90 / 75 | 8 / 90 / 53 |
+
+- **Without a clock the dots farm food and wait.** About 85% stand at a food circle from tick 200; hydration falls in a straight line to about 40 by tick 800 and most die of thirst around tick 830 to 900 (alive 80% at tick 800, 24% at 900). Only a third ever drink.
+- **With a cycling or stepped clock, a third to a half of the dots are at a pond already by tick 100 to 200** (33% oscillator, 47% thermometer), long before they are thirsty (average hydration is still about 450), then most return to food by tick 300, and pond visits continue at 10% to 17% through the rest of the round. Almost everyone (86% to 90%) drinks at least once, and far more dots are alive at tick 900. So the clock gives the dots a timed, repeated pond trip instead of one trip they are too late for.
+- **A rising counter gives only a last-minute trip:** with the linear age almost nobody is at a pond until tick 800, then 54% crowd there at tick 900 when the thirst wall is arriving, and alive falls to 40%. (The age input still helps compared with no clock, but its trip comes late.)
+- **Why a brain-set period falls short (measured):** the period a dot chooses is not steady. For the brain-set oscillator, one dot's period wobbles by a typical standard deviation of 145 to 177 ticks around its own mean (coefficient of variation 0.67 to 0.94), because the period output depends on the same inputs as the rest of the brain (position, energy, hydration). The average period across dots is near the good range (medians 180 to 237 ticks), but spread widely across dots (10th to 90th percentile 77 to 268). So the dots find about the right average period, but not a steady clock, which is what the fixed oscillator provides exactly. Making the output steady would need the weights from all of the inputs to the period output to shrink to nearly zero, and a small wobble costs little, so selection pushes weakly while mutation keeps adding noise.
+- **Period sweep (fixed period oscillator, 12 seeds each; no oscillator 804 survived, 8% full, 25% drank):**
+
+| Period | survived | drank | full | sd of survived |
+|---|---|---|---|---|
+| 100 | 830 | 68% | 27% | 86 |
+| 200 | **886** | 88% | 50% | 21 |
+| 300 (24 seeds) | 884 | 85% | 45% | 46 |
+| 500 | 857 | 64% | 31% | 39 |
+| 800 | 833 | 46% | 15% | 32 |
+
+  The best periods are about 200 to 300; 300 is not special. The brain-set oscillator (853, 30%) has an average period inside that band but a blurry clock.
+- **Idea not yet tried:** make the period a per-dot gene (one number that never changes during a life) instead of a network output. If that matches the fixed oscillator, the wobble is the cause. Caveat: four seeds per trace setup is small; for example six-output thermometer shows 89% drinking here against 47% in the 16-seed batch, so its numbers should not be read as typical.
+- **Run note:** the batch took 21 minutes (estimate 17 to 20).
