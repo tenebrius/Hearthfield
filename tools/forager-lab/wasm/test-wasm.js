@@ -46,7 +46,7 @@ check('log approximation', maxL < 1e-9, 'max abs error ' + maxL.toExponential(2)
 for (const layers of [1, 2]) for (const memory of [true, false]) for (const grip of [false, true]) {
   const extra = grip;   // the 'grip' case also switches on the latch and oscillator, so every extra output is exercised
   const e = new Engine({ layout: 'circles', layers, memory, brainMomentum: grip, latch: extra, oscillator: extra, hidden: 8, position: true, noise: true, age: true, feedback: true, tumble: true }, 3), x = e.x;
-  const NW = x.genome_stride(), NH = 8, N_IN = 27, HP = x.layout_info(0), OP = x.layout_info(1), OFF2 = x.layout_info(2), OFFO = x.layout_info(3), NACT = x.layout_info(4);
+  const NW = x.genome_stride(), NH = 8, N_IN = 33, HP = x.layout_info(0), OP = x.layout_info(1), OFF2 = x.layout_info(2), OFFO = x.layout_info(3), NACT = x.layout_info(4);
   const NOUT = (memory ? 11 : 3) + (grip ? 3 : 0);
   const act = Array.from(new Int32Array(e.mem, x.act_ptr(), NACT));
   check('active inputs, memory ' + (memory ? 'on' : 'off') + ', extras ' + (extra ? 'on' : 'off'), act.length === (memory ? 23 : 19) + (extra ? 4 : 0), act.length + ' active');
@@ -91,14 +91,23 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const grip
   let padOk = true; for (let k = 0; k < NACT; k++) for (let c = NH; c < HP; c++) if (D[k * HP + c] !== 0) padOk = false;
   check('crossover mode 1 keeps each neuron intact', split === 0 && padOk, ca + ' neurons from A, ' + cb + ' from B, ' + split + ' split');
 }
+// 4b. thermometer age inputs switch on at 50, 100, 200, 400, 800, 1600 ticks
+{
+  const e = new Engine({ layout: 'handfar', memory: true, ageTherm: true, maxE: 500, maxW: 500, startE: 500, startW: 500, maxPop: 300 }, 3), x = e.x;
+  e.step(130);
+  const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 33);
+  let bad = 0, sawOn = 0;
+  for (let i = 0; i < n; i++) { const inp = INP.subarray(ord[i] * 33 + 27, ord[i] * 33 + 33); for (let k = 0; k < 6; k++) if (inp[k] !== 0 && inp[k] !== 1) bad++; for (let k = 1; k < 6; k++) if (inp[k] > inp[k - 1]) bad++; if (inp[0] === 1) sawOn++; }
+  check('thermometer inputs are 0/1 and switch on in order', bad === 0 && n > 0, n + ' dots, ' + sawOn + ' past tick 50');
+}
 // 5. oscillator and latch behave as described
 {
   const e = new Engine({ layout: 'handfar', memory: true, oscillator: true, latch: true, maxPop: 300 }, 7), x = e.x;
   e.step(300);
-  const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 27);
+  const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 33);
   let badOsc = 0, nonZero = 0, outOfRange = 0;
   for (let i = 0; i < n; i++) {
-    const inp = INP.subarray(ord[i] * 27, (ord[i] + 1) * 27);
+    const inp = INP.subarray(ord[i] * 33, (ord[i] + 1) * 33);
     if (Math.abs(inp[23] * inp[23] + inp[24] * inp[24] - 1) > 1e-3) badOsc++;
     if (Math.abs(inp[25]) > 1 || Math.abs(inp[26]) > 1) outOfRange++;
     if (inp[25] !== 0 || inp[26] !== 0) nonZero++;

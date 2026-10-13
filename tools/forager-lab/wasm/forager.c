@@ -21,7 +21,7 @@ typedef unsigned long long u64;
 
 #define W 64
 #define H 64
-#define N_IN 27
+#define N_IN 33
 #define N_MEM 4
 #define N_OUT (3 + 2 * N_MEM)
 #define MAXHID 32
@@ -33,7 +33,7 @@ enum Cfg {
   C_REGROW, C_WREGROW, C_LOSSE, C_LOSSW, C_MOVEE, C_MOVEW, C_GAINE, C_GAINW, C_MAXE, C_MAXW,
   C_STARTE, C_STARTW, C_REQE, C_REQW, C_PAYE, C_PAYW, C_KIDE, C_KIDW, C_STEPLEN, C_COOLDOWN,
   C_SIGHT, C_HIDDEN, C_LAYERS, C_MEMORY, C_POSITION, C_NOISE, C_AGE, C_FEEDBACK, C_TUMBLE,
-  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_AGESCALE, C_COUNT
+  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_AGESCALE, C_AGETHERM, C_COUNT
 };
 static double CFG[64];
 EXPORT("cfg_ptr") double *cfg_ptr(void) { return CFG; }
@@ -153,6 +153,7 @@ static void setup_brain(void) {
     else if (i == 22) on = CFG[C_AGE] != 0;
     else if (i == 23 || i == 24) on = CFG[C_OSC] != 0;
     else if (i == 25 || i == 26) on = CFG[C_LATCH] != 0;
+    else if (i >= 27) on = CFG[C_AGETHERM] != 0;
     if (on) ACT[NACT++] = i;
   }
   OFF2 = NACT * HP; OFFO = OFF2 + (NL == 2 ? NH * HP : 0); NW = OFFO + NH * OP;
@@ -292,6 +293,7 @@ static void sense(int s) {
   }
   if (CFG[C_OSC] != 0) { inp[23] = (float)sin2pi(APH[s]); inp[24] = (float)sin2pi(APH[s] + 0.25); }
   if (CFG[C_LATCH] != 0) { inp[25] = (float)ALAT[s][0]; inp[26] = (float)ALAT[s][1]; }
+  if (CFG[C_AGETHERM] != 0) for (int k = 0; k < 6; k++) inp[27 + k] = AAGE[s] >= (50 << k) ? 1.0f : 0.0f;   // thermometer: on once the dot is at least 50, 100, 200, 400, 800, 1600 ticks old
 }
 
 // ---------- thinking ----------
