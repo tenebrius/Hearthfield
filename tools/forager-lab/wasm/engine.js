@@ -7,7 +7,7 @@ const W = 64, H = 64;
 const CFG_KEYS = ['regrow', 'waterRegrow', 'lossE', 'lossW', 'moveE', 'moveW', 'gainE', 'gainW', 'maxE', 'maxW',
   'startE', 'startW', 'reqE', 'reqW', 'payE', 'payW', 'kidE', 'kidW', 'stepLen', 'cooldown',
   'sight', 'hidden', 'layers', 'memory', 'position', 'noise', 'age', 'feedback', 'tumble',
-  'tumbleEvery', 'inertia', 'mutRate', 'mutSize', 'baseline', 'floorN', 'maxPop', 'brainMomentum', 'genP', 'genLen', 'genElite', 'genTourn', 'genXover'];
+  'tumbleEvery', 'inertia', 'mutRate', 'mutSize', 'baseline', 'floorN', 'maxPop', 'brainMomentum', 'genP', 'genLen', 'genElite', 'genTourn', 'genXover', 'genSpawn', 'genWSurv', 'genWFood', 'genWWater'];
 const CIRCLES = [[W * 0.75, H * 0.25], [W * 0.25, H * 0.75]], CR = 9;
 
 function pageDefaults() {
@@ -19,13 +19,13 @@ function pageDefaults() {
 
 function buildMap(layout) {
   const kind = new Uint8Array(W * H), fert = new Float32Array(W * H);
-  if (!['circles', 'handmade', 'handfar'].includes(layout)) throw new Error('layout "' + layout + '" is not supported by the WASM engine (use circles, handmade or handfar)');
+  if (!['circles', 'handmade', 'handfar', 'handnear'].includes(layout)) throw new Error('layout "' + layout + '" is not supported by the WASM engine (use circles, handmade, handfar or handnear)');
   for (let i = 0; i < W * H; i++) {
     const px = i % W + 0.5, py = Math.floor(i / W) + 0.5;
     for (const c of CIRCLES) { const dx = px - c[0], dy = py - c[1]; if (dx * dx + dy * dy <= CR * CR) { kind[i] = 1; fert[i] = 0.8; } }
   }
   if (layout !== 'circles') {
-    const ponds = layout === 'handfar' ? [[2, 2], [55, 55]] : [[13, 13], [45, 45]];
+    const ponds = layout === 'handfar' ? [[2, 2], [55, 55]] : layout === 'handnear' ? [[45, 26], [13, 32]] : [[13, 13], [45, 45]];
     for (const p of ponds) for (let y = p[1]; y < p[1] + 7; y++) for (let x = p[0]; x < p[0] + 7; x++) { kind[y * W + x] = 3; fert[y * W + x] = 0.8; }
   }
   return { kind, fert };
@@ -34,7 +34,7 @@ function buildMap(layout) {
 let moduleCache = null;
 class Engine {
   constructor(overrides, seed) {
-    this.cfg = Object.assign(pageDefaults(), { genP: 200, genLen: 1000, genElite: 2, genTourn: 3, genXover: 0 }, overrides || {});
+    this.cfg = Object.assign(pageDefaults(), { genP: 200, genLen: 1000, genElite: 2, genTourn: 3, genXover: 0, genSpawn: 0, genWSurv: 1, genWFood: 0, genWWater: 0 }, overrides || {});
     if (this.cfg.shiftEvery > 0) throw new Error('food relocation (shiftEvery) is not supported by the WASM engine');
     if (this.cfg.archive) throw new Error('"newcomers copy parents" (archive) is not supported by the WASM engine');
     if (this.cfg.maxPop > 2000) throw new Error('maxPop above 2000 is not supported');
@@ -56,8 +56,8 @@ class Engine {
   genInit(seed) { this.x.gen_init(seed >>> 0); }
   genRound() {
     this.x.gen_round();
-    const s = new Float64Array(this.mem, this.x.gen_stats_ptr(), 16);
-    return { gen: s[0], best: s[1], mean: s[2], median: s[3], fullShare: s[4], food: s[5], water: s[6], pondShare: s[7], bothShare: s[8], diversity: s[9], aliveAtEnd: s[10] };
+    const s = new Float64Array(this.mem, this.x.gen_stats_ptr(), 24);
+    return { gen: s[0], best: s[1], mean: s[2], median: s[3], fullShare: s[4], food: s[5], water: s[6], pondShare: s[7], bothShare: s[8], diversity: s[9], aliveAtEnd: s[10], score: s[11], drankShare: s[12] };
   }
   get pop() { return this.x.n_agents(); }
   stats() { const x = this.x; return { tick: x.tick(), pop: x.n_agents(), born: x.born(), starved: x.starved(), thirsty: x.thirsty() }; }

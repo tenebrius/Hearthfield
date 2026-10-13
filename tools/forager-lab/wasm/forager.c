@@ -33,7 +33,7 @@ enum Cfg {
   C_REGROW, C_WREGROW, C_LOSSE, C_LOSSW, C_MOVEE, C_MOVEW, C_GAINE, C_GAINW, C_MAXE, C_MAXW,
   C_STARTE, C_STARTW, C_REQE, C_REQW, C_PAYE, C_PAYW, C_KIDE, C_KIDW, C_STEPLEN, C_COOLDOWN,
   C_SIGHT, C_HIDDEN, C_LAYERS, C_MEMORY, C_POSITION, C_NOISE, C_AGE, C_FEEDBACK, C_TUMBLE,
-  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_COUNT
+  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_COUNT
 };
 static double CFG[64];
 EXPORT("cfg_ptr") double *cfg_ptr(void) { return CFG; }
@@ -111,7 +111,7 @@ static int ACD[MAXA], AAGE[MAXA], AGEN[MAXA], AEAT[MAXA];
 // generational mode
 #define MAXGP 1000
 static int GENMODE, GP, GEN, ROUNDTICK, GDEAD[MAXA];
-static double GFOOD[MAXA], GWATER[MAXA], GKEY[MAXA], GSTATS[16];
+static double GFOOD[MAXA], GWATER[MAXA], GKEY[MAXA], GSTATS[24];
 static u8 GVIS[MAXA];   // bit 0: stood on water, bit 1: on food circle A, bit 2: on food circle B
 static float G2[(u64)MAXGP * MAXG];
 static int ORD[MAXA], ORD2[MAXA], FREE[MAXA], KIDS[MAXA], NFREE, NAG;
@@ -471,18 +471,23 @@ void gen_round(void) {
   rebuild_masks();
   NAG = GP; TICK = 0;
   for (int s = 0; s < GP; s++) {
-    ORD[s] = s; double x = rng() * W, y = rng() * H; new_agent(s, x, y, 0);
+    ORD[s] = s;
+    if (CFG[C_GENSPAWN] == 1) new_agent(s, W * 0.5, H * 0.5, 0);   // everyone starts in the centre
+    else { double x = rng() * W, y = rng() * H; new_agent(s, x, y, 0); }
     GDEAD[s] = -1; GFOOD[s] = 0; GWATER[s] = 0; GVIS[s] = 0;
   }
   for (int t = 0; t < L && NAG > 0; t++) { ROUNDTICK = t; step(1); }
-  // scores
-  static int idx[MAXGP]; double sumSurv = 0, sumF = 0, sumW = 0; int full = 0, pond = 0, both = 0;
+  // scores: key = wSurv * ticks survived + wFood * food tiles eaten + wWater * water tiles drunk (+ a tiny tie-break on total intake)
+  static int idx[MAXGP];
+  const double wS = CFG[C_GWSURV], wF = CFG[C_GWFOOD], wW = CFG[C_GWWATER], gE = CFG[C_GAINE] > 0 ? CFG[C_GAINE] : 1, gW = CFG[C_GAINW] > 0 ? CFG[C_GAINW] : 1;
+  double sumSurv = 0, sumF = 0, sumW = 0, sumKey = 0; int full = 0, pond = 0, both = 0, drank = 0;
   for (int s = 0; s < GP; s++) {
-    double surv = GDEAD[s] < 0 ? (double)L : (double)GDEAD[s];
-    GKEY[s] = surv + (GFOOD[s] + GWATER[s]) * 1e-6;
-    sumSurv += surv; sumF += GFOOD[s]; sumW += GWATER[s];
+    double surv = GDEAD[s] < 0 ? (double)L : (double)GDEAD[s], ft = GFOOD[s] / gE, wt = GWATER[s] / gW;
+    GKEY[s] = wS * surv + wF * ft + wW * wt + (GFOOD[s] + GWATER[s]) * 1e-6;
+    sumSurv += surv; sumF += ft; sumW += wt; sumKey += GKEY[s];
     if (GDEAD[s] < 0) full++;
     if (GVIS[s] & 1) pond++;
+    if (GWATER[s] > 0) drank++;
     if ((GVIS[s] & 6) == 6) both++;
     idx[s] = s;
   }
@@ -494,14 +499,16 @@ void gen_round(void) {
     diff += d / NREAL; pairs++;
   }
   GSTATS[0] = GEN;
-  GSTATS[1] = (double)(int)GKEY[idx[0]];
-  GSTATS[2] = sumSurv / GP;
-  GSTATS[3] = (double)(int)GKEY[idx[GP / 2]];
+  GSTATS[1] = GKEY[idx[0]];
+  GSTATS[2] = sumSurv / GP;               // mean ticks survived
+  GSTATS[3] = GKEY[idx[GP / 2]];
   GSTATS[4] = (double)full / GP;
-  GSTATS[5] = sumF / GP; GSTATS[6] = sumW / GP;
+  GSTATS[5] = sumF / GP; GSTATS[6] = sumW / GP;   // mean food tiles eaten, water tiles drunk
   GSTATS[7] = (double)pond / GP; GSTATS[8] = (double)both / GP;
   GSTATS[9] = pairs ? diff / pairs : 0;
   GSTATS[10] = NAG;
+  GSTATS[11] = sumKey / GP;               // mean score
+  GSTATS[12] = (double)drank / GP;        // share that drank at least once
   // next generation, bred into G2 then copied back
   for (int c = 0; c < GP; c++) {
     float *g = G2 + (u64)c * NW;
