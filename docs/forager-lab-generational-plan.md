@@ -1,6 +1,6 @@
 # Forager Lab: generational mode plan
 
-Status: agreed plan, not built yet (2026-10-13). Forager Lab is now treated as a learning project in its own right, separate from Hearthfield.
+Status: step 1 built (2026-10-13): generational mode in the WASM engine (`tools/forager-lab/wasm/run-gen.js`). First results below. Forager Lab is now treated as a learning project in its own right, separate from Hearthfield.
 
 ## Why
 
@@ -52,3 +52,37 @@ All optional, so evolution can use whichever helps:
 2. **First experiments:** baseline brain vs random movers, then what each existing option adds. Several seeds each.
 3. **New building blocks:** latch registers and the oscillator input, in both engines, with checks.
 4. **Page:** a generational mode in the browser, to watch rounds play out with a score-per-generation chart.
+
+## How to run it
+
+```sh
+cd tools/forager-lab
+node wasm/run-gen.js '{"memory":true,"tumble":true}' <seed> <generations> <report every N>
+node wasm/test-wasm.js     # engine checks, including crossover
+```
+
+Defaults: far-ponds map, energy loss 1.5, hydration loss 0.6, 2 hidden layers of 8, start energy and hydration 100, 200 dots, 1000-tick rounds, elitism 2, tournament of 3, crossover off (`genXover` 1 = whole neurons, 2 = single weights). `"baseline":true` gives random movers as a reference. Cost: 1000 generations take about 15–25 s. The final line gives the means over the last 20 generations.
+
+## First results (8 seeds, 1000 generations each, far ponds, energy loss 1.5, hydration loss 0.6)
+
+Mean score = ticks survived, averaged over the last 20 generations; "pond" = share of dots that stood on a water tile during the round.
+
+| Setup | mean score | survived full round | reached pond |
+|---|---|---|---|
+| Random movers | 78 | 0% | 6.8% |
+| Evolved, memory off | 149 | 0% | 3.2% |
+| Evolved, memory on | 144 | 0% | 3.0% |
+| + wander heading | 132 | 0% | 4.0% |
+| + wander heading + momentum 0.7 | 130 | 0% | 4.0% |
+| + wander heading + brain-set momentum | 133 | 0% | 3.5% |
+| + noise + age, momentum 0.9 | 142 | 0% | 4.2% |
+| + noise + age, brain-set momentum | 145 | 0% | 3.6% |
+
+On the near-ponds map (`handmade`), memory, wander and wander + brain-set momentum give 138–140, with 10–12% reaching a pond; random movers give 78.
+
+- **Evolution works in this mode:** the score roughly doubles over random movers (about 150 vs 78) within about 200 generations, and food gathered rises from about 15 to over 300 per dot.
+- **Every evolved setup then stops at the same wall.** The median is exactly 167 ticks, which is 100 hydration at 0.6 per tick: those dots eat well but never drink. With hydration loss 0.2 the median is exactly 500 (100 ÷ 0.2). No dot survives the full 1000-tick round in any setup.
+- **None of the building blocks changes that.** All evolved setups land between 130 and 149 (memory off is nominally the best); differences are small next to this wall.
+- **Evolved dots reach ponds no more often than random movers** (3–4% vs 6.8%). Staying on food and farming it is a good strategy up to the thirst wall, and leaving costs food, so selection does not push towards water.
+- **Why it is hard (reasoning, not tested):** to live past 167 ticks a dot must find food within about 65 ticks, then travel about 45 tiles to a pond it cannot see and drink, and later return to food. That is a coordinated plan with no reward until it all works.
+- **Ideas, in rough order of cost:** (1) make water the binding need earlier or food less binding (for example lower energy loss), so drinking is selected sooner; (2) a curriculum: ponds touching the food first, then moving them away; (3) the planned latch register and oscillator building blocks; (4) shape the score to reward drinking (more opinionated); (5) longer rounds or more dots.
