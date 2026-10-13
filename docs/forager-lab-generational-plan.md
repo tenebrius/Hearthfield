@@ -59,6 +59,12 @@ All optional, so evolution can use whichever helps:
 - Score weights `genWSurv`, `genWFood`, `genWWater` (defaults 1, 0, 0): score = wSurv × ticks survived + wFood × food tiles eaten + wWater × water tiles drunk. Each term is reported separately, plus the share of dots that drank.
 - Layout `handnear`: same food circles, one pond touching each (also in the browser page).
 
+## Added later: min score, pond curriculum, objective curriculum
+
+- `genScoreMode` 1: score = the smaller of (wFood × food tiles) and (wWater × water tiles), plus a small survival term (wSurv × ticks × 0.001) and a tiny tie-break on total intake.
+- Layout `handcurr` with `pondShift` 0 to 1: the ponds slide from touching the food circles (same as `handnear`) to the corners (same as `handfar`). `wasm/run-curriculum.js` walks the ponds out in 8 steps (0, 0.15, ... 1) keeping the population.
+- `wasm/run-objective.js`: first reward only drinking until most dots stand on a pond, then switch to the normal score. `Engine.setCfg(key, value)` changes a setting between rounds.
+
 ## How to run it
 
 ```sh
@@ -117,3 +123,22 @@ All rows start every dot in the centre. "survived" = mean ticks survived over th
 - **Lower energy loss (0.3) makes survival scoring evolve water seeking** (91% stand on a pond) but at the cost of food: dots live on their starting energy (about 250 ticks) and ignore food. Mixed scoring gives mixed behaviour; one seed reached 363.
 - **The near-ponds map is solved in most seeds:** 25% of dots survive the full 1000 ticks and 76% drink, with survival scoring alone. Per seed (survival scoring): 498, 492, 469, 208, 475, 505, 176, 496; two seeds stalled near 180–210. So the curriculum idea works as a first step, and direct scoring of water is not needed once water is easy to find.
 - **Next candidates:** a score that needs both (minimum or product of food and water tiles); a curriculum that moves the ponds away in steps, starting from the near-ponds solution; then the planned latch register and oscillator input.
+
+## Min score and the two curricula (8 seeds each, far ponds, centre start, memory on, energy loss 1.5, hydration loss 0.6)
+
+Means over the last 20 generations (last 10 of the final far-ponds stage for the curriculum). Compare with far ponds and survival scoring: survived 159, food 10.7, water 0.0, no drinking.
+
+| Setup | survived | full | food | water | drank | stood on pond |
+|---|---|---|---|---|---|---|
+| Far, min score (food, water) | 143 | 0% | 8.0 | 0.3 | 23% | 25% |
+| Far, min score + survival term | 148 | 0% | 8.9 | 0.2 | 15% | 17% |
+| Pond curriculum, survival score | 158 | 0% | 10.0 | 0.0 | 0% | 0% |
+| Pond curriculum, min score + survival | 124 | 0% | 4.2 | 1.0 | 64% | 67% |
+| Objective curriculum (water only, then survival) | 158 | 0% | 10.6 | 0.0 | 0% | 0% |
+| Objective curriculum (water only, then min + survival) | 144 | 0% | 7.8 | 0.1 | 11% | 12% |
+
+- **None of them gets a single dot through the 1000-tick round on the far-ponds map.**
+- **Pond curriculum:** with survival scoring the early stages learn to drink (ponds touching the food solve the task in most seeds, as before), but as the ponds move out the learning is lost: most seeds could not reach 15% full survivors at shift 0.3 or beyond and were moved on after 400 generations, and by the final far map nobody drinks. A pond at shift 0.3 is about 10 tiles beyond the food circle's edge, outside the sight range of 5, so dots can no longer see it and their drinking behaviour has nothing to follow.
+- **Min score keeps drinking alive but costs food:** with the curriculum, 64% of dots drink, but food falls to 4.2 tiles and survival to 124. The score only counts the smaller total, and water stays near 1 tile, so improving food is not rewarded.
+- **Objective curriculum:** drinking-only scoring gets 80% of dots to a far pond in about 31 generations (so evolution finds the far ponds easily when it is the only reward), but once survival is scored the behaviour vanishes within the 700 generations: a dot that heads for the pond from the start dies of hunger at tick 64, while a dot that farms food lives to 159, so selection removes the pond trip.
+- **What the three failures have in common (reasoning, not tested):** living past about tick 160 needs a trip that comes *after* eating, triggered by thirst, to a pond that is out of sight, and an energy store that is too small (100, only about 65 ticks of energy at loss 1.5) to make that trip affordable. The things to try next target exactly that: a bigger energy and hydration store (`maxE`, `maxW`, `startE`, `startW` 300), a bigger sight range (8), and the planned latch register and oscillator input.

@@ -57,6 +57,11 @@ class Engine {
     new Uint8Array(this.mem, this.x.kind_ptr(), W * H).set(map.kind);
     new Float32Array(this.mem, this.x.fert_ptr(), W * H).set(map.fert);
   }
+  // change a setting between rounds (for example the score weights); the key must be one of CFG_KEYS
+  setCfg(key, value) {
+    const i = CFG_KEYS.indexOf(key); if (i < 0) throw new Error('unknown setting ' + key);
+    new Float64Array(this.mem, this.x.cfg_ptr(), 64)[i] = +value; this.cfg[key] = value;
+  }
   step(n) { this.x.step(n); }
   // generational mode: genInit(seed) once, then genRound() per generation; stats describe the generation just evaluated
   genInit(seed) { this.x.gen_init(seed >>> 0); }
