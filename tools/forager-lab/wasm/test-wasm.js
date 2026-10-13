@@ -43,13 +43,13 @@ check('log approximation', maxL < 1e-9, 'max abs error ' + maxL.toExponential(2)
 
 // 3. forward pass equals a plain JS implementation (Math.tanh, doubles), for 1 and 2 hidden layers and with memory on and off.
 //    Weight layout: input-major rows, columns padded to a multiple of 4; only inputs that can be non-zero have rows.
-for (const layers of [1, 2]) for (const memory of [true, false]) for (const variant of [{ grip: false, tm: 0 }, { grip: true, tm: 0 }, { grip: true, tm: 1 }, { grip: true, tm: 2 }]) {
-  const grip = variant.grip, tm = variant.tm, extra = grip;   // 'grip' also switches on the latch and oscillator; tm > 0 adds the thermometer with brain-set thresholds
-  const e = new Engine({ layout: 'circles', layers, memory, brainMomentum: grip, latch: extra, oscillator: extra, ageTherm: tm > 0, thermMode: tm, hidden: 8, position: true, noise: true, age: true, feedback: true, tumble: true }, 3), x = e.x;
-  const NW = x.genome_stride(), NH = 8, N_IN = 33, HP = x.layout_info(0), OP = x.layout_info(1), OFF2 = x.layout_info(2), OFFO = x.layout_info(3), NACT = x.layout_info(4);
+for (const layers of [1, 2]) for (const memory of [true, false]) for (const variant of [{ grip: false, tm: 0 }, { grip: true, tm: 0 }, { grip: true, tm: 1 }, { grip: true, tm: 2 }, { grip: true, tm: 0, gene: true, timer: true }]) {
+  const grip = variant.grip, tm = variant.tm, extra = grip, gene = !!variant.gene, timer = !!variant.timer;   // 'grip' also switches on the latch and oscillator; tm > 0 adds the thermometer with brain-set thresholds
+  const e = new Engine({ layout: 'circles', layers, memory, brainMomentum: grip, latch: extra, oscillator: extra, ageTherm: tm > 0, thermMode: tm, oscGene: gene, timer, hidden: 8, position: true, noise: true, age: true, feedback: true, tumble: true }, 3), x = e.x;
+  const NW = x.genome_stride(), NH = 8, N_IN = 34, HP = x.layout_info(0), OP = x.layout_info(1), OFF2 = x.layout_info(2), OFFO = x.layout_info(3), NACT = x.layout_info(4);
   const NOUT = (memory ? 11 : 3) + (grip ? 3 : 0) + (tm === 1 ? 1 : tm === 2 ? 6 : 0);
   const act = Array.from(new Int32Array(e.mem, x.act_ptr(), NACT));
-  check('active inputs, memory ' + (memory ? 'on' : 'off') + ', extras ' + (extra ? 'on' : 'off') + ', thermometer mode ' + tm, act.length === (memory ? 23 : 19) + (extra ? 4 : 0) + (tm > 0 ? 6 : 0), act.length + ' active');
+  check('active inputs, memory ' + (memory ? 'on' : 'off') + ', extras ' + (extra ? 'on' : 'off') + ', thermometer mode ' + tm + (gene ? ', clock gene + timer' : ''), act.length === (memory ? 23 : 19) + (extra ? 4 : 0) + (tm > 0 ? 6 : 0) + (timer ? 1 : 0), act.length + ' active');
   const ord = new Int32Array(e.mem, x.ord_ptr(), 40), G = new Float32Array(e.mem, x.genome_ptr(), 2048 * NW), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * N_IN);
   const OUT = new Float32Array(e.mem, x.out_ptr(), 24);
   let maxErr = 0;
@@ -95,19 +95,19 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const vari
 {
   const e = new Engine({ layout: 'handfar', memory: true, ageTherm: true, maxE: 500, maxW: 500, startE: 500, startW: 500, maxPop: 300 }, 3), x = e.x;
   e.step(130);
-  const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 33);
+  const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 34);
   let bad = 0, sawOn = 0;
-  for (let i = 0; i < n; i++) { const inp = INP.subarray(ord[i] * 33 + 27, ord[i] * 33 + 33); for (let k = 0; k < 6; k++) if (inp[k] !== 0 && inp[k] !== 1) bad++; for (let k = 1; k < 6; k++) if (inp[k] > inp[k - 1]) bad++; if (inp[0] === 1) sawOn++; }
+  for (let i = 0; i < n; i++) { const inp = INP.subarray(ord[i] * 34 + 27, ord[i] * 34 + 33); for (let k = 0; k < 6; k++) if (inp[k] !== 0 && inp[k] !== 1) bad++; for (let k = 1; k < 6; k++) if (inp[k] > inp[k - 1]) bad++; if (inp[0] === 1) sawOn++; }
   check('thermometer inputs are 0/1 and switch on in order', bad === 0 && n > 0, n + ' dots, ' + sawOn + ' past tick 50');
 }
 // 5. oscillator and latch behave as described
 {
   const e = new Engine({ layout: 'handfar', memory: true, oscillator: true, latch: true, maxPop: 300 }, 7), x = e.x;
   e.step(300);
-  const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 33);
+  const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 34);
   let badOsc = 0, nonZero = 0, outOfRange = 0;
   for (let i = 0; i < n; i++) {
-    const inp = INP.subarray(ord[i] * 33, (ord[i] + 1) * 33);
+    const inp = INP.subarray(ord[i] * 34, (ord[i] + 1) * 34);
     if (Math.abs(inp[23] * inp[23] + inp[24] * inp[24] - 1) > 1e-3) badOsc++;
     if (Math.abs(inp[25]) > 1 || Math.abs(inp[26]) > 1) outOfRange++;
     if (inp[25] !== 0 || inp[26] !== 0) nonZero++;
@@ -116,6 +116,24 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const vari
   check('latch values are random samples in [-1, 1]', outOfRange === 0 && nonZero === n, nonZero + ' of ' + n + ' non-zero');
   let maxErr = 0; for (let v = -2; v <= 2; v += 0.001) maxErr = Math.max(maxErr, Math.abs(x.sin2pi_test(v) - Math.sin(2 * Math.PI * v)));
   check('sin(2 pi x) approximation', maxErr < 1e-5, 'max abs error ' + maxErr.toExponential(2));
+}
+// 6. clock gene is inherited, mutated a little, stays in range; timer input stays in [0, 1] and can be reset
+{
+  const e = new Engine({ layout: 'handfar', memory: true, oscillator: true, oscGene: true, timer: true, genSpawn: 1, maxE: 500, maxW: 500, startE: 500, startW: 500 }, 11), x = e.x;
+  x.gen_init(11);
+  const NW = x.genome_stride(), GO = x.gene_off(), G = new Float32Array(e.mem, x.genome_ptr(), 2048 * NW);
+  const genes = () => { const a = []; for (let s = 0; s < 200; s++) a.push(G[s * NW + GO]); return a; };
+  const g0 = genes(); check('clock genes start spread over 8 to 800 ticks', g0.every(v => v >= 3 && v <= 9.7) && Math.max(...g0) - Math.min(...g0) > 3, 'range ' + Math.min(...g0).toFixed(1) + ' to ' + Math.max(...g0).toFixed(1) + ' (log2 ticks)');
+  for (let i = 0; i < 40; i++) e.genRound();
+  const g1 = genes(); const sd = a => { const m = a.reduce((p, q) => p + q, 0) / a.length; return Math.sqrt(a.reduce((p, q) => p + (q - m) * (q - m), 0) / a.length); };
+  check('clock genes stay in range and selection narrows them', g1.every(v => v >= 2 && v <= 10) && sd(g1) < sd(g0), 'spread (sd, log2 ticks) ' + sd(g0).toFixed(2) + ' -> ' + sd(g1).toFixed(2));
+  const e2 = new Engine({ layout: 'handfar', memory: true, timer: true, maxPop: 300 }, 4), x2 = e2.x;
+  e2.step(200);
+  const n = x2.n_agents(), ord = new Int32Array(e2.mem, x2.ord_ptr(), n), INP = new Float32Array(e2.mem, x2.inp_ptr(), 2048 * 34);
+  let bad = 0, nonzero = 0; for (let i = 0; i < n; i++) { const v = INP[ord[i] * 34 + 33]; if (!(v >= 0 && v <= 1)) bad++; if (v > 0) nonzero++; }
+  check('timer input lies between 0 and 1', bad === 0 && n > 0, n + ' dots, ' + nonzero + ' above 0');
+  let maxE2 = 0; for (let v = 0; v <= 12; v += 0.01) maxE2 = Math.max(maxE2, Math.abs(x2.pow2_test(v) / Math.pow(2, v) - 1));
+  check('2^x approximation', maxE2 < 1e-4, 'max relative error ' + maxE2.toExponential(2));
 }
 console.log(failed ? failed + ' check(s) FAILED' : 'all checks passed');
 process.exit(failed ? 1 : 0);

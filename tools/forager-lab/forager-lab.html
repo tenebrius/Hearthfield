@@ -268,6 +268,8 @@
         <label class="check"><input type="checkbox" id="cTherm"><span>Age steps (thermometer)<small>Six extra inputs that each switch on once the dot is at least 50, 100, 200, 400, 800 or 1600 ticks old and then stay on. Gives a brain clean on/off signals for "how long have I lived". Off: all six are 0.</small></span></label>
         <div class="ctl"><label for="sTherm">Age steps are set by</label><span></span>
           <select id="sTherm"><option value="0">Fixed: 50, 100, 200, 400, 800, 1600 ticks</option><option value="1">Brain, one output: sets the spacing of all six steps</option><option value="2">Brain, six outputs: each step picks its own age</option></select><small>Only matters when "Age steps" is on.</small></div>
+        <label class="check"><input type="checkbox" id="cGene"><span>Oscillator period from a gene<small>The oscillator's period is a number the dot is born with (inherited and slowly mutated, 8 to 800 ticks to start) instead of something the brain outputs. It never changes during a life. Needs "Oscillator" on.</small></span></label>
+        <label class="check"><input type="checkbox" id="cTimer"><span>Resettable timer<small>One extra input counts how long since the dot last reset it (scaled by the logarithm, so it covers about 2000 ticks), and one extra output resets it to zero whenever it is above 0. Evolution decides what to reset it for. Off: the input is always 0.</small></span></label>
         <label class="check"><input type="checkbox" id="cBase"><span>Random baseline<small>Ignore the brains and move at random, to see what evolution adds.</small></span></label>
         <label class="check"><input type="checkbox" id="cArch"><span>Newcomers copy recent parents<small>On: replacement dots are mutated copies of dots that recently had children. That can favour dots that simply had spare resources, not skilled ones. Off: newcomers are random.</small></span></label>
       </section>
@@ -287,7 +289,7 @@
 <script>
 (function () {
   var W = 64, H = 64, CELL = 8;
-  var N_IN = 33, N_MEM = 4, N_OUT = 3 + 2 * N_MEM + 1 + 2 + 6, N_HID = 8, N_LAY = 1, N_W = N_IN * N_HID + N_HID * N_OUT;
+  var N_IN = 34, N_MEM = 4, N_OUT = 3 + 2 * N_MEM + 1 + 2 + 6 + 1, N_HID = 8, N_LAY = 1, N_W = N_IN * N_HID + N_HID * N_OUT + 1;
   var ACTION_NAMES = ['resting', 'moving', 'eating'];
 
   var $ = function (id) { return document.getElementById(id); };
@@ -299,7 +301,7 @@
   var foodX0 = 0, foodX1 = 64, watX0 = 0, watX1 = 64;
   var pinned = new Uint8Array(64 * 64), paintMode = false, paintBrush = 'food', hoverTile = null, painting = false, lastPaint = null;
   var archive = [], safeBlobs, shifts = 0, shiftInfo = null, shiftTicks = [], selectedId = 0, rng, food, fert, kind, agents, tick, born, starved, thirsty, hist, nextId, paused = false;
-  var cfg = { regrow: 0.03, waterRegrow: 0.03, lossE: 0.3, lossW: 0.6, moveE: 0.1, moveW: 0, gainE: 30, gainW: 30, maxE: 100, maxW: 100, startE: 50, startW: 150, reqE: 85, reqW: 40, payE: 60, payW: 0, kidE: 40, kidW: 100, islands: 6, islandSize: 4, brush: 3, stepLen: 1, layout: 'mixed', cooldown: 0, archive: false, shiftEvery: 0, shiftPct: 50, sight: 5, hidden: 8, layers: 1, memory: true, position: true, noise: false, age: false, inertia: 0, brainMomentum: false, oscillator: false, latch: false, ageTherm: false, thermMode: 0, feedback: true, tumble: false, tumbleEvery: 100, mutRate: 0.1, mutSize: 0.2, speed: 12, baseline: false, floorN: 20, maxPop: 800 };
+  var cfg = { regrow: 0.03, waterRegrow: 0.03, lossE: 0.3, lossW: 0.6, moveE: 0.1, moveW: 0, gainE: 30, gainW: 30, maxE: 100, maxW: 100, startE: 50, startW: 150, reqE: 85, reqW: 40, payE: 60, payW: 0, kidE: 40, kidW: 100, islands: 6, islandSize: 4, brush: 3, stepLen: 1, layout: 'mixed', cooldown: 0, archive: false, shiftEvery: 0, shiftPct: 50, sight: 5, hidden: 8, layers: 1, memory: true, position: true, noise: false, age: false, inertia: 0, brainMomentum: false, oscillator: false, oscGene: false, timer: false, latch: false, ageTherm: false, thermMode: 0, feedback: true, tumble: false, tumbleEvery: 100, mutRate: 0.1, mutSize: 0.2, speed: 12, baseline: false, floorN: 20, maxPop: 800 };
 
   var rngState = 1;
   function mulberry32(a) {
@@ -367,7 +369,7 @@
   function seedVal() { var v = parseInt($('iSeed').value, 10); return isNaN(v) ? 4 : v; }
 
   function makeWorld(seed) {
-    N_HID = cfg.hidden; N_LAY = cfg.layers; N_W = N_IN * N_HID + (N_LAY - 1) * N_HID * N_HID + N_HID * N_OUT; hidden = new Float32Array(N_HID); hidden2 = new Float32Array(N_HID);
+    N_HID = cfg.hidden; N_LAY = cfg.layers; N_W = N_IN * N_HID + (N_LAY - 1) * N_HID * N_HID + N_HID * N_OUT + 1; hidden = new Float32Array(N_HID); hidden2 = new Float32Array(N_HID);
     rng = mulberry32(seed); auxState = (seed * 7919 + 13) | 0; selectedId = 0; archive = []; shifts = 0; shiftInfo = null; shiftTicks = [];
     fert = new Float32Array(W * H);
     food = new Float32Array(W * H);
@@ -413,12 +415,13 @@
   }
 
   function newAgent(x, y, g, gen, hue) {
-    return { id: nextId++, x: x, y: y, e: cfg.startE, w: cfg.startW, g: g, gen: gen, hue: hue, inputs: new Float32Array(N_IN), mem: new Float32Array(N_MEM), last: 0, mx: 0, my: 0, eat: false, cd: 0, blocked: 0, eatRes: 0, hd: 0, hdT: 0, vx: 0, vy: 0, age: 0, grip: 0, th: [50, 100, 200, 400, 800, 1600], ph: 0, l0: cfg.latch ? aux() * 2 - 1 : 0, l1: cfg.latch ? aux() * 2 - 1 : 0 };
+    return { id: nextId++, x: x, y: y, e: cfg.startE, w: cfg.startW, g: g, gen: gen, hue: hue, inputs: new Float32Array(N_IN), mem: new Float32Array(N_MEM), last: 0, mx: 0, my: 0, eat: false, cd: 0, blocked: 0, eatRes: 0, hd: 0, hdT: 0, vx: 0, vy: 0, age: 0, tmr: 0, grip: 0, th: [50, 100, 200, 400, 800, 1600], ph: 0, l0: cfg.latch ? aux() * 2 - 1 : 0, l1: cfg.latch ? aux() * 2 - 1 : 0 };
   }
 
   function randomAgent() {
     var g = new Float32Array(N_W);
     for (var i = 0; i < N_W; i++) g[i] = gauss() * 0.5;
+    g[N_W - 1] = 3 + rng() * 6.64;   // the last number is the clock gene: log2 of the oscillator period (8 to 800 ticks), used when 'Oscillator period from a gene' is on
     return newAgent(rng() * W, rng() * H, g, 0, (rng() * 360) | 0);
   }
 
@@ -430,7 +433,8 @@
 
   function mutate(parent) {
     var g = parent.g.slice();
-    for (var i = 0; i < g.length; i++) if (rng() < cfg.mutRate) g[i] += gauss() * cfg.mutSize;
+    for (var i = 0; i < g.length - 1; i++) if (rng() < cfg.mutRate) g[i] += gauss() * cfg.mutSize;
+    g[g.length - 1] = Math.min(10, Math.max(2, g[g.length - 1] + gauss() * 0.25));   // the clock gene always drifts a little: about 19% in the period per generation
     return newAgent(parent.x, parent.y, g, parent.gen + 1, (parent.hue + (rng() - 0.5) * 6 + 360) % 360);
   }
 
@@ -471,6 +475,7 @@
     inp[22] = cfg.age ? a.age / (a.age + 250) : 0;
     inp[23] = cfg.oscillator ? Math.sin(6.283185307179586 * a.ph) : 0; inp[24] = cfg.oscillator ? Math.cos(6.283185307179586 * a.ph) : 0;
     inp[25] = cfg.latch ? a.l0 : 0; inp[26] = cfg.latch ? a.l1 : 0;
+    inp[33] = cfg.timer ? Math.min(1, Math.log(1 + a.tmr) / Math.LN2 / 11) : 0;
     for (var tk = 0; tk < 6; tk++) inp[27 + tk] = (cfg.ageTherm && a.age >= a.th[tk]) ? 1 : 0;
   }
 
@@ -507,7 +512,8 @@
     if (cfg.brainMomentum) a.grip = 0.95 / (1 + Math.exp(-outv[3 + 2 * N_MEM]));
     // extra outputs after the memory outputs: momentum, latch trigger, oscillator period (the page always has all three output slots)
     if (cfg.latch && outv[3 + 2 * N_MEM + 1] > 0) { a.l0 = aux() * 2 - 1; a.l1 = aux() * 2 - 1; }
-    if (cfg.oscillator) a.ph += 1 / (4 + 396 / (1 + Math.exp(-outv[3 + 2 * N_MEM + 2])));
+    if (cfg.oscillator) a.ph += 1 / (cfg.oscGene ? Math.pow(2, a.g[a.g.length - 1]) : 4 + 396 / (1 + Math.exp(-outv[3 + 2 * N_MEM + 2])));
+    if (cfg.timer) { if (outv[3 + 2 * N_MEM + 9] > 0) a.tmr = 0; else a.tmr++; }
     // age steps set by the brain (applies from the next tick): mode 1 = one output sets the unit u (12.5 to 200 ticks), steps at u * 1, 2, 4 ... 32;
     // mode 2 = each step has its own output, threshold 10 to 2000 ticks
     if (cfg.ageTherm && cfg.thermMode === 1) { var u = 12.5 * Math.pow(16, 1 / (1 + Math.exp(-outv[3 + 2 * N_MEM + 3]))); for (var tq = 0; tq < 6; tq++) a.th[tq] = u * Math.pow(2, tq); }
@@ -699,8 +705,8 @@
 
 
   // ---------- Brain diagram ----------
-  var INPUT_LABELS = ['food on my tile', 'water on my tile', 'nearest food: dir x', 'nearest food: dir y', 'nearest food: closeness', 'nearest water: dir x', 'nearest water: dir y', 'nearest water: closeness', 'my energy', 'my hydration', 'bias (always 1)', 'memory 1', 'memory 2', 'memory 3', 'memory 4', 'my x position', 'my y position', 'random number', 'last move blocked', 'last eat result', 'wander heading x', 'wander heading y', 'my age', 'oscillator: sin', 'oscillator: cos', 'latch value x', 'latch value y', 'age at least 50', 'age at least 100', 'age at least 200', 'age at least 400', 'age at least 800', 'age at least 1600'];
-  var OUTPUT_LABELS = ['move: x', 'move: y', 'eat or drink', 'new memory 1', 'new memory 2', 'new memory 3', 'new memory 4', 'gate 1 (keep/replace)', 'gate 2', 'gate 3', 'gate 4', 'momentum (0 = steer, high = coast)', 'latch: take a new random sample', 'oscillator period', 'age steps: scale / step 1', 'age step 2', 'age step 3', 'age step 4', 'age step 5', 'age step 6'];
+  var INPUT_LABELS = ['food on my tile', 'water on my tile', 'nearest food: dir x', 'nearest food: dir y', 'nearest food: closeness', 'nearest water: dir x', 'nearest water: dir y', 'nearest water: closeness', 'my energy', 'my hydration', 'bias (always 1)', 'memory 1', 'memory 2', 'memory 3', 'memory 4', 'my x position', 'my y position', 'random number', 'last move blocked', 'last eat result', 'wander heading x', 'wander heading y', 'my age', 'oscillator: sin', 'oscillator: cos', 'latch value x', 'latch value y', 'age at least 50', 'age at least 100', 'age at least 200', 'age at least 400', 'age at least 800', 'age at least 1600', 'time since my last timer reset'];
+  var OUTPUT_LABELS = ['move: x', 'move: y', 'eat or drink', 'new memory 1', 'new memory 2', 'new memory 3', 'new memory 4', 'gate 1 (keep/replace)', 'gate 2', 'gate 3', 'gate 4', 'momentum (0 = steer, high = coast)', 'latch: take a new random sample', 'oscillator period', 'age steps: scale / step 1', 'age step 2', 'age step 3', 'age step 4', 'age step 5', 'age step 6', 'reset my timer'];
   var brain = { id: -1, hid: -1, lay: -1, inN: [], hidL: [], outN: [] };
   function svgEl(name, attrs) {
     var e = document.createElementNS('http://www.w3.org/2000/svg', name);
@@ -875,6 +881,8 @@
   $('cOsc').addEventListener('change', function (e) { cfg.oscillator = e.target.checked; });
   $('sTherm').addEventListener('change', function (e) { cfg.thermMode = parseInt(e.target.value, 10); });
   $('cTherm').addEventListener('change', function (e) { cfg.ageTherm = e.target.checked; });
+  $('cGene').addEventListener('change', function (e) { cfg.oscGene = e.target.checked; });
+  $('cTimer').addEventListener('change', function (e) { cfg.timer = e.target.checked; });
   $('cPos').addEventListener('change', function (e) { cfg.position = e.target.checked; });
   $('cBase').addEventListener('change', function (e) { cfg.baseline = e.target.checked; });
   $('cArch').addEventListener('change', function (e) { cfg.archive = e.target.checked; });
@@ -966,7 +974,7 @@
 
   // ---------- Saved configurations (settings only) ----------
   var saves = [], SAVE_KEY = 'forager-lab-configs-v1', MAX_SAVES = 20, persisted = false;
-  var CHECKS = [['cMem', 'memory'], ['cPos', 'position'], ['cNoise', 'noise'], ['cGrip', 'brainMomentum'], ['cLatch', 'latch'], ['cTherm', 'ageTherm'], ['cOsc', 'oscillator'], ['cAge', 'age'], ['cFb', 'feedback'], ['cTumble', 'tumble'], ['cBase', 'baseline'], ['cArch', 'archive']];
+  var CHECKS = [['cMem', 'memory'], ['cPos', 'position'], ['cNoise', 'noise'], ['cGrip', 'brainMomentum'], ['cLatch', 'latch'], ['cTherm', 'ageTherm'], ['cOsc', 'oscillator'], ['cGene', 'oscGene'], ['cTimer', 'timer'], ['cAge', 'age'], ['cFb', 'feedback'], ['cTumble', 'tumble'], ['cBase', 'baseline'], ['cArch', 'archive']];
 
   function captureConfig(label) {
     return { label: label, when: Date.now(), cfg: JSON.parse(JSON.stringify(cfg)), seed: seedVal() };
@@ -981,7 +989,7 @@
 
   function applyConfig(sv) {
     // keys missing from older saves fall back to the original behaviour, not to whatever is currently set
-    cfg.noise = false; cfg.age = false; cfg.inertia = 0; cfg.brainMomentum = false; cfg.latch = false; cfg.oscillator = false; cfg.ageTherm = false; cfg.thermMode = 0; cfg.feedback = false; cfg.tumble = false; cfg.tumbleEvery = 100; cfg.layers = 1; cfg.layout = 'mixed';
+    cfg.noise = false; cfg.age = false; cfg.inertia = 0; cfg.brainMomentum = false; cfg.latch = false; cfg.oscillator = false; cfg.oscGene = false; cfg.timer = false; cfg.ageTherm = false; cfg.thermMode = 0; cfg.feedback = false; cfg.tumble = false; cfg.tumbleEvery = 100; cfg.layers = 1; cfg.layout = 'mixed';
     Object.keys(sv.cfg).forEach(function (k) { cfg[k] = sv.cfg[k]; });
     $('iSeed').value = sv.seed;
     syncControls();
@@ -994,7 +1002,7 @@
 
   function describe(sv) {
     var c = sv.cfg;
-    return 'seed ' + sv.seed + ' · ' + (c.layout === 'split' ? 'separated' : c.layout === 'circles' ? 'two circles' : c.layout === 'handmade' ? 'hand-made ponds' : c.layout === 'handfar' ? 'hand-made far ponds' : c.layout === 'handnear' ? 'hand-made near ponds' : 'mixed') + ' · ' + c.islands + ' islands · food ' + c.regrow + ' · water ' + c.waterRegrow + (c.lossE !== undefined ? ' · energy −' + c.lossE + '/tick · hydration −' + c.lossW + '/tick' : '') + ' · brain ' + (c.layers || 1) + '×' + c.hidden + (c.noise ? ' · random input' : '') + (c.age ? ' · age input' : '') + (c.ageTherm ? ' · age steps' : '') + (c.latch ? ' · latch' : '') + (c.oscillator ? ' · oscillator' : '') + (c.feedback ? ' · result inputs' : '') + (c.tumble ? ' · wander ' + c.tumbleEvery : '') + (c.brainMomentum ? ' · brain sets momentum' : c.inertia ? ' · momentum ' + c.inertia : '');
+    return 'seed ' + sv.seed + ' · ' + (c.layout === 'split' ? 'separated' : c.layout === 'circles' ? 'two circles' : c.layout === 'handmade' ? 'hand-made ponds' : c.layout === 'handfar' ? 'hand-made far ponds' : c.layout === 'handnear' ? 'hand-made near ponds' : 'mixed') + ' · ' + c.islands + ' islands · food ' + c.regrow + ' · water ' + c.waterRegrow + (c.lossE !== undefined ? ' · energy −' + c.lossE + '/tick · hydration −' + c.lossW + '/tick' : '') + ' · brain ' + (c.layers || 1) + '×' + c.hidden + (c.noise ? ' · random input' : '') + (c.age ? ' · age input' : '') + (c.ageTherm ? ' · age steps' : '') + (c.latch ? ' · latch' : '') + (c.oscillator ? (c.oscGene ? ' · oscillator (gene period)' : ' · oscillator') : '') + (c.timer ? ' · timer' : '') + (c.feedback ? ' · result inputs' : '') + (c.tumble ? ' · wander ' + c.tumbleEvery : '') + (c.brainMomentum ? ' · brain sets momentum' : c.inertia ? ' · momentum ' + c.inertia : '');
   }
 
   function renderSaves() {
