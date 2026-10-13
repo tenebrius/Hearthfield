@@ -43,15 +43,15 @@ check('log approximation', maxL < 1e-9, 'max abs error ' + maxL.toExponential(2)
 
 // 3. forward pass equals a plain JS implementation (Math.tanh, doubles), for 1 and 2 hidden layers and with memory on and off.
 //    Weight layout: input-major rows, columns padded to a multiple of 4; only inputs that can be non-zero have rows.
-for (const layers of [1, 2]) for (const memory of [true, false]) for (const grip of [false, true]) {
-  const extra = grip;   // the 'grip' case also switches on the latch and oscillator, so every extra output is exercised
-  const e = new Engine({ layout: 'circles', layers, memory, brainMomentum: grip, latch: extra, oscillator: extra, hidden: 8, position: true, noise: true, age: true, feedback: true, tumble: true }, 3), x = e.x;
+for (const layers of [1, 2]) for (const memory of [true, false]) for (const variant of [{ grip: false, tm: 0 }, { grip: true, tm: 0 }, { grip: true, tm: 1 }, { grip: true, tm: 2 }]) {
+  const grip = variant.grip, tm = variant.tm, extra = grip;   // 'grip' also switches on the latch and oscillator; tm > 0 adds the thermometer with brain-set thresholds
+  const e = new Engine({ layout: 'circles', layers, memory, brainMomentum: grip, latch: extra, oscillator: extra, ageTherm: tm > 0, thermMode: tm, hidden: 8, position: true, noise: true, age: true, feedback: true, tumble: true }, 3), x = e.x;
   const NW = x.genome_stride(), NH = 8, N_IN = 33, HP = x.layout_info(0), OP = x.layout_info(1), OFF2 = x.layout_info(2), OFFO = x.layout_info(3), NACT = x.layout_info(4);
-  const NOUT = (memory ? 11 : 3) + (grip ? 3 : 0);
+  const NOUT = (memory ? 11 : 3) + (grip ? 3 : 0) + (tm === 1 ? 1 : tm === 2 ? 6 : 0);
   const act = Array.from(new Int32Array(e.mem, x.act_ptr(), NACT));
-  check('active inputs, memory ' + (memory ? 'on' : 'off') + ', extras ' + (extra ? 'on' : 'off'), act.length === (memory ? 23 : 19) + (extra ? 4 : 0), act.length + ' active');
+  check('active inputs, memory ' + (memory ? 'on' : 'off') + ', extras ' + (extra ? 'on' : 'off') + ', thermometer mode ' + tm, act.length === (memory ? 23 : 19) + (extra ? 4 : 0) + (tm > 0 ? 6 : 0), act.length + ' active');
   const ord = new Int32Array(e.mem, x.ord_ptr(), 40), G = new Float32Array(e.mem, x.genome_ptr(), 2048 * NW), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * N_IN);
-  const OUT = new Float32Array(e.mem, x.out_ptr(), 16);
+  const OUT = new Float32Array(e.mem, x.out_ptr(), 24);
   let maxErr = 0;
   for (let t = 0; t < 40; t++) {
     const s = ord[t % 40], g = G.subarray(s * NW, (s + 1) * NW), inp = INP.subarray(s * N_IN, (s + 1) * N_IN);
@@ -65,7 +65,7 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const grip
     // padding columns must stay zero
     for (let k = 0; k < NACT; k++) for (let c = NH; c < HP; c++) if (g[k * HP + c] !== 0) maxErr = 1e9;
   }
-  check('forward pass, ' + layers + ' layer(s), memory ' + (memory ? 'on' : 'off') + ', brain momentum ' + (grip ? 'on' : 'off'), maxErr < 5e-4, 'max abs error on outputs ' + maxErr.toExponential(2));
+  check('forward pass, ' + layers + ' layer(s), memory ' + (memory ? 'on' : 'off') + ', brain momentum ' + (grip ? 'on' : 'off') + ', thermometer mode ' + tm, maxErr < 5e-4, 'max abs error on outputs ' + maxErr.toExponential(2));
 }
 // 4. crossover builds children from the two parents as described
 {

@@ -26,14 +26,14 @@ typedef unsigned long long u64;
 #define N_OUT (3 + 2 * N_MEM)
 #define MAXHID 32
 #define MAXA 2048
-#define MAXG (N_IN * MAXHID + MAXHID * MAXHID + MAXHID * 16)   // input-major layers, columns padded to a multiple of 4
+#define MAXG (N_IN * MAXHID + MAXHID * MAXHID + MAXHID * 20)   // input-major layers, columns padded to a multiple of 4
 #define MIN_SEE 0.2
 
 enum Cfg {
   C_REGROW, C_WREGROW, C_LOSSE, C_LOSSW, C_MOVEE, C_MOVEW, C_GAINE, C_GAINW, C_MAXE, C_MAXW,
   C_STARTE, C_STARTW, C_REQE, C_REQW, C_PAYE, C_PAYW, C_KIDE, C_KIDW, C_STEPLEN, C_COOLDOWN,
   C_SIGHT, C_HIDDEN, C_LAYERS, C_MEMORY, C_POSITION, C_NOISE, C_AGE, C_FEEDBACK, C_TUMBLE,
-  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_AGESCALE, C_AGETHERM, C_COUNT
+  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_AGESCALE, C_AGETHERM, C_THERMMODE, C_COUNT
 };
 static double CFG[64];
 EXPORT("cfg_ptr") double *cfg_ptr(void) { return CFG; }
@@ -106,7 +106,7 @@ EXPORT("rebuild_masks") void rebuild_masks_export(void) { rebuild_masks(); }
 // ---------- agents (struct of arrays, indexed by slot; ord[] is the iteration order) ----------
 static float G[(u64)MAXA * MAXG], INP[MAXA * N_IN], MEM[MAXA * N_MEM];
 static double AX[MAXA], AY[MAXA], AE[MAXA], AW[MAXA], AVX[MAXA], AVY[MAXA], AMX[MAXA], AMY[MAXA];
-static double APH[MAXA], ALAT[MAXA][2], AGRIP[MAXA], ABLK[MAXA], AEATRES[MAXA], AHX[MAXA], AHY[MAXA], AHT[MAXA];
+static double ATH[MAXA][6], APH[MAXA], ALAT[MAXA][2], AGRIP[MAXA], ABLK[MAXA], AEATRES[MAXA], AHX[MAXA], AHY[MAXA], AHT[MAXA];
 static int ACD[MAXA], AAGE[MAXA], AGEN[MAXA], AEAT[MAXA];
 // generational mode
 #define MAXGP 1000
@@ -115,7 +115,7 @@ static double GFOOD[MAXA], GWATER[MAXA], GKEY[MAXA], GSTATS[24];
 static u8 GVIS[MAXA];   // bit 0: stood on water, bit 1: on food circle A, bit 2: on food circle B
 static float G2[(u64)MAXGP * MAXG];
 static int ORD[MAXA], ORD2[MAXA], FREE[MAXA], KIDS[MAXA], NFREE, NAG;
-static int NH, NL, NW, ACT[N_IN], NACT, HP, OP, NOUT, GRIPIDX, LATIDX, OSCIDX, OFF2, OFFO, NREAL, REAL[MAXG];
+static int NH, NL, NW, ACT[N_IN], NACT, HP, OP, NOUT, GRIPIDX, LATIDX, OSCIDX, THIDX, OFF2, OFFO, NREAL, REAL[MAXG];
 static long long TICK, BORN, STARVED, THIRSTY;
 
 EXPORT("n_agents") int n_agents(void) { return NAG; }
@@ -141,6 +141,7 @@ static void setup_brain(void) {
   GRIPIDX = NOUT; if (CFG[C_BRAINMOM] != 0) NOUT += 1;
   LATIDX = NOUT; if (CFG[C_LATCH] != 0) NOUT += 1;
   OSCIDX = NOUT; if (CFG[C_OSC] != 0 && CFG[C_OSCPERIOD] <= 0) NOUT += 1;   // oscPeriod > 0 fixes the period, so there is no period output
+  THIDX = NOUT; if (CFG[C_AGETHERM] != 0) NOUT += CFG[C_THERMMODE] == 1 ? 1 : CFG[C_THERMMODE] == 2 ? 6 : 0;   // thermMode 1: one scale output; 2: one output per step
   OP = (NOUT + 3) & ~3;
   NACT = 0;
   for (int i = 0; i < N_IN; i++) {
@@ -168,6 +169,7 @@ static int alloc_slot(void) { return FREE[--NFREE]; }
 static void new_agent(int s, double x, double y, int gen) {
   AX[s] = x; AY[s] = y; AE[s] = CFG[C_STARTE]; AW[s] = CFG[C_STARTW];
   AVX[s] = AVY[s] = AMX[s] = AMY[s] = 0; ABLK[s] = AEATRES[s] = 0; AHX[s] = AHY[s] = 0; AHT[s] = 0;
+  for (int k = 0; k < 6; k++) ATH[s][k] = 50 << k;
   APH[s] = 0; ALAT[s][0] = ALAT[s][1] = 0;
   if (CFG[C_LATCH] != 0) { ALAT[s][0] = aux() * 2 - 1; ALAT[s][1] = aux() * 2 - 1; }   // a latch starts holding a random sample
   AGRIP[s] = 0; ACD[s] = 0; AAGE[s] = 0; AGEN[s] = gen; AEAT[s] = 0;
@@ -293,7 +295,7 @@ static void sense(int s) {
   }
   if (CFG[C_OSC] != 0) { inp[23] = (float)sin2pi(APH[s]); inp[24] = (float)sin2pi(APH[s] + 0.25); }
   if (CFG[C_LATCH] != 0) { inp[25] = (float)ALAT[s][0]; inp[26] = (float)ALAT[s][1]; }
-  if (CFG[C_AGETHERM] != 0) for (int k = 0; k < 6; k++) inp[27 + k] = AAGE[s] >= (50 << k) ? 1.0f : 0.0f;   // thermometer: on once the dot is at least 50, 100, 200, 400, 800, 1600 ticks old
+  if (CFG[C_AGETHERM] != 0) for (int k = 0; k < 6; k++) inp[27 + k] = AAGE[s] >= ATH[s][k] ? 1.0f : 0.0f;   // thermometer: on once the dot is old enough; thresholds are 50, 100, 200, 400, 800, 1600 unless the brain sets them
 }
 
 // ---------- thinking ----------
@@ -315,7 +317,7 @@ static inline v4f vtanh(v4f x) {
   q = q * x2 + splat(1.18534705686654e-04f); q = q * x2 + splat(2.26843463243900e-03f); q = q * x2 + splat(4.89352518554385e-03f);
   return p / q;
 }
-static float HID1[MAXHID + 4] __attribute__((aligned(16))), HID2[MAXHID + 4] __attribute__((aligned(16))), OUTV[16] __attribute__((aligned(16)));
+static float HID1[MAXHID + 4] __attribute__((aligned(16))), HID2[MAXHID + 4] __attribute__((aligned(16))), OUTV[24] __attribute__((aligned(16)));
 // out[0..cols) = sum over rows r of x[r] * W[r][0..cols)   (W row-major, row length `stride`), cols a multiple of 4, all in f32
 static inline void layer(const float *x, int rows, const float *Wt, int stride, int cols, v4f *acc) {
   int nv = cols >> 2;
@@ -341,13 +343,28 @@ static void think(int s) {
     for (int v = 0; v < nvh; v++) *(v4f *)(HID2 + 4 * v) = vtanh(acc[v]);
     last = HID2;
   }
-  v4f oacc[4];
+  v4f oacc[6];
   layer(last, NH, g + OFFO, OP, OP, oacc);
   for (int v = 0; v < (OP >> 2); v++) *(v4f *)(OUTV + 4 * v) = oacc[v];
   v4f mv = vtanh(*(v4f *)OUTV);
   AMX[s] = mv[0]; AMY[s] = mv[1]; AEAT[s] = OUTV[2] > 0;
   if (CFG[C_BRAINMOM] != 0) AGRIP[s] = 0.95 * 0.5 * (1 + ftanh(0.5 * OUTV[GRIPIDX]));
   if (CFG[C_LATCH] != 0 && OUTV[LATIDX] > 0) { ALAT[s][0] = aux() * 2 - 1; ALAT[s][1] = aux() * 2 - 1; }   // trigger: take a new random sample, otherwise hold
+  if (CFG[C_AGETHERM] != 0) {   // brain-set thermometer, applies from the next tick
+    if (CFG[C_THERMMODE] == 1) {   // one output sets the unit u = 12.5 * 16^sigmoid (12.5 to 200 ticks); steps at u * 1, 2, 4, 8, 16, 32
+      double sg = 0.5 * (1 + ftanh(0.5 * OUTV[THIDX])), u = 12.5, base = 16;
+      // 16^sg = exp(sg * ln 16) via 2^(4 sg): split into integer and fractional powers of 2
+      double e4 = 4 * sg; int ei = (int)e4; double fr = e4 - ei, p2 = 1 + fr * (0.6931471805599453 + fr * (0.2402265069591007 + fr * (0.05550410866482158 + fr * (0.009618129107628477 + fr * 0.0013333558146428443))));
+      (void)base; u *= p2 * (double)(1 << ei);
+      for (int k = 0; k < 6; k++) ATH[s][k] = u * (double)(1 << k);
+    } else if (CFG[C_THERMMODE] == 2) {   // each step's threshold is chosen by its own output: 10 * 200^sigmoid (10 to 2000 ticks)
+      for (int k = 0; k < 6; k++) {
+        double sg = 0.5 * (1 + ftanh(0.5 * OUTV[THIDX + k])), e = sg * 7.643856189774724;   // log2(200)
+        int ei = (int)e; double fr = e - ei, p2 = 1 + fr * (0.6931471805599453 + fr * (0.2402265069591007 + fr * (0.05550410866482158 + fr * (0.009618129107628477 + fr * 0.0013333558146428443))));
+        ATH[s][k] = 10 * p2 * (double)(1 << ei);
+      }
+    }
+  }
   if (CFG[C_OSC] != 0) APH[s] += CFG[C_OSCPERIOD] > 0 ? 1.0 / CFG[C_OSCPERIOD] : 1.0 / (4 + 396 * 0.5 * (1 + ftanh(0.5 * OUTV[OSCIDX])));   // the brain sets the period (4 to 400 ticks), or it is fixed by oscPeriod
   if (CFG[C_MEMORY] != 0) {   // memory: mem = gate * tanh(value) + (1 - gate) * mem, four registers at once
     v4f nv = vtanh(*(v4f *)(OUTV + 3));
