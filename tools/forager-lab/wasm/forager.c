@@ -106,7 +106,7 @@ EXPORT("rebuild_masks") void rebuild_masks_export(void) { rebuild_masks(); }
 // ---------- agents (struct of arrays, indexed by slot; ord[] is the iteration order) ----------
 static float G[(u64)MAXA * MAXG], INP[MAXA * N_IN], MEM[MAXA * N_MEM];
 static double AX[MAXA], AY[MAXA], AE[MAXA], AW[MAXA], AVX[MAXA], AVY[MAXA], AMX[MAXA], AMY[MAXA];
-static double ATH[MAXA][6], APH[MAXA], ALAT[MAXA][2], AGRIP[MAXA], ABLK[MAXA], AEATRES[MAXA], AHX[MAXA], AHY[MAXA], AHT[MAXA];
+static double APER[MAXA], ATH[MAXA][6], APH[MAXA], ALAT[MAXA][2], AGRIP[MAXA], ABLK[MAXA], AEATRES[MAXA], AHX[MAXA], AHY[MAXA], AHT[MAXA];
 static int ACD[MAXA], AAGE[MAXA], AGEN[MAXA], AEAT[MAXA];
 // generational mode
 #define MAXGP 1000
@@ -365,7 +365,10 @@ static void think(int s) {
       }
     }
   }
-  if (CFG[C_OSC] != 0) APH[s] += CFG[C_OSCPERIOD] > 0 ? 1.0 / CFG[C_OSCPERIOD] : 1.0 / (4 + 396 * 0.5 * (1 + ftanh(0.5 * OUTV[OSCIDX])));   // the brain sets the period (4 to 400 ticks), or it is fixed by oscPeriod
+  if (CFG[C_OSC] != 0) {
+    double per = CFG[C_OSCPERIOD] > 0 ? CFG[C_OSCPERIOD] : 4 + 396 * 0.5 * (1 + ftanh(0.5 * OUTV[OSCIDX]));
+    APER[s] = per; APH[s] += 1.0 / per;
+  }   // the brain sets the period (4 to 400 ticks), or it is fixed by oscPeriod
   if (CFG[C_MEMORY] != 0) {   // memory: mem = gate * tanh(value) + (1 - gate) * mem, four registers at once
     v4f nv = vtanh(*(v4f *)(OUTV + 3));
     v4f gate = splat(0.5f) * (splat(1) + vtanh(splat(0.5f) * *(v4f *)(OUTV + 3 + N_MEM)));
@@ -508,9 +511,8 @@ static int tournament(int T) {
   return best;
 }
 // runs one round on the current genomes, records GSTATS for it, then breeds the next generation in place
-EXPORT("gen_round_ex")
-void gen_round_ex(int breed) {
-  const int L = (int)CFG[C_GENLEN], E = (int)CFG[C_GENELITE], T = (int)CFG[C_GENTOURN], X = (int)CFG[C_GENXOVER];
+EXPORT("gen_begin")
+void gen_begin(void) {
   for (int i = 0; i < W * H; i++) FOOD[i] = FERT[i];
   rebuild_masks();
   NAG = GP; TICK = 0;
@@ -520,7 +522,11 @@ void gen_round_ex(int breed) {
     else { double x = rng() * W, y = rng() * H; new_agent(s, x, y, 0); }
     GDEAD[s] = -1; GFOOD[s] = 0; GWATER[s] = 0; GVIS[s] = 0;
   }
-  for (int t = 0; t < L && NAG > 0; t++) { ROUNDTICK = t; step(1); }
+}
+EXPORT("gen_tick") int gen_tick(int t) { ROUNDTICK = t; step(1); return NAG; }
+EXPORT("gen_end")
+void gen_end(int breed) {
+  const int L = (int)CFG[C_GENLEN], E = (int)CFG[C_GENELITE], T = (int)CFG[C_GENTOURN], X = (int)CFG[C_GENXOVER];
   // scores: key = wSurv * ticks survived + wFood * food tiles eaten + wWater * water tiles drunk (+ a tiny tie-break on total intake)
   static int idx[MAXGP];
   const double wS = CFG[C_GWSURV], wF = CFG[C_GWFOOD], wW = CFG[C_GWWATER], gE = CFG[C_GAINE] > 0 ? CFG[C_GAINE] : 1, gW = CFG[C_GAINW] > 0 ? CFG[C_GAINW] : 1;
@@ -571,4 +577,12 @@ void gen_round_ex(int breed) {
 }
 EXPORT("gen_stats_ptr") double *gen_stats_ptr(void) { return GSTATS; }
 EXPORT("gen_index") int gen_index(void) { return GEN; }
+EXPORT("gen_round_ex") void gen_round_ex(int breed) { gen_begin(); const int L = (int)CFG[C_GENLEN]; for (int t = 0; t < L && NAG > 0; t++) gen_tick(t); gen_end(breed); }
 EXPORT("gen_round") void gen_round(void) { gen_round_ex(1); }
+// state exports for the trace tool
+EXPORT("ae_ptr") double *ae_ptr(void) { return AE; }
+EXPORT("aw_ptr") double *aw_ptr(void) { return AW; }
+EXPORT("aper_ptr") double *aper_ptr(void) { return APER; }
+EXPORT("gfood_ptr") double *gfood_ptr(void) { return GFOOD; }
+EXPORT("gwater_ptr") double *gwater_ptr(void) { return GWATER; }
+EXPORT("gdead_ptr") int *gdead_ptr(void) { return GDEAD; }

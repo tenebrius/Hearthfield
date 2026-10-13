@@ -65,6 +65,20 @@ class Engine {
   step(n) { this.x.step(n); }
   // generational mode: genInit(seed) once, then genRound() per generation; stats describe the generation just evaluated
   genInit(seed) { this.x.gen_init(seed >>> 0); }
+  // stepwise round for tracing: genBegin(), then genTick(t) once per tick (returns how many dots are alive), then genEnd(breed)
+  genBegin() { this.x.gen_begin(); }
+  genTick(t) { return this.x.gen_tick(t); }
+  genEnd(breed) {
+    this.x.gen_end(breed === false ? 0 : 1);
+    const s = new Float64Array(this.mem, this.x.gen_stats_ptr(), 24);
+    return { gen: s[0], best: s[1], mean: s[2], median: s[3], fullShare: s[4], food: s[5], water: s[6], pondShare: s[7], bothShare: s[8], diversity: s[9], aliveAtEnd: s[10], score: s[11], drankShare: s[12] };
+  }
+  // typed views of per-dot state (index = dot slot, 0 to genP - 1 in generational mode)
+  views() {
+    const x = this.x, m = this.mem, n = 2048;
+    return { ord: new Int32Array(m, x.ord_ptr(), n), ax: new Float64Array(m, x.ax_ptr(), n), ay: new Float64Array(m, x.ay_ptr(), n), ae: new Float64Array(m, x.ae_ptr(), n), aw: new Float64Array(m, x.aw_ptr(), n),
+      aper: new Float64Array(m, x.aper_ptr(), n), gfood: new Float64Array(m, x.gfood_ptr(), n), gwater: new Float64Array(m, x.gwater_ptr(), n), gdead: new Int32Array(m, x.gdead_ptr(), n) };
+  }
   genRound(breed) {
     this.x.gen_round_ex(breed === false ? 0 : 1);
     const s = new Float64Array(this.mem, this.x.gen_stats_ptr(), 24);
