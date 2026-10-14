@@ -563,11 +563,16 @@ void gen_begin(void) {
   }
 }
 EXPORT("gen_tick") int gen_tick(int t) { ROUNDTICK = t; step(1); return NAG; }
+static int idx[MAXGP];   // dot slots sorted by GKEY, best first
+static void sort_by_key(void) {
+  for (int s = 0; s < GP; s++) idx[s] = s;
+  for (int i = 1; i < GP; i++) { int v = idx[i], j = i - 1; while (j >= 0 && GKEY[idx[j]] < GKEY[v]) { idx[j + 1] = idx[j]; j--; } idx[j + 1] = v; }
+}
+static void breed_next(void);
 EXPORT("gen_end")
 void gen_end(int breed) {
-  const int L = (int)CFG[C_GENLEN], E = (int)CFG[C_GENELITE], T = (int)CFG[C_GENTOURN], X = (int)CFG[C_GENXOVER];
+  const int L = (int)CFG[C_GENLEN];
   // scores: key = wSurv * ticks survived + wFood * food tiles eaten + wWater * water tiles drunk (+ a tiny tie-break on total intake)
-  static int idx[MAXGP];
   const double wS = CFG[C_GWSURV], wF = CFG[C_GWFOOD], wW = CFG[C_GWWATER], gE = CFG[C_GAINE] > 0 ? CFG[C_GAINE] : 1, gW = CFG[C_GAINW] > 0 ? CFG[C_GAINW] : 1;
   double sumSurv = 0, sumF = 0, sumW = 0, sumKey = 0; int full = 0, pond = 0, both = 0, drank = 0;
   for (int s = 0; s < GP; s++) {
@@ -581,9 +586,8 @@ void gen_end(int breed) {
     if (GVIS[s] & 1) pond++;
     if (GWATER[s] > 0) drank++;
     if ((GVIS[s] & 6) == 6) both++;
-    idx[s] = s;
   }
-  for (int i = 1; i < GP; i++) { int v = idx[i], j = i - 1; while (j >= 0 && GKEY[idx[j]] < GKEY[v]) { idx[j + 1] = idx[j]; j--; } idx[j + 1] = v; }
+  sort_by_key();
   double diff = 0; int pairs = 0;
   for (int i = 0; i < 100 && i < GP; i++) {
     const float *a = G + (u64)i * NW, *b = G + (u64)((i * 7 + 3) % GP) * NW; double d = 0;
@@ -602,7 +606,11 @@ void gen_end(int breed) {
   GSTATS[11] = sumKey / GP;               // mean score
   GSTATS[12] = (double)drank / GP;        // share that drank at least once
   if (!breed) return;   // evaluation only: leave the genomes as they are
-  // next generation, bred into G2 then copied back
+  breed_next();
+}
+// next generation from the current GKEY (idx must be sorted by GKEY), bred into G2 then copied back
+static void breed_next(void) {
+  const int E = (int)CFG[C_GENELITE], T = (int)CFG[C_GENTOURN], X = (int)CFG[C_GENXOVER];
   for (int c = 0; c < GP; c++) {
     float *g = G2 + (u64)c * NW;
     if (c < E) { const float *p = G + (u64)idx[c] * NW; for (int i = 0; i < NW; i++) g[i] = p[i]; continue; }
@@ -614,6 +622,9 @@ void gen_end(int breed) {
   for (int c = 0; c < GP; c++) { float *g = G + (u64)c * NW; const float *p = G2 + (u64)c * NW; for (int i = 0; i < NW; i++) g[i] = p[i]; }
   GEN++;
 }
+// scoring on several layouts: run rounds with gen_round_ex(0), average GKEY over them in JavaScript (gkey_ptr), write the mean back, then gen_breed()
+EXPORT("gkey_ptr") double *gkey_ptr(void) { return GKEY; }
+EXPORT("gen_breed") void gen_breed(void) { sort_by_key(); breed_next(); }
 EXPORT("gen_stats_ptr") double *gen_stats_ptr(void) { return GSTATS; }
 EXPORT("gen_index") int gen_index(void) { return GEN; }
 EXPORT("gen_round_ex") void gen_round_ex(int breed) { gen_begin(); const int L = (int)CFG[C_GENLEN]; for (int t = 0; t < L && NAG > 0; t++) gen_tick(t); gen_end(breed); }

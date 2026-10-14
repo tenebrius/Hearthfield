@@ -149,6 +149,26 @@ class Engine {
     const s = new Float64Array(this.mem, this.x.gen_stats_ptr(), 24);
     return { gen: s[0], best: s[1], mean: s[2], median: s[3], fullShare: s[4], food: s[5], water: s[6], pondShare: s[7], bothShare: s[8], diversity: s[9], aliveAtEnd: s[10], score: s[11], drankShare: s[12] };
   }
+  // one generation scored on several layouts: setLayouts is an array of functions, each sets the map for one round (for example () => e.setMap('randpond', 0, seed, 2, 30, 0)).
+  // Every dot plays every layout, its score is the mean of its scores, then the population is bred once. Returns the mean of the per-round stats.
+  // With one layout this is exactly genRound().
+  genRoundMulti(setLayouts) {
+    const x = this.x, GP = this.cfg.genP, K = setLayouts.length, sum = new Float64Array(GP), stats = [];
+    for (const set of setLayouts) {
+      set();
+      x.gen_round_ex(0);
+      const key = new Float64Array(this.mem, x.gkey_ptr(), GP);
+      for (let s = 0; s < GP; s++) sum[s] += key[s];
+      const st = new Float64Array(this.mem, x.gen_stats_ptr(), 24);
+      stats.push({ gen: st[0], best: st[1], mean: st[2], median: st[3], fullShare: st[4], food: st[5], water: st[6], pondShare: st[7], bothShare: st[8], diversity: st[9], aliveAtEnd: st[10], score: st[11], drankShare: st[12] });
+    }
+    const key = new Float64Array(this.mem, x.gkey_ptr(), GP);
+    for (let s = 0; s < GP; s++) key[s] = sum[s] / K;
+    x.gen_breed();
+    const out = {}; for (const k in stats[0]) out[k] = stats.reduce((a, b) => a + b[k], 0) / K;
+    out.gen = stats[0].gen;
+    return out;
+  }
   get pop() { return this.x.n_agents(); }
   stats() { const x = this.x; return { tick: x.tick(), pop: x.n_agents(), born: x.born(), starved: x.starved(), thirsty: x.thirsty() }; }
   // positions of all living dots, in the order the engine updates them

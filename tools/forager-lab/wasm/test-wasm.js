@@ -177,5 +177,31 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const vari
   check('a dot pushed into a wall slides along it', slid > 20 && wallIn === 0, slid + ' of 200 slid, ' + wallIn + ' ended inside the wall');
 }
 
+// 8. scoring on several layouts: one layout is exactly genRound(); three identical layouts (rounds are deterministic in this setup) give the same genomes as one;
+//    three different layouts give the mean of the three single-layout scores
+{
+  const cfg = { layout: 'randpond', mapSeed: 1, pondMin: 30, memory: true, oscillator: true, oscPeriod: 200, genSpawn: 1, maxE: 500, maxW: 500, startE: 500, startW: 500, genLen: 300 };
+  const mk = () => { const e = new Engine(cfg, 5); e.genInit(5); return e; };
+  const genomes = e => new Float32Array(e.mem, e.x.genome_ptr(), 200 * e.x.genome_stride()).slice();
+  const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+  const A = mk(), B = mk(), C = mk(); let ok1 = true, ok3 = true;
+  for (let g = 0; g < 6; g++) {
+    const set = () => A.setMap('randpond', 0, 10 + g, 2, 30, 0); set();
+    const sa = A.genRound(), sb = B.genRoundMulti([() => B.setMap('randpond', 0, 10 + g, 2, 30, 0)]);
+    const m = () => C.setMap('randpond', 0, 10 + g, 2, 30, 0), sc = C.genRoundMulti([m, m, m]);
+    if (sa.mean !== sb.mean || sa.drankShare !== sb.drankShare) ok1 = false;
+    if (Math.abs(sa.mean - sc.mean) > 1e-9) ok3 = false;
+  }
+  check('one layout per generation is exactly genRound() (6 generations, same stats and genomes)', ok1 && same(genomes(A), genomes(B)));
+  check('three identical layouts breed the same population as one', ok3 && same(genomes(A), genomes(C)));
+  // different layouts: the stats are the mean of three evaluations without breeding, done on an identical copy
+  const mk2 = () => { const e = new Engine(Object.assign({}, cfg, { genLen: 1000, maxW: 300, startW: 300 }), 5); e.genInit(5); return e; };   // rounds long enough that survival differs by layout
+  const D = mk2(), E2 = mk2(), ms = [21, 22, 23], keyRef = new Float64Array(200);
+  let ref = 0; for (const m of ms) { D.setMap('randpond', 0, m, 2, 30, 0); ref += D.genRound(false).mean / 3; const k = new Float64Array(D.mem, D.x.gkey_ptr(), 200); for (let i = 0; i < 200; i++) keyRef[i] += k[i] / 3; }
+  const sm = E2.genRoundMulti(ms.map(m => () => E2.setMap('randpond', 0, m, 2, 30, 0)));
+  const k2 = new Float64Array(E2.mem, E2.x.gkey_ptr(), 200); let maxd = 0; for (let i = 0; i < 200; i++) maxd = Math.max(maxd, Math.abs(k2[i] - keyRef[i]));
+  const spread = Math.max(...keyRef) - Math.min(...keyRef);
+  check('three different layouts: each dot is scored on the mean of its three rounds, stats are the mean', Math.abs(sm.mean - ref) < 1e-9 && maxd < 1e-9 && spread > 1, 'mean ' + sm.mean.toFixed(2) + ' vs ' + ref.toFixed(2) + ', max key difference ' + maxd.toExponential(1) + ', key spread ' + spread.toFixed(0));
+}
 console.log(failed ? failed + ' check(s) FAILED' : 'all checks passed');
 process.exit(failed ? 1 : 0);
