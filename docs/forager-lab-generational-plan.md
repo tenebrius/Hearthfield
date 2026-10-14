@@ -401,3 +401,20 @@ Per seed (random ponds, ticks / full share): fixed period 200: 812/0, 873/29, 72
 - **Fixed-period 200 started drinking in more seeds than the brain-set oscillator (7 against 5)**, in line with the earlier finding that a hand-picked period is the easier clock, but 8 seeds do not separate them.
 - **Seeds that drank but stayed under the wall** (osc200 seeds 3 and 4: 729 and 746 with 65% and 45% drank) drink too late or too early to gain from it. They may be mid-learning; the final stage was cut at 1400 generations.
 - **What this means for the plan:** the far-corners task was already easy enough that most of its result survives moving the ponds. The random layout adds a hard start but not a much higher ceiling (best 920 of 1000). To push the brains, the next worlds need to change what has to be done, not where the ponds are: longer rounds with several thirst cycles, then obstacles.
+
+## Longer rounds: 3000 ticks, several thirst cycles (8 seeds per setup, 1000 generations)
+
+Setup: far corners, stores of 500, centre start, memory on, survival score, `genLen` 3000 (the thirst wall stays at 833 ticks, so a dot needs about four drinking trips to last the round). Direct training, no curriculum. Batch script kept outside the repo; one run takes about 1 min 46 s (3x a 1000-tick run); 24 runs took about 12 minutes.
+
+| Setup | survived (of 3000) | drank | full round (3000) | seeds above 1000 ticks |
+|---|---|---|---|---|
+| No clock | 1030 | 52% | 5.8% | 3 of 8 |
+| Fixed period 200 | 1222 | 89% | 10.2% | 7 of 8 |
+| Brain-set oscillator | 1222 | 83% | 11.9% | 6 of 8 |
+
+Per seed (survived): no clock 1186, 808, 816, 894, 819, 1617, 801, 1295; fixed 200: 1267, 1270, 891, 1166, 1330, 1322, 1267, 1259; brain-set: 828, 1763, 1362, 1315, 726, 1288, 1233, 1261.
+
+- **Nobody solves it.** The best mean is 1222 of 3000, and only 6 to 12% of dots last the whole round. Most dots get through the first thirst cycle (wall 833) and die in the second or third.
+- **A clock still helps, mostly by making drinking start.** 89% / 83% of dots drink with a clock against 52% without; 7 and 6 of 8 seeds get past 1000 ticks against 3 of 8. Fixed 200 and brain-set are equal within noise (1222 each).
+- **Seeds are two-valued again:** a seed either learns drinking (1200 to 1760) or stays at the wall (726 to 894).
+- Not yet known: where the dots die (second or third cycle, thirst or hunger), and whether a curriculum (near ponds first) or more generations lifts the 10% ceiling.
