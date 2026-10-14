@@ -440,3 +440,29 @@ Per seed (survived / full): water 0.1: 2242/56, 2332/62, 2150/50, 2141/52, 1004/
 - **The 10% ceiling in the 3000-tick world was mostly resource supply, not the brains.** Tripling water regrowth raises full-round survival from about 9% to 46%, and tripling food regrowth as well to 69%. In the third setup all six seeds are within 2333 to 2623.
 - **This is not a free win:** it means the 3000-tick world as set up asks for something the world cannot give. The number to read for brain quality is survival relative to what the supply allows. Supply must be chosen deliberately (and it now becomes a tunable of the world, like the thirst wall).
 - Still unmeasured: the actual pond stock and drink rate per tick; whether crowding (200 dots) or the fixed regrow rate is what binds; and whether earlier 1000-tick results were also partly supply-limited (probably not much: demand is far lower in 1000 ticks).
+
+## Walls (2026-10-14)
+
+**Built** (engine.js, forager.c, tested in test-wasm.js): wall tiles (kind 4) block movement; a dot that steps into one slides along it (keeps the free axis), or stays if both axes are blocked. `walls: 1` builds an L-shaped wall around each far pond (a horizontal arm along y = 10 and a vertical arm along x = 10, mirrored for the other corner) with a gap of `wallGap` tiles in the vertical arm; gap 9 is almost open, gap 3 is narrow. `wallSense: 1` adds three inputs (direction to the nearest wall tile and closeness, within sight range, like food and water; N_IN is now 37). Dots see food and ponds through walls (no line-of-sight blocking). Without walls the engine is unchanged (seed 1, fixed 200, 1000 generations: 905 survived, 87% drank, 52% full, identical on the old and new build). Walls are in the WASM engine only, not in the HTML page.
+
+**Direct training on the walled map: nothing learns to drink.** 8 seeds, 1000 generations, 1000-tick rounds, stores of 500, far ponds, memory on: fixed 200 or brain-set oscillator, with or without wall sense, gaps 3, 6 and 9 all gave 809 to 816 survived, 0 to 4% drank, 0 to 0.8% full (the no-wall figure for fixed 200 is about 887 / 87% / 50%). Even gap 9 failed. (A control run in that batch was mistakenly still on the walled map; it is not reported.)
+
+**Walls introduced after learning the open map** (`run-walls.js`: 1000 generations on the open map, then gaps 9, 7, 5, 3 for 300 generations each, then 500 more at gap 3; 8 seeds per setup; mean of the last 20 generations of each stage, survived / full / drank):
+
+| Stage | Fixed 200, no wall sense | Fixed 200, wall sense | Brain-set, wall sense |
+|---|---|---|---|
+| Open map | 887 / 50% / 87% | 880 / 41% / 90% | 900 / 52% / 90% |
+| Gap 9 | 878 / 45% / 80% | 830 / 17% / 56% | 816 / 15% / 39% |
+| Gap 7 | 859 / 38% / 70% | 845 / 21% / 57% | 825 / 16% / 43% |
+| Gap 5 | 862 / 41% / 70% | 839 / 23% / 56% | 820 / 17% / 44% |
+| Gap 3 (300 gens) | 852 / 36% / 67% | 842 / 22% / 55% | 823 / 14% / 37% |
+| Gap 3, 500 more gens | 865 / 36% / 72% | 846 / 24% / 58% | 827 / 14% / 34% |
+
+Paired by seed at the end (mean difference, bootstrap 95% interval): fixed 200 without sense minus with sense: +19.5 ticks (-10 to +52), +11.8 points of full survival (-4 to +30); fixed 200 with sense minus brain-set with sense: +18.9 ticks (+0.5 to +41); fixed 200 without sense minus brain-set with sense: +38 ticks (+5 to +72), +22 points full (+4 to +39). Eight seeds.
+
+- **Walls cost less than expected once the dots know the open map.** Without wall sense, fixed 200 keeps most of its skill (887 to 865, 50% to 36% full) and the gap hardly matters: 878 at gap 9 against 852 at gap 3. Sliding along walls does most of the work.
+- **Learning with walls from scratch fails, learning the open map first works.** The difference is the starting point, not the gap: the same task that no seed learned directly is retained at 36% full after an open-map start.
+- **Wall sense did not help; it may have hurt** (final 846 / 24% against 865 / 36% without it; the interval includes 0). The dots are not using the extra inputs in the way the plan assumed. Possible reason, untested: the three inputs read 0 for the first 1000 generations so their weights drift freely, and switching them on when walls arrive perturbs a working brain. Ablating the inputs after training would tell.
+- **The brain-set oscillator is clearly the worst here** (14% full against 36%), the opposite of the order in earlier worlds (where it was within noise of fixed 200).
+- Caveat: these walls leave a short detour (the gap is next to the pond and the arms are 10 tiles long), the dots see ponds through walls, and the learned route may already pass through the gap. A harder wall world would put the walls between the food and the ponds.
+- Run note: each run took about 6 minutes with four in parallel (2800 generations); my 9-minute estimate for 24 runs was wrong (they need about 40 minutes), and the first launch hit its 30-minute limit with 20 done, so the last four were rerun.
