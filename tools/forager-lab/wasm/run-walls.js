@@ -10,14 +10,25 @@ const mods = JSON.parse(process.argv[2] || '{}'), seed = +process.argv[3], openG
 const gaps = (process.argv[7] || '9,7,5,3').split(',').map(Number);
 const e = new Engine(Object.assign({}, DEFAULTS, mods, { walls: 0 }), seed);
 e.genInit(seed);
+// "gateWalls":1 holds the first-layer weights of the three wall inputs at 0 during the open-map stage (zeroed in every genome before every round, so mutation
+// cannot move them), so they carry no drift when the walls arrive; from the first walled stage on they evolve freely.
+const x = e.x, NW = x.genome_stride(), HP = x.layout_info(0), NACT = x.layout_info(4), ACT = new Int32Array(e.mem, x.act_ptr(), 40);
+function zeroWallWeights() {
+  const G = new Float32Array(e.mem, x.genome_ptr(), 2048 * NW); let k0 = -1;
+  for (let k = 0; k < NACT; k++) if (ACT[k] === 34) k0 = k;
+  if (k0 < 0) throw new Error('gateWalls needs wallSense on');
+  for (let s = 0; s < e.cfg.genP; s++) for (let j = 0; j < 3; j++) for (let c = 0; c < HP; c++) G[s * NW + (k0 + j) * HP + c] = 0;
+}
 const f = (v, d) => (+v).toFixed(d === undefined ? 0 : d), avg = (a, k) => a.reduce((s, x) => s + x[k], 0) / a.length;
+let gate = !!mods.gateWalls;
 function run(label, n) {
-  const hist = []; for (let g = 0; g < n; g++) hist.push(e.genRound());
+  const hist = []; for (let g = 0; g < n; g++) { if (gate) zeroWallWeights(); hist.push(e.genRound()); }
   const last = hist.slice(-20);
   console.log(label, '| survived', f(avg(last, 'mean')), 'full', f(100 * avg(last, 'fullShare')) + '%', 'drank', f(100 * avg(last, 'drankShare')) + '%', 'pond', f(100 * avg(last, 'pondShare')) + '%');
   return last;
 }
 run('open map', openGens);
+gate = false;
 for (const gap of gaps) { e.setMap('handfar', 0, undefined, undefined, undefined, undefined, mods.wallType || 1, gap); run('walls gap ' + gap + ' (' + stageGens + ' gens)', stageGens); }
 const last = run('final, gap ' + gaps[gaps.length - 1] + ' (' + finalGens + ' more gens)', finalGens);
 let abl = '';
