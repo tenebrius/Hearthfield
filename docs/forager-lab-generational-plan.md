@@ -516,3 +516,41 @@ Per seed at the end (survived / full), with the ablation of the wall inputs (as 
 - **The other five seeds lost drinking or stayed at the wall (801 to 831).** Gating did not fix them, so the weight drift is at most part of the explanation. These runs ended with 3 seeds drinking 0%, 3 at 33 to 36%, and 3 at 75 to 87% (drank).
 - Current picture: with long walls, the best outcomes are about equal with and without the wall sense (about 900), but without it more seeds get there (drank 55% or more in 6 of 8 seeds, against 3 of 8 gated and 1 of 8 ungated). The sense is an extra route to the same result that is harder to start.
 - Not explained: why seeds 2, 3, 5, 6, 7 lose drinking when the walls appear. A look at what those dots do at the walls (trace) would show whether they hug the wall, stay at food, or never leave the centre.
+
+### Trace of the long walls: the dots slide into the gap
+
+`run-walltrace.js` (4 seeds, fixed 200, no wall sense, trained as in the long-wall runs, then one replayed round; positions folded so both corners count together; a contact is a tick on which a dot was blocked or slowed with a wall tile next to it). Dots grouped by where they first touched a wall (dots / how many of them drank):
+
+| First contact | seed 1 | seed 2 | seed 3 | seed 4 |
+|---|---|---|---|---|
+| Outside the vertical arm | 102 / 78 | 167 / 141 | 153 / 126 | 152 / 144 |
+| Outside the horizontal arm | 1 / 0 | 6 / 1 | 3 / 1 | 0 / 0 |
+| Inside the corridor already | 30 / 30 | 18 / 17 | 27 / 27 | 25 / 25 |
+| Never touched a wall | 67 / 9 | 8 / 2 | 17 / 8 | 23 / 8 |
+
+Survived / full / drank: seed 1 814 / 18% / 59%, seed 2 850 / 43% / 81%, seed 3 891 / 57% / 81%, seed 4 919 / 65% / 89%.
+
+- **Almost every dot arrives at the outside of the vertical arm** (up to about 90%), spends about 35 to 55 ticks in contact with it (the slide) and then drinks (78% to 95% of them). That is the "sliding does the navigating" explanation: heading for the pond, a dot hits the vertical arm and slides along it into the gap at the edge end.
+- **The few dots that hit the horizontal arm first mostly fail** (1 drinker out of 10 across the seeds): sliding along that arm takes them west into the map edge, away from the gap.
+- So the long walls (and likely the corner cups) say little about steering around obstacles; the "hostile" layout below moves the gap to the corner end, where sliding leads away from it.
+
+### Hostile long walls (walls = 3), 16 seeds per setup
+
+Same schedule as before (1000 generations open, gaps 9, 7, 5, 3 for 300 each, 500 more), fixed 200, gap at the corner end of the vertical arm (rows 17 to 19 at gap 3), so sliding along the wall towards the pond leads away from the opening. Mean over 16 seeds, survived / full / drank:
+
+| Stage | No wall sense | Wall sense, weights gated |
+|---|---|---|
+| Open map | 876 / 44% / 82% | 883 / 41% / 79% |
+| Gap 9 | 795 / 18% / 63% | 826 / 12% / 35% |
+| Gap 7 | 795 / 16% / 64% | 822 / 11% / 33% |
+| Gap 5 | 813 / 16% / 52% | 826 / 13% / 33% |
+| Gap 3 (300 gens) | 811 / 15% / 53% | 833 / 14% / 33% |
+| Gap 3, 500 more | 814 / 16% / 55% | 835 / 15% / 34% |
+
+Per seed at the end (survived / full / drank): no wall sense: 752/3/80, 764/1/88, 846/37/77, 882/53/81, 827/35/77, 825/0/0, 821/0/0, 819/0/0, 863/40/75, 845/30/80, 820/0/0, 758/2/87, 906/55/81, 720/0/72, 759/0/78, 814/0/0. Wall sense (gated): 894/40/77, 816/2/36, 811/0/0, 914/53/80, 742/1/86, 813/0/0, 813/0/0, 905/55/78, 815/0/0, 826/0/0, 809/0/0, 829/13/48, 816/0/0, 823/19/53, 911/51/92, 828/0/0.
+
+- **The hostile gap costs about twice what the friendly one did:** no-sense full survival falls from 44% to 16% (friendly long walls: 50% to 33%), and with sense from 41% to 15%. The dots still learn it in part: 11 of 16 no-sense seeds drink (at least 25% drank) and 6 reach at least 25% full survival.
+- **The wall sense does not clearly help here either.** Gated minus no sense, paired by seed: +21.5 ticks (95% interval -14 to +57), -1.4 points of full survival (-17 to +14). Seeds reaching at least 25% full: 6 without, 4 with (1, 4, 8, 15: 40% to 55%, survived 894 to 914); seeds drinking at least 25%: 11 without, 8 with.
+- **The gated seeds that succeed clearly use the sense:** switching the wall inputs off costs 70 to 190 ticks for seeds 1, 4, 8, 15 (for example seed 15: 908 / 50% to 721 / 13%; seed 4: 925 / 58% to 815 / 2%). Without the sense, equally good seeds exist (13: 906 / 55%, 4: 882 / 53%), so the dots have another way to get through the hostile gap.
+- **That other way is probably a remembered route, not sensing.** The dots have a position input and the map is fixed. A route that goes along the outside of the vertical arm to the corner end and then west through the gap is a fixed path that needs no wall sense. These runs cannot separate navigation from a memorised route; random bars (below) can.
+- Several no-sense seeds have 72% to 88% of the dots drinking but survive only 720 to 764 ticks (1, 2, 12, 14, 15): the drinking happens but the dots die early anyway, which I have not explained.
