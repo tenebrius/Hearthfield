@@ -7,7 +7,7 @@
 const { Engine } = require('./engine');
 const DEFAULTS = { layout: 'handfar', lossE: 1.5, lossW: 0.6, layers: 2, startE: 100, startW: 100, feedback: false, genSpawn: 1, wallN: 3, wallLen: 14 };
 const mods = JSON.parse(process.argv[2] || '{}'), seed = +process.argv[3], maxStage = +process.argv[4] || 400, needFull = process.argv[5] === undefined ? 0.15 : +process.argv[5], finalGens = process.argv[6] === undefined ? 300 : +process.argv[6], maxFirst = +process.argv[7] || 1000, K = +process.argv[8] || 20;
-const cfg = Object.assign({}, DEFAULTS, mods), pn = cfg.pondN, pm = cfg.pondMin || 30, WN = cfg.wallN, WL = cfg.wallLen;
+const cfg = Object.assign({}, DEFAULTS, mods), pn = cfg.pondN, pm = cfg.pondMin || 30, WN = cfg.wallN, WL = cfg.wallLen, TB = cfg.testBars == null ? WN : cfg.testBars;   // testBars: bars in the 'with bars' test maps (default: as in training)
 const e = new Engine(Object.assign({}, cfg, { layout: 'randpond', mapSeed: 1, walls: 0 }), seed);
 e.genInit(seed);
 const f = (v, d) => (+v).toFixed(d === undefined ? 0 : d), avg = (a, k) => a.reduce((s, x) => s + x[k], 0) / a.length;
@@ -18,7 +18,7 @@ function zeroWallWeights() {
   if (k0 < 0) throw new Error('gateWalls needs wallSense on');
   for (let s = 0; s < e.cfg.genP; s++) for (let j = 0; j < 3; j++) for (let c = 0; c < HP; c++) G[s * NW + (k0 + j) * HP + c] = 0;
 }
-const stages = [[12, 16, 0], [12, 22, 0], [12, 28, 1], [12, 36, 2], [pm, 0, WN]];   // [pondMin, pondMax, bars]; the last is the real task
+const stages = [[12, 16, 0], [12, 22, 0], [12, 28, Math.min(1, WN)], [12, 36, Math.min(2, WN)], [pm, 0, WN]];   // [pondMin, pondMax, bars]; the last is the real task
 const setMap = (seedv, lo, hi, bars) => e.setMap('randpond', 0, seedv, pn, lo, hi, bars > 0 ? 4 : 0, 0, bars, WL);
 let total = 0, mapSeed = 1;
 for (let si = 0; si < stages.length; si++) {
@@ -36,9 +36,9 @@ for (let si = 0; si < stages.length; si++) {
 const hist = [];
 for (let g = 0; g < finalGens; g++) { setMap(mapSeed++, pm, 0, WN); hist.push(e.genRound()); }
 const evalOn = layoutFor => { let t = 0, full = 0, drank = 0; for (let i = 0; i < K; i++) { layoutFor(i); const s = e.genRound(false); t += s.mean; full += s.fullShare; drank += s.drankShare; } return { ticks: t / K, full: full / K, drank: drank / K }; };
-const wb = evalOn(i => setMap(1000000 + i, pm, 0, WN)), nb = evalOn(i => setMap(1000000 + i, pm, 0, 0));
+const wb = evalOn(i => setMap(1000000 + i, pm, 0, TB)), nb = evalOn(i => setMap(1000000 + i, pm, 0, 0));
 let abl = '';
-if (mods.wallSense) { e.setCfg('wallSense', 0); const off = evalOn(i => setMap(1000000 + i, pm, 0, WN)); e.setCfg('wallSense', 1); abl = ' | ABL_WITHBARS ' + f(off.ticks) + ' ' + f(100 * off.full) + '%'; }
+if (mods.wallSense) { e.setCfg('wallSense', 0); const off = evalOn(i => setMap(1000000 + i, pm, 0, TB)); e.setCfg('wallSense', 1); abl = ' | ABL_WITHBARS ' + f(off.ticks) + ' ' + f(100 * off.full) + '%'; }
 const last = hist.slice(-20);
 console.log('FINAL seed', seed, '| gens', total, '| LAST20_TRAIN_TICKS', f(avg(last, 'mean')), '| LAST20_TRAIN_FULL', f(100 * avg(last, 'fullShare')) + '%',
   '| TEST_BARS_TICKS', f(wb.ticks), '| TEST_BARS_FULL', f(100 * wb.full) + '%', '| TEST_BARS_DRANK', f(100 * wb.drank) + '%',
