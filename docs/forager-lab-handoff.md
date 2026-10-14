@@ -123,6 +123,8 @@ These are in decreasing order of confidence. Details, tables and sample sizes ar
 
 ## 6. Open questions and suggested next steps
 
+**The concrete plan for the next session is in `docs/forager-lab-next-plan.md`** (foothold traces, K-layout fitness, bars after the foothold, clocks in 3000-tick rounds). The list below is the longer backlog.
+
 1. **Why does a short gene period (10 to 50 ticks) work as well as a long one?** With the timer present the clock may be doing something else. Test the gene clock without the timer, with and without the curriculum.
 2. **Firm up the curriculum result** with more seeds (8 per cell now) and other worlds (hydration loss 0.9, smaller stores), and compare a curriculum for the brain-set oscillator against a longer direct training.
 3. **The timer** never helped. Either find a world where "time since an event" matters (for example resetting on drinking) or drop it.
