@@ -18,7 +18,9 @@ function zeroWallWeights() {
   if (k0 < 0) throw new Error('gateWalls needs wallSense on');
   for (let s = 0; s < e.cfg.genP; s++) for (let j = 0; j < 3; j++) for (let c = 0; c < HP; c++) G[s * NW + (k0 + j) * HP + c] = 0;
 }
-const stages = [[12, 16, 0], [12, 22, 0], [12, 28, Math.min(1, WN)], [12, 36, Math.min(2, WN)], [pm, 0, WN]];   // [pondMin, pondMax, bars]; the last is the real task
+// "barsLate":1: learn the real pond task without bars first (the last no-bar stage always runs maxStage generations), then add bars one at a time on the real task
+const stages = cfg.barsLate ? [[12, 16, 0], [12, 22, 0], [12, 28, 0], [12, 36, 0], [pm, 0, 0], [pm, 0, Math.min(1, WN)], [pm, 0, Math.min(2, WN)], [pm, 0, WN]]
+  : [[12, 16, 0], [12, 22, 0], [12, 28, Math.min(1, WN)], [12, 36, Math.min(2, WN)], [pm, 0, WN]];   // [pondMin, pondMax, bars]; the last is the real task
 const setMap = (seedv, lo, hi, bars) => e.setMap('randpond', 0, seedv, pn, lo, hi, bars > 0 ? 4 : 0, 0, bars, WL);
 let total = 0, mapSeed = 1;
 for (let si = 0; si < stages.length; si++) {
@@ -28,7 +30,7 @@ for (let si = 0; si < stages.length; si++) {
     setMap(mapSeed++, lo, hi, bars);
     hist.push(e.genRound()); g++; total++;
     const last = hist.slice(-10);
-    if (si < stages.length - 1 && last.length === 10 && avg(last, 'fullShare') >= needFull) break;
+    if (si < stages.length - 1 && last.length === 10 && avg(last, 'fullShare') >= needFull && !(cfg.barsLate && si === 4)) break;
   }
   const last = hist.slice(-10);
   console.log('stage ponds', lo + '..' + (hi || 'any'), 'bars', bars, '| gens used', g, '(total ' + total + ') | survived', f(avg(last, 'mean')), 'full', f(100 * avg(last, 'fullShare')) + '%', 'drank', f(100 * avg(last, 'drankShare')) + '%');
