@@ -608,3 +608,24 @@ None of the four started drinking in 5000 generations of training on the real ta
 ### Correction to the late-bars reading (2026-10-14, from a re-read of the logs)
 
 The explanation above ("bars in training prevent learning to drink") was too strong. In the late-bars runs the four failed seeds (1, 3, 4, 6) already had **0% drinking at the end of the real-task stage, before any bar existed** (400 generations on random far ponds, no bars). The bars did not break a working behaviour; they arrived while drinking had not started. The control (same seeds, same first stages; the engine is deterministic so the runs are identical up to that point, confirmed on seed 2: 822 survived / 56% drank in both) trained 1000 more generations without bars, and seeds 3, 4 and 6 did start drinking (65%, 45%, 78% drank; seed 1 did not). With bars present (2200 generations, 5000 for the four retried seeds) none of them did. Paired on 3 seeds: a late start of drinking that happens without bars did not happen with bars. So bars block the foothold, not the finished skill, and "late" in `barsLate` was not late enough: bars should only be added once a population drinks (see `forager-lab-next-plan.md`, step 2). Three seeds is a small sample.
+
+### Foothold traces: what failing populations do (2026-10-14, 8 seeds, `run-foothold.js`)
+
+Each run reproduces a late-bars trajectory with no bars (fixed period 200, stores of 500, random ponds; seed 2 matches the earlier log: 822 survived, 56% drank at the end of the real-task stage), stops at (s4) the end of the "ponds 12..36" stage and (real) the end of the 400-generation real-task stage, and replays 10 held-out real-task layouts (ponds at least 30 away) without breeding. Failing seeds are 1, 3, 4, 6; succeeding 2, 5, 7, 8. Replay figures, 200 dots x 10 layouts:
+
+| Seed | s4: drank % / reached a pond % / went over 30 from food % | real: drank % / reached a pond % / over 30 from food % | real: at food at tick 300 / tick 600 | real: deaths by thirst / hunger |
+|---|---|---|---|---|
+| 1 (fail) | 13 / 15 / 33 | 0.1 / 0.5 / 0.5 | 88 / 88 | 1760 / 240 |
+| 3 (fail) | 7 / 7 / 15 | 1.3 / 1.3 / 5 | 87 / 85 | 1734 / 266 |
+| 4 (fail) | 4 / 4 / 8 | 0.7 / 0.8 / 3 | 90 / 90 | 1920 / 80 |
+| 6 (fail) | 15 / 17 / 31 | 0.1 / 0.7 / 1 | 86 / 87 | 1810 / 190 |
+| 2 (ok) | 10 / 10 / 18 | 63 / 65 / 83 | 68 / 67 | 1448 / 386 |
+| 5 (ok) | 12 / 13 / 20 | 62 / 68 / 83 | 80 / 69 | 1355 / 442 |
+| 7 (ok) | 1 / 1 / 1.5 | 67 / 68 / 97 | 78 / 80 | 1472 / 269 |
+| 8 (ok) | 9 / 13 / 21 | 54 / 55 / 79 | 69 / 69 | 1265 / 274 |
+
+1. **Failing dots stay on the food.** At the end of the real-task stage 85 to 90% of the living dots stand on food at ticks 300 and 600, only 0.5 to 5% ever got more than 30 tiles from the food, and the median farthest distance from food (22 tiles) is the start position. They die of thirst around tick 830 (the wall, 500 / 0.6) as the non-drinker baseline predicts.
+2. **They do not leave and die searching**, so the "search is the problem" branch of the plan does not apply: nothing leaves food to search.
+3. **The failing seeds did not differ at s4.** On real-task maps the replay drinking rate was 13, 7, 4, 15% for the failing seeds and 10, 12, 1, 9% for the succeeding ones (seed 7 had 1% and went on to the best result). The difference appears during the 400 real-task generations: the failing populations *lost* the weak drinking they had (seeds 1 and 6 from 13 to 15% down to 0.1%), the others gained it.
+
+Reading: this fits "the first long trip is never rewarded". With a survival score a non-drinker keeps 833 ticks and a dot that leaves food and fails to find a pond (sight 5, ponds 30+ tiles away) dies earlier, so selection removes trips unless one happens to succeed. In a population where trips are rare (s4 drink rates of 1 to 15%) it is a race between a few lucky successes and that pressure, and the outcome per seed looks random (seed 7 started at 1%). Caveats: 8 seeds; the s4 replay drink rate is measured on the real task, not on the near ponds the population was trained on at that point (46 to 61% drank there); the "unlearning" reading is from two snapshots, not from a generation-by-generation trace. Per the plan's decision rule, step 2 (less noisy fitness through K layouts per dot, bars only after drinking exists) is the next test.
