@@ -284,8 +284,9 @@ static void sense(int s) {
   inp[8] = (float)(e < 1 ? e : 1); inp[9] = (float)(w < 1 ? w : 1);
   inp[10] = 1;
   if (CFG[C_MEMORY] != 0) for (int m = 0; m < N_MEM; m++) inp[11 + m] = MEM[s * N_MEM + m];
-  if (CFG[C_POSITION] != 0) { inp[15] = (float)((x / W) * 2 - 1); inp[16] = (float)((y / H) * 2 - 1); }
-  if (CFG[C_NOISE] != 0) inp[17] = (float)(aux() * 2 - 1);
+  // a switched-off feature writes 0, so an ablation (feature switched off after training, brain unchanged) feeds 0 rather than the last value
+  if (CFG[C_POSITION] != 0) { inp[15] = (float)((x / W) * 2 - 1); inp[16] = (float)((y / H) * 2 - 1); } else { inp[15] = 0; inp[16] = 0; }
+  if (CFG[C_NOISE] != 0) inp[17] = (float)(aux() * 2 - 1); else inp[17] = 0;
   if (CFG[C_FEEDBACK] != 0) { inp[18] = (float)ABLK[s]; inp[19] = (float)AEATRES[s]; }
   if (CFG[C_TUMBLE] != 0) {
     if (AHT[s] <= 0) {
@@ -296,21 +297,23 @@ static void sense(int s) {
     }
     AHT[s] -= 1;
     inp[20] = (float)AHX[s]; inp[21] = (float)AHY[s];
-  }
+  } else { inp[20] = 0; inp[21] = 0; }
   if (CFG[C_AGE] != 0) {   // ageScale > 0: linear age / ageScale capped at 1; otherwise the saturating age / (age + 250)
     double a = AAGE[s];
     inp[22] = (float)(CFG[C_AGESCALE] > 0 ? (a < CFG[C_AGESCALE] ? a / CFG[C_AGESCALE] : 1.0) : a / (a + 250.0));
-  }
-  if (CFG[C_OSC] != 0) { inp[23] = (float)sin2pi(APH[s]); inp[24] = (float)sin2pi(APH[s] + 0.25); }
-  if (CFG[C_LATCH] != 0) { inp[25] = (float)ALAT[s][0]; inp[26] = (float)ALAT[s][1]; }
-  if (CFG[C_TIMER] != 0) { double v = mylog(1 + ATMR[s]) * 1.4426950408889634 / 11; inp[33] = (float)(v < 1 ? v : 1); }   // log2(1 + ticks since reset) / 11, so it covers about 2000 ticks without a hand-picked scale
+  } else inp[22] = 0;
+  if (CFG[C_OSC] != 0) { inp[23] = (float)sin2pi(APH[s]); inp[24] = (float)sin2pi(APH[s] + 0.25); } else { inp[23] = 0; inp[24] = 0; }
+  if (CFG[C_LATCH] != 0) { inp[25] = (float)ALAT[s][0]; inp[26] = (float)ALAT[s][1]; } else { inp[25] = 0; inp[26] = 0; }
+  if (CFG[C_TIMER] != 0) { double v = mylog(1 + ATMR[s]) * 1.4426950408889634 / 11; inp[33] = (float)(v < 1 ? v : 1); } else inp[33] = 0;   // log2(1 + ticks since reset) / 11, so it covers about 2000 ticks without a hand-picked scale
   if (CFG[C_WALLSENSE] != 0) {   // nearest wall tile within sight: direction and closeness, like food and water
     if (nearest(x, y, ox, oy, R, WLM, &d2, &dx, &dy) >= 0) {
       double d = __builtin_sqrt(d2); if (d == 0) d = 1;
       inp[34] = (float)(dx / d); inp[35] = (float)(dy / d); inp[36] = (float)(1 - d / (R + 1));
     } else { inp[34] = 0; inp[35] = 0; inp[36] = 0; }
-  }
-  if (CFG[C_AGETHERM] != 0) for (int k = 0; k < 6; k++) inp[27 + k] = AAGE[s] >= ATH[s][k] ? 1.0f : 0.0f;   // thermometer: on once the dot is old enough; thresholds are 50, 100, 200, 400, 800, 1600 unless the brain sets them
+  } else { inp[34] = 0; inp[35] = 0; inp[36] = 0; }
+  // thermometer: on once the dot is old enough; thresholds are 50, 100, 200, 400, 800, 1600 unless the brain sets them
+  if (CFG[C_AGETHERM] != 0) for (int k = 0; k < 6; k++) inp[27 + k] = AAGE[s] >= ATH[s][k] ? 1.0f : 0.0f;
+  else for (int k = 0; k < 6; k++) inp[27 + k] = 0;
 }
 
 // ---------- thinking ----------

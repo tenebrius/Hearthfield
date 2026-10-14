@@ -35,16 +35,20 @@ function randomPonds(mapSeed, n, minDist, maxDist) {
   return out;
 }
 
-// walls = 1 ("corner cups", meant for the far-corners ponds): an L-shaped wall around each far pond, a horizontal arm along y = 10 and a vertical arm along x = 10
-// (mirrored for the other corner), with a gap `wallGap` tiles wide centred on the pond in the vertical arm. Wall tiles (kind 4) block movement and hold no food or water.
+// Wall tiles (kind 4) block movement and hold no food or water. Both layouts are meant for the far-corners ponds and are mirrored for the other corner.
+// walls = 1 ("corner cups"): an L-shaped wall 10 tiles from the corner (horizontal arm along y = 10, vertical arm along x = 10), with a gap `wallGap`
+//   tiles wide in the vertical arm, level with the pond (a short detour).
+// walls = 2 ("long walls"): the same L at 20 tiles from the corner (arms along y = 20 and x = 20), with the gap at the far end of the vertical arm,
+//   next to the map edge (rows 1 to wallGap), so a dot coming from the centre must walk along the wall for about 20 tiles to get in.
 function addWalls(kind, fert, walls, gap) {
   if (!walls) return;
-  if (walls !== 1) throw new Error('walls must be 0 or 1');
-  const g = Math.max(0, Math.min(9, Math.round(gap == null ? 3 : gap))), lo = 5 - Math.floor(g / 2), hi = lo + g;   // open rows lo .. hi - 1 of the vertical arm
+  if (walls !== 1 && walls !== 2) throw new Error('walls must be 0, 1 or 2');
+  const A = walls === 1 ? 10 : 20, g = Math.max(0, Math.min(A - 1, Math.round(gap == null ? 3 : gap)));
+  const lo = walls === 1 ? 5 - Math.floor(g / 2) : 1, hi = lo + g;   // open rows lo .. hi - 1 of the vertical arm
   const put = (x, y) => { kind[y * W + x] = 4; fert[y * W + x] = 0; };
-  for (let k = 0; k <= 10; k++) {
-    put(k, 10); put(W - 1 - k, W - 1 - 10);                                      // horizontal arms
-    if (!(k >= lo && k < hi) || k === 0 || k === 10) { put(10, k); put(W - 1 - 10, H - 1 - k); }   // vertical arms, except the gap
+  for (let k = 0; k <= A; k++) {
+    put(k, A); put(W - 1 - k, H - 1 - A);                                                  // horizontal arms
+    if (!(k >= lo && k < hi) || k === A) { put(A, k); put(W - 1 - A, H - 1 - k); }         // vertical arms, except the gap
   }
 }
 

@@ -139,13 +139,17 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const vari
 {
   const mk = (gap, extra) => new Engine(Object.assign({ layout: 'handfar', walls: 1, wallGap: gap, memory: true, genSpawn: 1, wallSense: 1 }, extra || {}), 3);
   const kindOf = e => new Uint8Array(e.mem, e.x.kind_ptr(), W * H);
-  for (const gap of [0, 3, 9]) {
-    const K = kindOf(mk(gap)), walls = K.reduce((a, v) => a + (v === 4 ? 1 : 0), 0);
+  for (const [wt, gap] of [[1, 0], [1, 3], [1, 9], [2, 0], [2, 3]]) {
+    const K = kindOf(mk(gap, { walls: wt })), walls = K.reduce((a, v) => a + (v === 4 ? 1 : 0), 0);
     // flood fill (4-neighbour) from the centre over non-wall tiles; the pond tiles must be reachable unless the gap is closed
     const seen = new Uint8Array(W * H), q = [32 * W + 32]; seen[q[0]] = 1;
     while (q.length) { const i = q.pop(), x = i % W, y = (i / W) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const j = ny * W + nx; if (!seen[j] && K[j] !== 4) { seen[j] = 1; q.push(j); } } }
     const pondA = seen[5 * W + 5], pondB = seen[58 * W + 58];
-    check('walls, gap ' + gap + ': ' + walls + ' wall tiles, ponds ' + (gap === 0 ? 'sealed' : 'reachable'), gap === 0 ? (!pondA && !pondB) : (pondA && pondB));
+    check('walls ' + wt + ', gap ' + gap + ': ' + walls + ' wall tiles, ponds ' + (gap === 0 ? 'sealed' : 'reachable'), gap === 0 ? (!pondA && !pondB) : (pondA && pondB));
+  }
+  { // long walls: the gap is in rows 1 to 3 of the vertical arm at x = 20 (and mirrored)
+    const K = kindOf(mk(3, { walls: 2 })), open = [0, 1, 2, 3, 4, 19, 20].map(y => K[y * W + 20] !== 4), openB = [0, 1, 2, 3, 4].map(k => K[(H - 1 - k) * W + (W - 1 - 20)] !== 4);
+    check('long walls: gap rows 1 to 3 next to the edge', open.join() === 'false,true,true,true,false,false,false' && openB.join() === 'false,true,true,true,false', open.join() + ' / ' + openB.join());
   }
   const e = mk(3, { baseline: true }), K = kindOf(e);
   let inside = 0; for (let t = 0; t < 400; t++) { e.step(1); const n = e.x.n_agents(), ord = new Int32Array(e.mem, e.x.ord_ptr(), n), ax = new Float64Array(e.mem, e.x.ax_ptr(), 2048), ay = new Float64Array(e.mem, e.x.ay_ptr(), 2048); for (let i = 0; i < n; i++) if (K[Math.floor(ay[ord[i]]) * W + Math.floor(ax[ord[i]])] === 4) inside++; }
