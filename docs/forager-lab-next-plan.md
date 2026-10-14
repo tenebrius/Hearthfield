@@ -12,9 +12,11 @@ A re-read of the random-bars logs sharpens this (new, not yet in the result tabl
 - The control (same seeds, same first stages, deterministic engine, so identical up to that point; confirmed: seed 2 ends that stage at 822 / 56% drank in both) then trained 1000 more generations without bars, and seeds 3, 4 and 6 **did** start drinking (65%, 45%, 78% drank; seed 1 did not). With bars present for 2200 generations (and 5000 for the four retried seeds), none of them did.
 - So, paired on 3 seeds: a late start of drinking that happens without bars does not happen with bars. Bars block the foothold, not the finished skill. "Late" in `barsLate` was not late enough: bars should be added only once a population drinks, which is step 2 below.
 
-Record this in `forager-lab-generational-plan.md` (random-bars section) as a correction before doing anything else.
+Recorded in `forager-lab-generational-plan.md` (random-bars section) on 2026-10-14.
 
-## Step 1: why does a population fail to get the foothold? (traces, no new world)
+## Step 1: why does a population fail to get the foothold? (DONE 2026-10-14)
+
+**Result (details in `forager-lab-generational-plan.md`, "Foothold traces"):** failing populations never leave the food at the real task (85 to 90% on food at ticks 300 and 600, under 5% ever more than 30 tiles from food) and die of thirst at the wall. They did not differ at the end of the 12..36 stage; they lost their weak drinking during the 400 real-task generations. By the decision rule below, step 2 is next. The correction about late bars is recorded in the random-bars section of the results file. The original step description is kept below for reference.
 
 Goal: a concrete description of what the dots of a failing population do at the real task, compared with a population that succeeds, at the same generation.
 

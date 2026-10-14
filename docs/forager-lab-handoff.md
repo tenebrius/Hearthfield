@@ -1,6 +1,6 @@
 # Forager Lab: handoff
 
-Written 2026-10-13 and updated 2026-10-14 (random ponds, longer rounds, resource supply, walls). It is meant to be read cold by someone (or a fresh Claude session) who has none of the conversation.
+Written 2026-10-13 and updated 2026-10-14 (random ponds, longer rounds, resource supply, walls, foothold traces). It is meant to be read cold by someone (or a fresh Claude session) who has none of the conversation.
 
 ## 1. What this is
 
@@ -10,6 +10,22 @@ The user's stated aims, which should guide choices:
 - Learn how this works; understand why things work, not just that they do.
 - Avoid hand-picked, "opinionated" parts. If a setting has to be tuned by hand for each world, it is a weak solution; the dots or evolution should find it ("self-solving").
 - Wants results with numbers, interval or test, and a time estimate before long runs. Likes being told when a claim turns out wrong.
+
+## Running locally (the next session runs on the user's PC under WSL)
+
+Earlier sessions ran in a Claude Code cloud container; the next one runs on the user's own PC in WSL (Ubuntu). Everything is on branch `ccr-2e470314-s2yw51` of `tenebrius/hearthfield`.
+
+```sh
+git clone https://github.com/tenebrius/hearthfield.git && cd hearthfield
+git checkout ccr-2e470314-s2yw51
+cd tools/forager-lab
+node wasm/test-wasm.js     # engine checks; needs Node 18 or later
+```
+
+- **Check the engine matches before trusting any local number:** `node wasm/run-gen.js '{"maxE":500,"maxW":500,"startE":500,"startW":500,"memory":true,"oscillator":true,"oscPeriod":200,"genSpawn":1}' 1 1000 100` should end at 905 survived, 87% drank, 52% full. A second check: `node wasm/run-foothold.js '{"maxE":500,"maxW":500,"startE":500,"startW":500,"memory":true,"oscillator":true,"oscPeriod":200,"pondN":2}' 2` prints a "real" stage line with survived 822 and drank 55.6. (Neither has been run outside the cloud container yet; WebAssembly should be deterministic across machines, but if the numbers differ, stop and find out why before running batches.)
+- **Rebuilding the engine** (needed for step 2 of the next plan, which edits `forager.c`): `sudo apt install clang lld`, then `wasm/build.sh`. The committed `forager.wasm` is enough for everything else.
+- **Batches:** the `xargs -P4` and bash job-script pattern in section 3 works in WSL. Set `-P` to the number of cores you want to use (`nproc`); the timings in this document are for a 4-core cloud container and will differ. Run long batches from the WSL filesystem (`~/...`), not from `/mnt/c/...`, which is much slower for many small reads. Scratch files went to `/tmp/claude-0/...` in the cloud; any scratch directory will do locally.
+- **Commits:** keep working on `ccr-2e470314-s2yw51` and push there. Do not create a pull request unless the user asks.
 
 ## 2. Repository map
 
@@ -23,6 +39,7 @@ The user's stated aims, which should guide choices:
 | `.../run-curriculum.js`, `run-objective.js`, `run-ablate.js`, `run-trace.js` | Pond curriculum; drinking-first objective curriculum; ablation of an input after training; tick-by-tick behaviour trace (now also logs death cause and thirst cycle). |
 | `.../run-rand.js`, `run-rand-curriculum.js` | Random-pond training (`randpond` layout) with held-out test maps; curriculum into random ponds. |
 | `.../run-walls.js`, `run-walltrace.js`, `run-randwalls.js` | Walls: open map then walls with a narrowing gap (options `wallType`, `wallSense`, `gateWalls`; ends with an ablation of the wall inputs); where dots meet the walls; random ponds plus random bars with a curriculum (`barsLate`, `testBars`). |
+| `.../run-foothold.js` | Foothold traces: reproduces a no-bars `barsLate` trajectory of `run-randwalls.js`, stops at the end of the 12..36 stage and of the real-task stage, and replays 10 held-out layouts without breeding (where the dots are every 50 ticks, who drank and when, how far they went, death cause). Prints `FOOTHOLD {json}` lines. |
 | `.../run-wasm.js` | Open-ended runner, same arguments and output as `tools/forager-lab/run.js`. |
 | `.../test-wasm.js` | Engine checks (tanh and log accuracy, nearest-tile search against a plain scan, forward pass against plain JavaScript for every output layout, crossover, oscillator, latch, thermometer, clock gene, timer). Run it after every engine change. |
 | `tools/forager-lab/run.js`, `mkharness.py` | Slower JavaScript harness built from the page's own code (`python3 mkharness.py` writes `base.js`, which is git-ignored). Kept as the reference implementation. |
@@ -44,6 +61,7 @@ node wasm/run-rand-curriculum.js '<cfg json>' <seed> [maxStage=400] [needFull=0.
 node wasm/run-walls.js '<cfg json>' <seed> [openGens=1000] [stageGens=300] [finalGens=500] [gaps=9,7,5,3]   # cfg: wallType 1 to 3, wallSense, gateWalls
 node wasm/run-walltrace.js '<cfg json>' <seed>
 node wasm/run-randwalls.js '<cfg json>' <seed> [maxStage=400] [needFull=0.15] [finalGens=300]              # cfg: wallN, wallLen, wallSense, gateWalls, barsLate, testBars
+node wasm/run-foothold.js '<cfg json>' <seed> [maxStage=400] [needFull=0.15] [maxFirst=1000] [rounds=10]   # cfg as run-randwalls (pondN 2); one run is about 1 minute alone
 ```
 `genLen` sets the round length (3000 for the longer-round tests); `waterRegrow` and `regrow` set the tile regrowth rates (0.03 default).
 
@@ -103,7 +121,8 @@ These are in decreasing order of confidence. Details, tables and sample sizes ar
 8. **Pond curriculum with stores of 500** (ponds walk from touching the food to the far corners; about 170 generations to reach the far map): final far-map result 893 / 911 / 915 survived and 51% / 59% / 62% full for fixed 200 / brain-set oscillator / gene clock + timer, against 887 / 871 / 836 and 50% / 36% / 22% for direct training of 1000 generations. So the curriculum helps the self-tuning clocks most, and then they match the fixed 200. With 4000 generations of direct training fixed 200 reaches 921 (63.5%) and the others 870 to 892. A curriculum with stores of 100 fails (the dots unlearn drinking once the ponds leave their sight range).
 9. **Longer rounds (3000 ticks) hit a resource ceiling, not a brain limit.** Fixed 200 survived 1222 of 3000 with only 10% lasting the round (no clock 1030 and 6%); deaths pile up in the second thirst cycle and half are hunger. Raising water regrowth from 0.03 to 0.1 gave 1984 and 46% full, and water and food both to 0.1 gave 2462 and 69% (6 seeds). Regrow rate is now a tunable of the world like the thirst wall; the 1000-tick results are probably not affected.
 10. **Random ponds:** dots trained on the fixed far-corners map keep much of their skill on random ponds (fixed 200: 832 against 892, 33% against 50% full); training on random ponds from scratch rarely learns to drink (0 to 16% drank after 1000 generations, 2 of 8 seeds after 4000); a curriculum into random ponds gets drinking started in 12 of 16 seeds but the mean (826) is no better than fixed-map training. Outcomes are two-valued per seed.
-11. **Walls** (`forager-lab-generational-plan.md`, section "Walls"): dots that learned the open map keep most of their skill when walls are added gradually (corner cups: fixed 200 887 to 865, 50% to 36% full) but nothing learns with walls from scratch. The trace shows sliding does the navigating on the long walls. The wall-sensing inputs never gave a measurable advantage in any layout (gating their weights to 0 until the walls arrive helps them but not past no sense); where a seed used them (ablation drops of 60 to 190 ticks) other seeds without them did as well. Random bars in the curriculum prevent learning that the same dots handle fine without (7 of 8 seeds drink when trained without bars, 2 to 5 of 8 when bars were in training).
+11. **Walls** (`forager-lab-generational-plan.md`, section "Walls"): dots that learned the open map keep most of their skill when walls are added gradually (corner cups: fixed 200 887 to 865, 50% to 36% full) but nothing learns with walls from scratch. The trace shows sliding does the navigating on the long walls. The wall-sensing inputs never gave a measurable advantage in any layout (gating their weights to 0 until the walls arrive helps them but not past no sense); where a seed used them (ablation drops of 60 to 190 ticks) other seeds without them did as well. Random bars in the curriculum prevent learning that the same dots handle fine without (7 of 8 seeds drink when trained without bars, 2 to 5 of 8 when bars were in training). Correction from a re-read of the logs: in the late-bars runs the failed seeds had 0% drinking *before* any bar arrived; three of them started drinking later without bars but not with bars. Bars block the first start of drinking (the foothold), not a finished skill.
+13. **Foothold traces** (8 seeds, `run-foothold.js`; section "Foothold traces" in the plan file): populations that fail to drink on random far ponds **stay on the food** (85 to 90% of living dots on food at ticks 300 and 600, 0.5 to 5% ever more than 30 tiles from food) and die of thirst at the wall. They were not different at the end of the near-pond stage (4 to 15% drank on real-task maps, against 1 to 12% for seeds that succeeded); during the 400 real-task generations they lost their weak drinking while the others gained it. Reading: a trip that fails costs more than staying (833 ticks guaranteed), so selection removes trips unless some succeed; who wins that race looks random per seed. Two snapshots and 8 seeds, so suggestive.
 12. **Open-ended mode** (see the archive file): a wander heading (random direction held for a while) made evolved dots colonise a second food area (4 of 4 seeds against 2 of 4); on the far-ponds map with momentum 0.7, wander + memory is best (mean 155 against 116 for noise + age, 64 seeds). Brain-controlled momentum matches the best hand-picked value (152 against 155.5).
 
 **Suggestive only (8 seeds or fewer; do not rank differences under about 30 ticks)**
@@ -123,7 +142,7 @@ These are in decreasing order of confidence. Details, tables and sample sizes ar
 
 ## 6. Open questions and suggested next steps
 
-**The concrete plan for the next session is in `docs/forager-lab-next-plan.md`** (foothold traces, K-layout fitness, bars after the foothold, clocks in 3000-tick rounds). The list below is the longer backlog.
+**The concrete plan for the next session is in `docs/forager-lab-next-plan.md`.** Step 1 (foothold traces) is done; its answer is "failing dots never leave food", which by the plan's decision rule makes **step 2 (each dot scored on K = 3 layouts per generation, bars only after drinking has started) the next thing to build**. It needs the `forager.c` change described there, so clang must be installed first (see "Running locally"). Then step 3 (clocks in 3000-tick rounds), then step 4 only if step 2 works. The list below is the longer backlog.
 
 1. **Why does a short gene period (10 to 50 ticks) work as well as a long one?** With the timer present the clock may be doing something else. Test the gene clock without the timer, with and without the curriculum.
 2. **Firm up the curriculum result** with more seeds (8 per cell now) and other worlds (hydration loss 0.9, smaller stores), and compare a curriculum for the brain-set oscillator against a longer direct training.
