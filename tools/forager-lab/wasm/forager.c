@@ -621,6 +621,7 @@ EXPORT("gen_round") void gen_round(void) { gen_round_ex(1); }
 // state exports for the trace tool
 EXPORT("ae_ptr") double *ae_ptr(void) { return AE; }
 EXPORT("aw_ptr") double *aw_ptr(void) { return AW; }
+EXPORT("ablk_ptr") double *ablk_ptr(void) { return ABLK; }
 EXPORT("aper_ptr") double *aper_ptr(void) { return APER; }
 EXPORT("gfood_ptr") double *gfood_ptr(void) { return GFOOD; }
 EXPORT("gwater_ptr") double *gwater_ptr(void) { return GWATER; }

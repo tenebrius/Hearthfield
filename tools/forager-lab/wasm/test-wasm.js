@@ -151,6 +151,14 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const vari
     const K = kindOf(mk(3, { walls: 2 })), open = [0, 1, 2, 3, 4, 19, 20].map(y => K[y * W + 20] !== 4), openB = [0, 1, 2, 3, 4].map(k => K[(H - 1 - k) * W + (W - 1 - 20)] !== 4);
     check('long walls: gap rows 1 to 3 next to the edge', open.join() === 'false,true,true,true,false,false,false' && openB.join() === 'false,true,true,true,false', open.join() + ' / ' + openB.join());
   }
+  { // hostile long walls: the gap is at the corner end (rows 17 to 19 of the vertical arm at x = 20); random bars are placed by seed and keep clear of food, ponds and the centre
+    const K = kindOf(mk(3, { walls: 3 })), open = [0, 1, 2, 16, 17, 18, 19, 20].map(y => K[y * W + 20] !== 4);
+    check('hostile long walls: gap rows 17 to 19 next to the corner of the L', open.join() === 'false,false,false,false,true,true,true,false', open.join());
+    const bars = seedv => kindOf(new Engine({ layout: 'randpond', mapSeed: seedv, pondMin: 30, walls: 4, wallN: 3, wallLen: 14, genSpawn: 1 }, 1)).slice();
+    const B1 = bars(5), B2 = bars(5), B3 = bars(6); let bad = 0, n = 0;
+    for (let i = 0; i < W * H; i++) { if (B1[i] === 4) { n++; const x = i % W, y = (i / W) | 0; if (x >= 26 && x <= 37 && y >= 26 && y <= 37) bad++; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < W && yy < H && (B1[yy * W + xx] === 1 || B1[yy * W + xx] === 3)) bad++; } } }
+    check('random bars: up to 3 bars of 14 (they may cross), same seed same map, different seed different map, clear of food, water and the centre', n >= 30 && n <= 42 && bad === 0 && B1.every((v, i) => v === B2[i]) && B1.some((v, i) => v !== B3[i]), n + ' wall tiles, ' + bad + ' too close');
+  }
   const e = mk(3, { baseline: true }), K = kindOf(e);
   let inside = 0; for (let t = 0; t < 400; t++) { e.step(1); const n = e.x.n_agents(), ord = new Int32Array(e.mem, e.x.ord_ptr(), n), ax = new Float64Array(e.mem, e.x.ax_ptr(), 2048), ay = new Float64Array(e.mem, e.x.ay_ptr(), 2048); for (let i = 0; i < n; i++) if (K[Math.floor(ay[ord[i]]) * W + Math.floor(ax[ord[i]])] === 4) inside++; }
   check('random movers never stand in a wall tile', inside === 0, inside + ' dot-ticks inside walls');
