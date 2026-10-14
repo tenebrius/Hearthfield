@@ -466,3 +466,30 @@ Paired by seed at the end (mean difference, bootstrap 95% interval): fixed 200 w
 - **The brain-set oscillator is clearly the worst here** (14% full against 36%), the opposite of the order in earlier worlds (where it was within noise of fixed 200).
 - Caveat: these walls leave a short detour (the gap is next to the pond and the arms are 10 tiles long), the dots see ponds through walls, and the learned route may already pass through the gap. A harder wall world would put the walls between the food and the ponds.
 - Run note: each run took about 6 minutes with four in parallel (2800 generations); my 9-minute estimate for 24 runs was wrong (they need about 40 minutes), and the first launch hit its 30-minute limit with 20 done, so the last four were rerun.
+
+### Long walls (walls = 2), and an ablation of the wall inputs
+
+**Built:** `walls: 2` puts the L-shaped wall 20 tiles from each far corner (arms along y = 20 and x = 20, mirrored) with the gap at the far end of the vertical arm, next to the map edge (rows 1 to `wallGap`), so a dot coming from the centre must walk about 20 tiles along the wall to get in. `run-walls.js` takes `"wallType"` and, with wall sense on, ends with 10 rounds as trained and 10 with the wall inputs held at 0.
+
+**Fix that touches older results:** an input switched off after training used to keep its last written value, not 0 (the engine skipped writing it). Every optional input now writes 0 when its feature is off. Normal runs are unchanged (the inputs of a feature that is off are not read; seed 1 without walls still gives exactly 905 / 87%), but the earlier ablations of age, oscillator, latch, wander and thermometer fed each dot a frozen last value rather than 0. Their conclusions (a frozen input carries no information either) probably stand, but the numbers came from that version.
+
+Same schedule as the corner cups (1000 generations open, gaps 9, 7, 5, 3 for 300 each, 500 more at gap 3), fixed period 200, 8 seeds per setup:
+
+| Stage | No wall sense | Wall sense |
+|---|---|---|
+| Open map | 887 / 50% / 87% | 880 / 41% / 90% |
+| Gap 9 | 842 / 24% / 58% | 808 / 7% / 30% |
+| Gap 7 | 842 / 24% / 54% | 821 / 7% / 22% |
+| Gap 5 | 851 / 27% / 58% | 827 / 7% / 22% |
+| Gap 3 (300 gens) | 859 / 30% / 62% | 825 / 7% / 24% |
+| Gap 3, 500 more gens | 871 / 33% / 61% | 822 / 5% / 24% |
+
+Per seed at the end (survived / full): no wall sense 837/17, 884/44, 903/60, 899/61, 830/17, 878/30, 914/33, 822/0; wall sense 828/1, 819/3, 816/0, 871/37, 810/0, 825/1, 792/0, 813/0.
+
+Ablation (wall sense runs, 10 rounds each, survived / full as trained → with wall inputs at 0): seed 4: 900 / 43% → 837 / 29%; the other seeds change by 0 to 17 ticks (none of them drink much).
+
+- **The long walls cost more than the corner cups at first** (full survival 50% to 24% at gap 9, against 45% for the cups), **and the dots recover while the gap narrows** (24% to 33% full by the end): selection is still improving the detour after 1300 generations of walls. 7 of 8 seeds still drink.
+- **Wall sense hurts clearly here:** no sense minus sense at the end, paired by seed: +49 ticks (95% interval +25 to +77; 8 of 8 seeds better without), +27.5 points full (+16 to +40). With sense, 4 of 8 seeds lost drinking entirely when the walls arrived.
+- **The one seed that kept drinking with sense uses it** (switching the inputs off costs 63 ticks and 14 points of full survival). So the inputs can be useful; what goes wrong is the transition.
+- Most likely reason (still untested): during the 1000 open-map generations the wall inputs read 0, so their weights drift with no cost; when walls appear the inputs suddenly carry large values through those drifted weights and scramble a working brain. Without sense, walls only change where the dot ends up, which a brain that already steers well can absorb. Test: hold the wall-input weights at 0 until the walls arrive, or start the wall inputs with a small weight scale.
+- Run note: 16 runs took about 35 minutes (estimate 25 to 30).
