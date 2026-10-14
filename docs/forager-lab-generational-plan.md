@@ -384,3 +384,20 @@ Same setup as above, test pass every 250 generations. Test on random ponds after
 - **Random-ponds training can learn to drink, but rarely and late:** 2 of 4 runs with the fixed period and 0 of 4 with the brain-set oscillator had started drinking after 4000 generations; in the two that did, it began between generation 3000 and 4000. The other six sat at the thirst wall (784 to 829) the whole time. So the 1000-generation result was not just "slower": most seeds do not find drinking at all when the ponds keep moving.
 - Where drinking appeared, it transferred equally to far-corners (seed 2: 865 on far-corners against 855 on random ponds), so these dots learned a search-and-drink behaviour, not a layout.
 - Next: a curriculum into random ponds (`run-rand-curriculum.js`: ponds within 16, 22, 28 and 36 tiles of the nearer food centre, then the real task), the same trick that took the far-corners map from 36% to 59% full.
+
+### Curriculum into random ponds (8 seeds per setup)
+
+`run-rand-curriculum.js`, stores of 500, ponds placed within 16, 22, 28, 36 tiles of the nearer food centre (never closer than 12) and then the real task (at least 30 tiles away). A stage ends when 15% of the dots survive the whole round (mean of the last 10 generations), capped at 400 generations (first stage 1000). The real-task stage runs its 400 generations, then 1000 more. Tested on 20 held-out random layouts and on far-corners.
+
+| Setup | Random ponds (ticks / full / drank) | Far corners (ticks / full) | Seeds drinking (at least 25% drank) |
+|---|---|---|---|
+| Fixed period 200 | 826 ± 21 / 16% / 54% | 830 ± 22 / 16% | 7 of 8 |
+| Brain-set oscillator | 824 ± 19 / 16% / 34% | 821 ± 21 / 15% | 5 of 8 |
+
+Per seed (random ponds, ticks / full share): fixed period 200: 812/0, 873/29, 729/1, 746/0, 853/23, 863/16, 882/37, 853/24. Brain-set oscillator: 860/31, 850/25, 801/0, 801/0, 920/49, 795/0, 824/23, 745/2.
+
+- **The curriculum gets drinking started much more reliably than direct training:** 12 of 16 runs drink (at least 25% of dots), against 2 of 8 after 4000 generations of direct training (and 2000 or so generations in total here against 4000 there). Where the early stages are passed, the near-pond stage is learned in under 300 generations in every seed.
+- **But the outcomes are two-valued and the means barely move.** Mean survival on random ponds (826, 824) is no better than dots trained for 1000 generations on the fixed far-corners map and then tested on random ponds (832, 832, see above). The curriculum's good runs (853 to 920, up to 49% full) are about as good as the best fixed-map runs; its bad runs sit at the wall or just above it. With 8 seeds and a standard error near 20 ticks, I cannot rank the curriculum against fixed-map training on the random test maps.
+- **Fixed-period 200 started drinking in more seeds than the brain-set oscillator (7 against 5)**, in line with the earlier finding that a hand-picked period is the easier clock, but 8 seeds do not separate them.
+- **Seeds that drank but stayed under the wall** (osc200 seeds 3 and 4: 729 and 746 with 65% and 45% drank) drink too late or too early to gain from it. They may be mid-learning; the final stage was cut at 1400 generations.
+- **What this means for the plan:** the far-corners task was already easy enough that most of its result survives moving the ponds. The random layout adds a hard start but not a much higher ceiling (best 920 of 1000). To push the brains, the next worlds need to change what has to be done, not where the ponds are: longer rounds with several thirst cycles, then obstacles.
