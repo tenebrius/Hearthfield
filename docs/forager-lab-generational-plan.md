@@ -492,4 +492,4 @@ Ablation (wall sense runs, 10 rounds each, survived / full as trained → with w
 - **Wall sense hurts clearly here:** no sense minus sense at the end, paired by seed: +49 ticks (95% interval +25 to +77; 8 of 8 seeds better without), +27.5 points full (+16 to +40). With sense, 4 of 8 seeds lost drinking entirely when the walls arrived.
 - **The one seed that kept drinking with sense uses it** (switching the inputs off costs 63 ticks and 14 points of full survival). So the inputs can be useful; what goes wrong is the transition.
 - Most likely reason (still untested): during the 1000 open-map generations the wall inputs read 0, so their weights drift with no cost; when walls appear the inputs suddenly carry large values through those drifted weights and scramble a working brain. Without sense, walls only change where the dot ends up, which a brain that already steers well can absorb. Test: hold the wall-input weights at 0 until the walls arrive, or start the wall inputs with a small weight scale.
-- Run note: 16 runs took about 35 minutes (estimate 25 to 30).
+- Run note: I did not time this batch precisely (estimate was 25 to 30 minutes).
