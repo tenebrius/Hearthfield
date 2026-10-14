@@ -629,3 +629,40 @@ Each run reproduces a late-bars trajectory with no bars (fixed period 200, store
 3. **The failing seeds did not differ at s4.** On real-task maps the replay drinking rate was 13, 7, 4, 15% for the failing seeds and 10, 12, 1, 9% for the succeeding ones (seed 7 had 1% and went on to the best result). The difference appears during the 400 real-task generations: the failing populations *lost* the weak drinking they had (seeds 1 and 6 from 13 to 15% down to 0.1%), the others gained it.
 
 Reading: this fits "the first long trip is never rewarded". With a survival score a non-drinker keeps 833 ticks and a dot that leaves food and fails to find a pond (sight 5, ponds 30+ tiles away) dies earlier, so selection removes trips unless one happens to succeed. In a population where trips are rare (s4 drink rates of 1 to 15%) it is a race between a few lucky successes and that pressure, and the outcome per seed looks random (seed 7 started at 1%). Caveats: 8 seeds; the s4 replay drink rate is measured on the real task, not on the near ponds the population was trained on at that point (46 to 61% drank there); the "unlearning" reading is from two snapshots, not from a generation-by-generation trace. Per the plan's decision rule, step 2 (less noisy fitness through K layouts per dot, bars only after drinking exists) is the next test.
+
+## Step 2: each dot scored on K layouts, bars only after drinking has started (2026-10-14, 16 seeds per setup)
+
+**Built:** `forager.c` now separates scoring from breeding (`gen_breed()` breeds from the current `GKEY`, `gkey_ptr()` exposes the keys); `engine.js` `genRoundMulti(setLayouts)` plays every dot on each layout, scores it on its mean key and breeds once. Tests: with one layout it is bit-identical to `genRound()` (stats and genomes over 6 generations), three identical layouts breed the same population as one, and with three different layouts every dot's key is the mean of its three single-round keys (largest difference 1e-13). The standard check (seed 1, fixed 200, far ponds: 905 / 87% / 52%) is unchanged. Runner `run-multi.js`: random-pond curriculum (12..16, 12..22, 12..28, 12..36, each until 15% survive the round, mean of 10 generations), then the real task without bars until at least 25% of the dots drank (mean of 10 generations, cap 2000), then with bars (setups C and D) 1, 2 and 3 bars of 14 (each until 15% full or 400 generations), then 500 final generations (1500 for E). Fixed 200, stores of 500, memory on. Tests: 20 held-out layouts (map seeds 1000000 and up), one round per map, with 3 bars and without bars.
+
+Setups: A: one layout per generation, no bars. B: three layouts per generation, no bars. C: one layout, bars after drinking started. D: three layouts, bars after drinking started. E: as A but 1500 final generations (a compute control for B: B plays three rounds per generation, so its 500 final generations are 1500 rounds; E's final stage matches that, its earlier stages do not).
+
+| Setup | Seeds that started drinking | Real-task generations to start (median) | Test without bars (survived / full / drank) | Test with bars | Seeds drinking ≥25% (no bars / bars) |
+|---|---|---|---|---|---|
+| A: K = 1, no bars | 15 | 67 | 812 / 10% / 48% | 794 / 8% / 45% | 14 / 14 |
+| E: K = 1, no bars, 1500 final | 15 | 67 | 844 / 18% / 50% | 829 / 16% / 46% | 13 / 13 |
+| B: K = 3, no bars | **16** | **28** | **896 / 41% / 71%** | **868 / 35% / 66%** | **16 / 16** |
+| C: K = 1, bars after drinking | 15 | 67 | 826 / 9% / 33% | 819 / 8% / 31% | 9 / 9 |
+| D: K = 3, bars after drinking | **16** | **28** | 878 / 32% / 63% | 866 / 30% / 60% | **16 / 16** |
+
+(A, C and E share their trajectory up to the start of drinking, as do B and D: same seed, same map seeds, deterministic engine; so their "started" columns are identical.)
+
+Per seed, real-task generations to the start of drinking and survived / full on the test without bars:
+- A: 1: never 801/0, 2: 36 828/8, 3: 662 791/1, 4: 1236 780/8, 5: 67 778/0, 6: 487 807/7, 7: 44 834/13, 8: 10 879/29, 9: 376 783/0, 10: 896 815/0, 11: 957 795/1, 12: 32 728/0, 13: 11 860/32, 14: 20 871/27, 15: 45 839/21, 16: 75 798/6.
+- B: 1: 32 904/41, 2: 16 897/44, 3: 10 905/41, 4: 10 879/38, 5: 47 887/33, 6: 285 905/47, 7: 28 908/54, 8: 72 892/35, 9: 21 886/43, 10: 13 923/52, 11: 62 909/57, 12: 10 907/43, 13: 10 903/45, 14: 47 858/18, 15: 26 872/24, 16: 37 899/35.
+- C (no-bars test): 810/0, 857/25, 741/0, 801/3, 807/0, 857/18, 814/0, 823/0, 823/0, 833/0, 832/20, 830/20, 885/31, 825/0, 871/26, 811/7.
+- D (no-bars test): 910/42, 880/37, 916/42, 892/35, 769/0, 869/28, 915/47, 865/28, 841/16, 883/32, 874/43, 888/34, 871/32, 889/31, 891/37, 902/32.
+- E (no-bars test): 820/0, 861/34, 846/21, 803/12, 868/29, 853/29, 866/27, 857/27, 813/2, 832/0, 789/2, 821/0, 887/36, 835/13, 879/28, 867/30.
+
+Paired by seed (mean difference, bootstrap 95% interval; test without bars unless stated):
+- B − A: +84 ticks (+62 to +105), +31 points full (+22 to +39), +24 points drank (+13 to +36); with bars +75 ticks (+53 to +95).
+- B − E (compute control): +52 ticks (+37 to +69), +22.5 points full (+14 to +32), +22 points drank (+9 to +35).
+- E − A (more final generations alone): +32 ticks (+15 to +49), +8.6 points full (+3 to +15), drank +2 (−11 to +12).
+- D − C: +52 ticks (+28 to +77), +23 points full (+16 to +30); with bars +47 ticks (+22 to +72).
+- D − B (bars in training, both K = 3): −17 ticks (−36 to −2), −8 points full (−15 to −3); on the test with bars −2 ticks (−22 to +15).
+
+What this says:
+- **The noisy fitness signal was a large part of the foothold problem.** Scoring each dot on three layouts instead of one gets every seed drinking (16 of 16), starts drinking sooner (median 28 real-task generations against 67, and no seed needing 376 to 1236), and gives the largest improvement in the lab so far (B: 896 / 41% full on held-out random ponds; the best earlier random-pond result was 826 / 16%). Every B seed survives 858 to 923.
+- **It is not just extra compute:** against E, whose final stage has as many rounds as B's, B is still +52 ticks and +22.5 points full. More generations alone (E − A) help much less and do not raise the share that drinks. (E's earlier stages have a third of B's rounds, so the control is not perfect; the drinking start, which happens in those stages, is the part E cannot match.)
+- **With K = 3, bars added after the foothold no longer cost seeds** (D: 16 of 16 drink, against 9 of 16 for C with K = 1). At K = 1 bars still lose seeds even after drinking has started (C 9 against A 14).
+- **Training with bars does not make dots better with bars.** B, which never saw a bar, does as well on maps with bars as D, which trained with them (868 against 866), and better without bars. Bars of 14 tiles cost B only 28 ticks: sliding handles them. So random bars of this size are not yet a navigation test; step 4 needs obstacles that sliding cannot get around (longer bars, or U shapes, in random places).
+- Decision by the plan: K = 3 should be the default for random worlds from now on. Batches: A+B (32 runs) took 23 minutes, C+D+E (48 runs) 43 minutes, against my estimate of about 3 hours for all; my per-round cost estimate was about three times too high.

@@ -31,7 +31,9 @@ Questions the traces must answer:
 
 Decision: if failing dots never leave food, the problem is that the first long trip is never rewarded (survival score gives a non-drinker 833 ticks, a failed trip less), and step 2 is the right next test. If they leave and die searching, the problem is search, and a wander heading (`tumble`) or longer sight is the next test instead. Write the answer down with the numbers before building step 2.
 
-## Step 2: a less noisy fitness signal, and bars only after the foothold
+## Step 2: a less noisy fitness signal, and bars only after the foothold (DONE 2026-10-14)
+
+**Result (details in `forager-lab-generational-plan.md`, "Step 2"):** scoring every dot on K = 3 layouts per generation got 16 of 16 seeds drinking (15 of 16 with K = 1), sooner (median 28 real-task generations against 67), and raised held-out random-pond survival from 812 / 10% full to 896 / 41% (+84 ticks, 95% interval +62 to +105). A compute control (K = 1 with three times the final generations) gained only a third of that. With K = 3, bars added after the foothold no longer lose seeds (16 of 16 against 9 of 16), but training with bars did not make dots better with bars than dots that never saw one; 14-tile bars are handled by sliding. K = 3 is the new default for random worlds. Next: step 3, then step 4 with obstacles that sliding cannot get around. The original step description is kept below.
 
 Hypothesis from the walls work (untested): with random layouts the same behaviour succeeds or fails by luck of the layout, so selection cannot see the gradient towards drinking. Test it with a change that is not a hand-picked setting: **evaluate each dot on K layouts per generation and breed on the mean score.**
 
