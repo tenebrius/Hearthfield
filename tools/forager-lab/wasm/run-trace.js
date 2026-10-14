@@ -11,6 +11,7 @@ for (let g = 0; g < gens; g++) e.genRound();
 const GP = e.cfg.genP, L = e.cfg.genLen, v = e.views(), osc = !!e.cfg.oscillator;
 const firstEat = new Int32Array(GP).fill(-1), firstDrink = new Int32Array(GP).fill(-1), entries = new Int32Array(GP), wasNear = new Uint8Array(GP);
 const wl = new Float64Array(GP), mean = new Float64Array(GP), m2 = new Float64Array(GP), cnt = new Int32Array(GP);   // Welford per dot, for the chosen oscillator period
+const lastT = new Int32Array(GP).fill(-1), lastE = new Float64Array(GP), lastW = new Float64Array(GP);   // last tick each dot was alive, and its energy/hydration then (death cause)
 const near = (x, y, cx, cy, r) => (x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r;
 const T = { t: [], alive: [], energy: [], hydration: [], nearFood: [], nearPond: [], ate: [], drank: [] };
 e.genBegin();
@@ -22,7 +23,7 @@ for (let t = 0; t < L; t++) {
     const s = v.ord[i], x = v.ax[s], y = v.ay[s];
     const f = near(x, y, 48, 16, 9) || near(x, y, 16, 48, 9), p = near(x, y, 5, 5, 8) || near(x, y, 58, 58, 8);
     if (f) nf++; if (p) { np++; if (!wasNear[s]) entries[s]++; } wasNear[s] = p ? 1 : 0;
-    se += v.ae[s]; sw += v.aw[s];
+    se += v.ae[s]; sw += v.aw[s]; lastT[s] = t; lastE[s] = v.ae[s]; lastW[s] = v.aw[s];
     if (osc) { const per = v.aper[s]; cnt[s]++; const d = per - mean[s]; mean[s] += d / cnt[s]; m2[s] += d * (per - mean[s]); }
   }
   if (t % 50 === 0 || t === L - 1) {
@@ -32,10 +33,13 @@ for (let t = 0; t < L; t++) {
   if (n === 0) break;
 }
 const stats = e.genEnd(false);
+// Deaths: a dot that was not alive at the final replayed tick died; blame the lower of energy and hydration at its last alive tick.
+const lastTick = L - 1, wallW = e.cfg.maxW / e.cfg.lossW, deaths = { thirst: 0, hunger: 0 }, byCycle = {}, cyc = Math.max(1, Math.round(wallW));
+for (let s = 0; s < GP; s++) { if (lastT[s] < 0 || lastT[s] >= lastTick) continue; const th = lastW[s] <= lastE[s]; deaths[th ? 'thirst' : 'hunger']++; const k = Math.floor(lastT[s] / cyc); byCycle[k] = (byCycle[k] || 0) + 1; }
 const q = (a, p) => { if (!a.length) return null; const b = a.slice().sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(p * b.length))]; };
 const drinkers = Array.from(firstDrink).filter(x => x >= 0), eaters = Array.from(firstEat).filter(x => x >= 0);
 const out = { seed, timeline: T, drinkers: drinkers.length / GP, firstDrink: { p25: q(drinkers, 0.25), median: q(drinkers, 0.5), p75: q(drinkers, 0.75) }, firstEat: { median: q(eaters, 0.5) },
-  pondEntries: Array.from(entries).reduce((a, b) => a + b, 0) / GP, survived: stats.mean, full: stats.fullShare };
+  deaths, deathsByWallCycle: byCycle, wallTicks: cyc, pondEntries: Array.from(entries).reduce((a, b) => a + b, 0) / GP, survived: stats.mean, full: stats.fullShare };
 if (osc) {
   const ok = []; for (let s = 0; s < GP; s++) if (cnt[s] >= 100) ok.push(s);
   const means = ok.map(s => mean[s]), sds = ok.map(s => Math.sqrt(m2[s] / cnt[s])), cvs = ok.map((s, i) => sds[i] / means[i]);
