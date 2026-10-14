@@ -418,3 +418,25 @@ Per seed (survived): no clock 1186, 808, 816, 894, 819, 1617, 801, 1295; fixed 2
 - **A clock still helps, mostly by making drinking start.** 89% / 83% of dots drink with a clock against 52% without; 7 and 6 of 8 seeds get past 1000 ticks against 3 of 8. Fixed 200 and brain-set are equal within noise (1222 each).
 - **Seeds are two-valued again:** a seed either learns drinking (1200 to 1760) or stays at the wall (726 to 894).
 - Not yet known: where the dots die (second or third cycle, thirst or hunger), and whether a curriculum (near ponds first) or more generations lifts the 10% ceiling.
+
+### Where the 3000-tick dots die, and a resource ceiling (trace and supply tests)
+
+Trace (`run-trace.js` now logs death cause and thirst cycle; 4 seeds per setup, 1000 generations, 3000-tick rounds, wall 833 ticks):
+
+- Deaths pile up in the second wall cycle (ticks 833 to 1666): for example fixed 200 seed 1 had 34 / 137 / 4 / 4 deaths in cycles 0 / 1 / 2 / 3. The alive share is then flat from about tick 1600 to 3000 (for example 17% to 17%): a dot that gets through the second cycle mostly lasts the round.
+- About half the deaths are hunger, not thirst (for example 97 thirst / 82 hunger).
+- A clock decides whether drinking starts: fixed 200 survived 951 to 1304 in all four seeds; 2 of 4 no-clock seeds and 1 of 4 brain-set seeds never drank (793 to 834). The no-clock seed that did drink (seed 1, 1206) lived about as long as fixed 200.
+
+Hypothesis from the engine code: tiles regrow at 0.03 of their fertility per tick (both food and water), and a drained tile takes about 33 ticks to refill, so two small ponds shared by 200 dots cannot supply a second round of drinking for most of them (my estimate: ponds hold about 2900 hydration at the start and regrow at most about 90 per tick; not measured). Test: fixed 200, same seeds 1 to 6, only the regrow rates changed:
+
+| Setup (fixed 200, seeds 1 to 6) | survived (of 3000) | drank | full round |
+|---|---|---|---|
+| Water 0.03, food 0.03 (baseline, seeds 1 to 6: 1267, 1270, 891, 1166, 1330, 1322) | 1208 | about 87% | about 9% |
+| Water 0.1, food 0.03 | 1984 | 88% | 46% |
+| Water 0.1, food 0.1 | 2462 | 98% | 69% |
+
+Per seed (survived / full): water 0.1: 2242/56, 2332/62, 2150/50, 2141/52, 1004/10, 2036/47; water 0.1 and food 0.1: 2452/68, 2623/78, 2333/63, 2445/68, 2512/72, 2405/63.
+
+- **The 10% ceiling in the 3000-tick world was mostly resource supply, not the brains.** Tripling water regrowth raises full-round survival from about 9% to 46%, and tripling food regrowth as well to 69%. In the third setup all six seeds are within 2333 to 2623.
+- **This is not a free win:** it means the 3000-tick world as set up asks for something the world cannot give. The number to read for brain quality is survival relative to what the supply allows. Supply must be chosen deliberately (and it now becomes a tunable of the world, like the thirst wall).
+- Still unmeasured: the actual pond stock and drink rate per tick; whether crowding (200 dots) or the fixed regrow rate is what binds; and whether earlier 1000-tick results were also partly supply-limited (probably not much: demand is far lower in 1000 ticks).
