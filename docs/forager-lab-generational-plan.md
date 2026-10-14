@@ -493,3 +493,26 @@ Ablation (wall sense runs, 10 rounds each, survived / full as trained → with w
 - **The one seed that kept drinking with sense uses it** (switching the inputs off costs 63 ticks and 14 points of full survival). So the inputs can be useful; what goes wrong is the transition.
 - Most likely reason (still untested): during the 1000 open-map generations the wall inputs read 0, so their weights drift with no cost; when walls appear the inputs suddenly carry large values through those drifted weights and scramble a working brain. Without sense, walls only change where the dot ends up, which a brain that already steers well can absorb. Test: hold the wall-input weights at 0 until the walls arrive, or start the wall inputs with a small weight scale.
 - Run note: I did not time this batch precisely (estimate was 25 to 30 minutes).
+
+### Long walls with the wall-input weights held at 0 until the walls arrive (8 seeds, same seeds and schedule)
+
+`run-walls.js` option `"gateWalls":1`: the first-layer weights of the three wall inputs are set to 0 in every genome before every open-map generation (mutation cannot move them), and evolve freely from the first walled stage on. Fixed period 200, wall sense on, long walls (`wallType` 2).
+
+| Stage | Wall sense, ungated | Wall sense, gated | No wall sense |
+|---|---|---|---|
+| Open map | 880 / 41% / 90% | 880 / 41% / 90% | 887 / 50% / 87% |
+| Gap 9 | 808 / 7% / 30% | 821 / 14% / 43% | 842 / 24% / 58% |
+| Gap 7 | 821 / 7% / 22% | 836 / 15% / 37% | 842 / 24% / 54% |
+| Gap 5 | 827 / 7% / 22% | 842 / 16% / 40% | 851 / 27% / 58% |
+| Gap 3 (300 gens) | 825 / 7% / 24% | 843 / 18% / 40% | 859 / 30% / 62% |
+| Gap 3, 500 more gens | 822 / 5% / 24% | 846 / 18% / 39% | 871 / 33% / 61% |
+
+(The open-map column of the gated runs is identical to the ungated one: the weights start at 0 in the gated runs but the dots' other weights and the random draws are the same, and the wall inputs read 0 on the open map either way.)
+
+Per seed at the end (survived / full), with the ablation of the wall inputs (as trained → inputs at 0): seed 1 890/40% (915/46% → 825/14%), seed 2 818/2%, seed 3 814/0%, seed 4 901/61% (901/63% → 841/31%), seed 5 801/0%, seed 6 831/1%, seed 7 814/0%, seed 8 902/43% (895/48% → 847/30%).
+
+- **Gating helps, but only partly.** Gated minus ungated, paired by seed: +24.6 ticks (95% interval +4 to +49), +13 points of full survival (0 to +26). Gated minus no sense: -24.5 ticks (-65 to +20), -14 points full (-36 to +9): between the two, and the interval against no sense includes 0.
+- **Three of eight seeds now use the wall inputs and do very well** (890, 901, 902 survived, 40% to 61% full, as good as the best no-sense seeds, 903 and 899). Switching their wall inputs off costs 60 to 90 ticks and 30 to 40 points of full survival, so the gain is real use of the sense. Ungated, only one seed did this.
+- **The other five seeds lost drinking or stayed at the wall (801 to 831).** Gating did not fix them, so the weight drift is at most part of the explanation. These runs ended with 3 seeds drinking 0%, 3 at 33 to 36%, and 3 at 75 to 87% (drank).
+- Current picture: with long walls, the best outcomes are about equal with and without the wall sense (about 900), but without it more seeds get there (6 of 8 drink well against 3 of 8 gated and 1 of 8 ungated). The sense is an extra route to the same result that is harder to start.
+- Not explained: why seeds 2, 3, 5, 6, 7 lose drinking when the walls appear. A look at what those dots do at the walls (trace) would show whether they hug the wall, stay at food, or never leave the centre.
