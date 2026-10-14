@@ -593,3 +593,14 @@ Per seed with bars (survived / full / drank): no sense 769/0/1, 735/9/68, 819/0/
 3. **When the gap sits where sliding does not lead (hostile walls)** the task costs about twice as much (16% full against 44% open) but 11 of 16 seeds still drink, probably along a remembered route (the dots know their position and the map is fixed).
 4. **The wall sense never gave a measurable advantage** in any layout (corner cups, long walls, hostile walls, random bars); in four of the worlds, no sense did as well or better, and where individual seeds used it (ablation drops of 60 to 190 ticks) other seeds without it did equally well. Gating its weights improves the sense setup but does not remove the gap to no sense in most worlds.
 5. **Random obstacles in training prevent learning that the same dots handle fine when untrained for them.** A world that cannot be memorised needs either a better curriculum or a less noisy signal before the dots can be tested for navigation.
+
+**Is it only a generation count? (4 failed seeds, 4000 final generations instead of 1000)** Late-bars, no wall sense, seeds 1, 3, 4, 6 (the ones at the thirst wall after 1000 final generations), rerun to the same point and then trained 4000 final generations on the real task with 3 bars (the runs are deterministic, so each continues the earlier trajectory up to the final stage):
+
+| Seed | Test with bars after 1000 final gens (survived / drank) | after 4000 final gens |
+|---|---|---|
+| 1 | 769 / 1% | 832 / 0% |
+| 3 | 819 / 0% | 794 / 0% |
+| 4 | 810 / 0% | 820 / 0% |
+| 6 | 803 / 0% | 802 / 0% |
+
+None of the four started drinking in 5000 generations of training on the real task with bars. So for these seeds it is not just a generation count: with bars in training, those populations stay at the wall. (Four seeds; the random-ponds runs without bars needed 3000 to 4000 generations before a few seeds started to drink, so a slow start is possible in principle, but nothing here points to it. Which seeds drink after the early stages is decided early.)

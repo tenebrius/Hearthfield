@@ -109,7 +109,7 @@ These are in decreasing order of confidence. Details, tables and sample sizes ar
 **Suggestive only (8 seeds or fewer; do not rank differences under about 30 ticks)**
 - Thermometer with six brain-set steps (840, 22% full) and one brain-set scale (804, 18%) are not better than fixed steps (826, 25%).
 - Lowering the clock gene's mutation (0.05) made no difference (915 against 915 after the curriculum).
-- Random-bars curriculum: bars added late lose fewer seeds than bars from the start (3 and 5 of 8 keep drinking against 2 and 1) but still more than no bars (7 of 8); the explanation (a noisier fitness signal) is untested. See the next section for whether more generations change this.
+- Random-bars curriculum: bars added late lose fewer seeds than bars from the start (3 and 5 of 8 keep drinking against 2 and 1) but still more than no bars (7 of 8); the explanation (a noisier fitness signal) is untested. More generations do not fix it for the seeds that failed: four of them trained 4000 more generations on the real task with bars and none started drinking.
 - Latch alone did nothing; latch + oscillator was the worst of the clock combinations (807, almost no drinking). Unexplained.
 
 **Withdrawn or corrected during the work** (so nobody relies on them)
