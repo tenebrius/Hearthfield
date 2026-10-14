@@ -369,3 +369,18 @@ World: hydration loss 0.6, stores of 500, centre start, memory on, survival scor
 - **The fixed-map result is partly a memorised route, but not entirely.** Fixed-trained dots lose about 60 ticks and about half their drinkers when the ponds move (892 to 832 for fixed 200; 50% to 33% full). Some of what they keep is probably luck: many random layouts put a pond near a corner or an edge, where a fixed route still finds it. I have not checked how much.
 - **Random training is not proven worse, only slower or harder to start.** With no consistent signal early on, drinking never gets a foothold in 1000 generations. A longer run (4000 generations) is under way to separate "slower" from "cannot".
 - Per-seed results are close to the wall in the random-trained runs (all seeds 772 to 862), so the means are not hiding a split. In the fixed-trained runs there is spread (for example brain-set oscillator on random ponds: 795 to 896).
+
+### Random-ponds training for 4000 generations (4 seeds per setup)
+
+Same setup as above, test pass every 250 generations. Test on random ponds after 4000 generations (ticks / full / drank):
+
+| Seed | Fixed period 200 | Brain-set oscillator |
+|---|---|---|
+| 1 | 803 / 0% / 0% | 794 / 0% / 0% |
+| 2 | **855 / 18% / 70%** | 818 / 0% / 0% |
+| 3 | 820 / 5% / 28% (drinking began near gen 3000) | 809 / 0% / 0% |
+| 4 | 784 / 0% / 0% | 829 / 0% / 0% |
+
+- **Random-ponds training can learn to drink, but rarely and late:** 2 of 4 runs with the fixed period and 0 of 4 with the brain-set oscillator had started drinking after 4000 generations; in the two that did, it began between generation 3000 and 4000. The other six sat at the thirst wall (784 to 829) the whole time. So the 1000-generation result was not just "slower": most seeds do not find drinking at all when the ponds keep moving.
+- Where drinking appeared, it transferred equally to far-corners (seed 2: 865 on far-corners against 855 on random ponds), so these dots learned a search-and-drink behaviour, not a layout.
+- Next: a curriculum into random ponds (`run-rand-curriculum.js`: ponds within 16, 22, 28 and 36 tiles of the nearer food centre, then the real task), the same trick that took the far-corners map from 36% to 59% full.
