@@ -349,3 +349,23 @@ World: hydration loss 0.6, stores of 500, centre start, memory on, survival scor
 - **Correction to the three-world section:** I wrote that the gene's period "tracks the world" because the averaged per-seed medians (281, 321, 70) were near each world's best fixed period. The per-seed values here show the average hides a split. In the direct 4000-generation runs the evolved median period was about 500 to 610 ticks in some seeds (550, 511, 536, 609 with the default mutation; 397, 322, 340 with low mutation) and only 11 to 50 ticks in others (15, 22, 47 and 11, 28, 48), with a few in between. Both short and long periods did well (a median period of 15 gave 925 survived; seeds with 540 to 610 gave 935 to 961), so the gene clock does not converge on one period. The claim that it finds each world's best period without being told is not supported.
 - **Not tested:** why short periods work as well (with the timer present the clock may be doing something else); the gene clock without the timer in the curriculum; more than 8 seeds.
 - **Run note:** the batch (64 runs) took 51 minutes against my estimate of 50 to 60.
+
+## Random ponds and held-out test maps (2026-10-14)
+
+**New tools.** `randpond` layout (engine.js): the food circles stay put, two 7×7 ponds are placed at random, at least 30 tiles from both food centres and not touching each other. `run-rand.js` trains either on a fresh random layout every generation (`random`) or on the fixed far-corners map (`fixed`), and tests the population without breeding on 20 held-out random layouts (map seeds 1,000,000 and up, never used for training) and on far-corners. Setup: stores of 500, start in the centre, memory on, 1000-tick rounds, 1000 generations, 8 seeds. Random movers on the test maps: about 340 to 380 ticks, under 2% drink.
+
+| Setup | Training | Test: random ponds (ticks / full / drank) | Test: far corners (ticks / full) |
+|---|---|---|---|
+| Fixed period 200 | fixed far corners | 832 ± 7 / 33% / 64% | 892 ± 7 / 50% |
+| Fixed period 200 | random ponds | 812 ± 8 / 5% / 16% | 814 ± 10 / 4% |
+| Brain-set oscillator | fixed far corners | 832 ± 10 / 23% / 48% | 870 ± 15 / 35% |
+| Brain-set oscillator | random ponds | 815 ± 6 / 0% / 5% | 814 ± 5 / 0% |
+| No clock | fixed far corners | 786 ± 14 / 8% / 20% | 818 ± 19 / 16% |
+| No clock | random ponds | 802 ± 7 / 2% / 5% | 800 ± 7 / 2% |
+
+(± is the standard error over 8 seeds. The thirst wall is 833 ticks.)
+
+- **After 1000 generations, random-ponds training has not learned to drink** (0 to 16% drank, survival at the wall). Dots trained on one fixed map and then tested on random maps do better (up to 64% drank), and their far-corners score matches the earlier fixed-map results (892 for fixed 200).
+- **The fixed-map result is partly a memorised route, but not entirely.** Fixed-trained dots lose about 60 ticks and about half their drinkers when the ponds move (892 to 832 for fixed 200; 50% to 33% full). Some of what they keep is probably luck: many random layouts put a pond near a corner or an edge, where a fixed route still finds it. I have not checked how much.
+- **Random training is not proven worse, only slower or harder to start.** With no consistent signal early on, drinking never gets a foothold in 1000 generations. A longer run (4000 generations) is under way to separate "slower" from "cannot".
+- Per-seed results are close to the wall in the random-trained runs (all seeds 772 to 862), so the means are not hiding a split. In the fixed-trained runs there is spread (for example brain-set oscillator on random ponds: 795 to 896).
