@@ -554,3 +554,42 @@ Per seed at the end (survived / full / drank): no wall sense: 752/3/80, 764/1/88
 - **The gated seeds that succeed clearly use the sense:** switching the wall inputs off costs 70 to 190 ticks for seeds 1, 4, 8, 15 (for example seed 15: 908 / 50% to 721 / 13%; seed 4: 925 / 58% to 815 / 2%). Without the sense, equally good seeds exist (13: 906 / 55%, 4: 882 / 53%), so the dots have another way to get through the hostile gap.
 - **That other way is probably a remembered route, not sensing.** The dots have a position input and the map is fixed. A route that goes along the outside of the vertical arm to the corner end and then west through the gap is a fixed path that needs no wall sense. These runs cannot separate navigation from a memorised route; random bars (below) can.
 - Several no-sense seeds have 72% to 88% of the dots drinking but survive only 720 to 764 ticks (1, 2, 12, 14, 15): the drinking happens but the dots die early anyway, which I have not explained.
+
+### Random ponds and random wall bars (walls = 4), 8 seeds per setup
+
+**Built:** `walls: 4` places `wallN` (default 3) straight bars of `wallLen` (default 14) tiles, each horizontal or vertical at random, by map seed, keeping 2 tiles clear of food and water and the centre start area (tiles 26 to 37); bars may cross. `run-randwalls.js` trains on a fresh random-pond layout (with fresh bars) every generation with the pond curriculum of `run-rand-curriculum.js`, and tests on 20 held-out layouts (map seeds 1000000 and up) with and without bars. Fixed period 200, stores of 500, memory on, 400 generations cap per stage, 1000 final generations, wall sense on or off (wall-input weights held at 0 until the first stage with bars when gated).
+
+**Version 1: bars enter during the pond curriculum** (stages: no bars, no bars, 1 bar, 2 bars, then 3 bars on the real task). Test maps, survived / full / drank, mean of 8 seeds:
+
+| Setup | Test with bars | Test without bars | Seeds drinking (at least 25%) with bars |
+|---|---|---|---|
+| Control: trained without bars | 809 / 14% / 51% | 826 / 16% / 54% | 7 of 8 |
+| No wall sense, trained with bars | 808 / 0% / 14% | 812 / 0% / 15% | 2 of 8 |
+| Wall sense (gated), trained with bars | 803 / 0% / 7% | 811 / 0% / 8% | 1 of 8 |
+
+The control reproduces the earlier random-ponds curriculum seed for seed (826 / 16% / 54%, same per-seed numbers): the engine is deterministic and the first stages are identical.
+
+- **Bars cost little to dots that learned without them:** the control loses about 17 ticks and 2 points of full survival on maps with bars.
+- **Training with bars from the start prevents learning to drink on the real task.** The runs pass the near-pond stages (the first two stages are identical to the control) and the 1-bar and 2-bar stages, then drinking collapses when the real far-pond task arrives with 3 bars (for example seed 7: 64% drank in the control, 0% with bars; seed 2: 56% against 43% at the end of the stage, 36% in the final test).
+- Sense minus no sense: -5 ticks (95% interval -18 to +9), 0.0 points full: no difference, since neither learned.
+
+**Version 2: bars enter late** (`"barsLate":1`: the real pond task is learned without bars first, 400 generations forced, then 1, 2 and 3 bars are added on the real task, then 1000 more generations). 8 seeds:
+
+| Setup | Test with bars | Test without bars | Seeds drinking (at least 25%) with bars | Generations |
+|---|---|---|---|---|
+| No wall sense | 805 / 5% / 20% | 809 / 6% / 22% | 3 of 8 | about 1700 |
+| Wall sense (gated) | 818 / 12% / 40% | 834 / 14% / 43% | 5 of 8 | about 1480 |
+
+Per seed with bars (survived / full / drank): no sense 769/0/1, 735/9/68, 819/0/0, 810/0/0, 837/13/32, 803/0/0, 815/2/4, 850/16/56; sense 815/0/1, 855/29/72, 877/42/78, 820/0/2, 803/16/45, 782/0/0, 756/3/68, 838/4/57.
+
+- **Adding bars late still loses seeds:** 3 and 5 of 8 keep drinking, against 7 of 8 in the control that never saw bars in training (and then handles them at 14% full). Even the best seeds (850 / 16%, 877 / 42%) are in the range of the control's, not above it.
+- **The wall sense is not responsible for the better figures of the sense setup:** sense minus no sense +13.5 ticks (95% interval -22 to +53), +6.8 points of full survival (-2.5 to +19). Switching the wall inputs off after training changes survival by -3 to +13 ticks in every seed (for example seed 2: 855 / 29% with the inputs, 868 / 32% without), so these dots do not use the inputs. Whatever differs between the two setups is the extra weights (a different random draw), not sensing.
+- **Likely reason that bars in training hurt (not tested):** a bar between a dot and the pond makes the same behaviour succeed or fail by the luck of the layout, so the fitness signal that selected for the search-and-drink behaviour is noisier. The control, which never saw bars, learned a clean version and handles bars by sliding.
+
+### Summary of the walls experiments
+
+1. **Short walls with open gaps are almost free** (dots slide along them), and trained dots keep most of their skill when walls are added after the open map was learned; learning with walls from scratch fails.
+2. **The trace shows sliding does the navigating on the long walls:** most dots hit the vertical arm and slide into the gap; the few that hit the horizontal arm mostly fail.
+3. **When the gap sits where sliding does not lead (hostile walls)** the task costs about twice as much (16% full against 44% open) but 11 of 16 seeds still drink, probably along a remembered route (the dots know their position and the map is fixed).
+4. **The wall sense never gave a measurable advantage** in any layout (corner cups, long walls, hostile walls, random bars); in four of the worlds, no sense did as well or better, and where individual seeds used it (ablation drops of 60 to 190 ticks) other seeds without it did equally well. Gating its weights improves the sense setup but does not remove the gap to no sense in most worlds.
+5. **Random obstacles in training prevent learning that the same dots handle fine when untrained for them.** A world that cannot be memorised needs either a better curriculum or a less noisy signal before the dots can be tested for navigation.
