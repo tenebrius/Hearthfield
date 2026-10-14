@@ -46,7 +46,7 @@ check('log approximation', maxL < 1e-9, 'max abs error ' + maxL.toExponential(2)
 for (const layers of [1, 2]) for (const memory of [true, false]) for (const variant of [{ grip: false, tm: 0 }, { grip: true, tm: 0 }, { grip: true, tm: 1 }, { grip: true, tm: 2 }, { grip: true, tm: 0, gene: true, timer: true }]) {
   const grip = variant.grip, tm = variant.tm, extra = grip, gene = !!variant.gene, timer = !!variant.timer;   // 'grip' also switches on the latch and oscillator; tm > 0 adds the thermometer with brain-set thresholds
   const e = new Engine({ layout: 'circles', layers, memory, brainMomentum: grip, latch: extra, oscillator: extra, ageTherm: tm > 0, thermMode: tm, oscGene: gene, timer, hidden: 8, position: true, noise: true, age: true, feedback: true, tumble: true }, 3), x = e.x;
-  const NW = x.genome_stride(), NH = 8, N_IN = 34, HP = x.layout_info(0), OP = x.layout_info(1), OFF2 = x.layout_info(2), OFFO = x.layout_info(3), NACT = x.layout_info(4);
+  const NW = x.genome_stride(), NH = 8, N_IN = 37, HP = x.layout_info(0), OP = x.layout_info(1), OFF2 = x.layout_info(2), OFFO = x.layout_info(3), NACT = x.layout_info(4);
   const NOUT = (memory ? 11 : 3) + (grip ? 3 : 0) + (tm === 1 ? 1 : tm === 2 ? 6 : 0);
   const act = Array.from(new Int32Array(e.mem, x.act_ptr(), NACT));
   check('active inputs, memory ' + (memory ? 'on' : 'off') + ', extras ' + (extra ? 'on' : 'off') + ', thermometer mode ' + tm + (gene ? ', clock gene + timer' : ''), act.length === (memory ? 23 : 19) + (extra ? 4 : 0) + (tm > 0 ? 6 : 0) + (timer ? 1 : 0), act.length + ' active');
@@ -95,19 +95,19 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const vari
 {
   const e = new Engine({ layout: 'handfar', memory: true, ageTherm: true, maxE: 500, maxW: 500, startE: 500, startW: 500, maxPop: 300 }, 3), x = e.x;
   e.step(130);
-  const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 34);
+  const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 37);
   let bad = 0, sawOn = 0;
-  for (let i = 0; i < n; i++) { const inp = INP.subarray(ord[i] * 34 + 27, ord[i] * 34 + 33); for (let k = 0; k < 6; k++) if (inp[k] !== 0 && inp[k] !== 1) bad++; for (let k = 1; k < 6; k++) if (inp[k] > inp[k - 1]) bad++; if (inp[0] === 1) sawOn++; }
+  for (let i = 0; i < n; i++) { const inp = INP.subarray(ord[i] * 37 + 27, ord[i] * 37 + 33); for (let k = 0; k < 6; k++) if (inp[k] !== 0 && inp[k] !== 1) bad++; for (let k = 1; k < 6; k++) if (inp[k] > inp[k - 1]) bad++; if (inp[0] === 1) sawOn++; }
   check('thermometer inputs are 0/1 and switch on in order', bad === 0 && n > 0, n + ' dots, ' + sawOn + ' past tick 50');
 }
 // 5. oscillator and latch behave as described
 {
   const e = new Engine({ layout: 'handfar', memory: true, oscillator: true, latch: true, maxPop: 300 }, 7), x = e.x;
   e.step(300);
-  const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 34);
+  const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 37);
   let badOsc = 0, nonZero = 0, outOfRange = 0;
   for (let i = 0; i < n; i++) {
-    const inp = INP.subarray(ord[i] * 34, (ord[i] + 1) * 34);
+    const inp = INP.subarray(ord[i] * 37, (ord[i] + 1) * 37);
     if (Math.abs(inp[23] * inp[23] + inp[24] * inp[24] - 1) > 1e-3) badOsc++;
     if (Math.abs(inp[25]) > 1 || Math.abs(inp[26]) > 1) outOfRange++;
     if (inp[25] !== 0 || inp[26] !== 0) nonZero++;
@@ -129,11 +129,41 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const vari
   check('clock genes stay in range and selection narrows them', g1.every(v => v >= 2 && v <= 10) && sd(g1) < sd(g0), 'spread (sd, log2 ticks) ' + sd(g0).toFixed(2) + ' -> ' + sd(g1).toFixed(2));
   const e2 = new Engine({ layout: 'handfar', memory: true, timer: true, maxPop: 300 }, 4), x2 = e2.x;
   e2.step(200);
-  const n = x2.n_agents(), ord = new Int32Array(e2.mem, x2.ord_ptr(), n), INP = new Float32Array(e2.mem, x2.inp_ptr(), 2048 * 34);
-  let bad = 0, nonzero = 0; for (let i = 0; i < n; i++) { const v = INP[ord[i] * 34 + 33]; if (!(v >= 0 && v <= 1)) bad++; if (v > 0) nonzero++; }
+  const n = x2.n_agents(), ord = new Int32Array(e2.mem, x2.ord_ptr(), n), INP = new Float32Array(e2.mem, x2.inp_ptr(), 2048 * 37);
+  let bad = 0, nonzero = 0; for (let i = 0; i < n; i++) { const v = INP[ord[i] * 37 + 33]; if (!(v >= 0 && v <= 1)) bad++; if (v > 0) nonzero++; }
   check('timer input lies between 0 and 1', bad === 0 && n > 0, n + ' dots, ' + nonzero + ' above 0');
   let maxE2 = 0; for (let v = 0; v <= 12; v += 0.01) maxE2 = Math.max(maxE2, Math.abs(x2.pow2_test(v) / Math.pow(2, v) - 1));
   check('2^x approximation', maxE2 < 1e-4, 'max relative error ' + maxE2.toExponential(2));
 }
+// 7. walls: layout, a route to each pond exists, dots never stand in a wall, they slide along it, and the wall sense looks right
+{
+  const mk = (gap, extra) => new Engine(Object.assign({ layout: 'handfar', walls: 1, wallGap: gap, memory: true, genSpawn: 1, wallSense: 1 }, extra || {}), 3);
+  const kindOf = e => new Uint8Array(e.mem, e.x.kind_ptr(), W * H);
+  for (const gap of [0, 3, 9]) {
+    const K = kindOf(mk(gap)), walls = K.reduce((a, v) => a + (v === 4 ? 1 : 0), 0);
+    // flood fill (4-neighbour) from the centre over non-wall tiles; the pond tiles must be reachable unless the gap is closed
+    const seen = new Uint8Array(W * H), q = [32 * W + 32]; seen[q[0]] = 1;
+    while (q.length) { const i = q.pop(), x = i % W, y = (i / W) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const j = ny * W + nx; if (!seen[j] && K[j] !== 4) { seen[j] = 1; q.push(j); } } }
+    const pondA = seen[5 * W + 5], pondB = seen[58 * W + 58];
+    check('walls, gap ' + gap + ': ' + walls + ' wall tiles, ponds ' + (gap === 0 ? 'sealed' : 'reachable'), gap === 0 ? (!pondA && !pondB) : (pondA && pondB));
+  }
+  const e = mk(3, { baseline: true }), K = kindOf(e);
+  let inside = 0; for (let t = 0; t < 400; t++) { e.step(1); const n = e.x.n_agents(), ord = new Int32Array(e.mem, e.x.ord_ptr(), n), ax = new Float64Array(e.mem, e.x.ax_ptr(), 2048), ay = new Float64Array(e.mem, e.x.ay_ptr(), 2048); for (let i = 0; i < n; i++) if (K[Math.floor(ay[ord[i]]) * W + Math.floor(ax[ord[i]])] === 4) inside++; }
+  check('random movers never stand in a wall tile', inside === 0, inside + ' dot-ticks inside walls');
+  // wall sense: a dot just right of the vertical arm sees the wall to its left
+  const e3 = mk(3), x3 = e3.x; x3.gen_init(3); x3.gen_begin();
+  const AX = new Float64Array(e3.mem, x3.ax_ptr(), 2048), AY = new Float64Array(e3.mem, x3.ay_ptr(), 2048);
+  AX[0] = 11.5; AY[0] = 2.5; x3.gen_tick(0);
+  const INP = new Float32Array(e3.mem, x3.inp_ptr(), 2048 * 37), v = INP.subarray(34, 37);
+  check('wall sense points at the nearest wall tile', v[0] < -0.9 && Math.abs(v[1]) < 0.1 && v[2] > 0.5, 'dir (' + v[0].toFixed(2) + ', ' + v[1].toFixed(2) + '), closeness ' + v[2].toFixed(2));
+  // sliding: random movers placed against the horizontal arm (y = 10) that try to step into it keep their sideways motion
+  const e4 = mk(3, { baseline: true }), x4 = e4.x; x4.gen_init(3); x4.gen_begin();
+  const AX4 = new Float64Array(e4.mem, x4.ax_ptr(), 2048), AY4 = new Float64Array(e4.mem, x4.ay_ptr(), 2048);
+  for (let s2 = 0; s2 < 200; s2++) { AX4[s2] = 5.5; AY4[s2] = 9.5; }
+  x4.gen_tick(0);
+  let slid = 0, wallIn = 0; for (let s2 = 0; s2 < 200; s2++) { if (AY4[s2] === 9.5 && AX4[s2] !== 5.5) slid++; if (Math.floor(AY4[s2]) === 10) wallIn++; }
+  check('a dot pushed into a wall slides along it', slid > 20 && wallIn === 0, slid + ' of 200 slid, ' + wallIn + ' ended inside the wall');
+}
+
 console.log(failed ? failed + ' check(s) FAILED' : 'all checks passed');
 process.exit(failed ? 1 : 0);

@@ -7,7 +7,7 @@ const W = 64, H = 64;
 const CFG_KEYS = ['regrow', 'waterRegrow', 'lossE', 'lossW', 'moveE', 'moveW', 'gainE', 'gainW', 'maxE', 'maxW',
   'startE', 'startW', 'reqE', 'reqW', 'payE', 'payW', 'kidE', 'kidW', 'stepLen', 'cooldown',
   'sight', 'hidden', 'layers', 'memory', 'position', 'noise', 'age', 'feedback', 'tumble',
-  'tumbleEvery', 'inertia', 'mutRate', 'mutSize', 'baseline', 'floorN', 'maxPop', 'brainMomentum', 'genP', 'genLen', 'genElite', 'genTourn', 'genXover', 'genSpawn', 'genWSurv', 'genWFood', 'genWWater', 'genScoreMode', 'oscillator', 'latch', 'oscPeriod', 'ageScale', 'ageTherm', 'thermMode', 'oscGene', 'timer', 'geneMut'];
+  'tumbleEvery', 'inertia', 'mutRate', 'mutSize', 'baseline', 'floorN', 'maxPop', 'brainMomentum', 'genP', 'genLen', 'genElite', 'genTourn', 'genXover', 'genSpawn', 'genWSurv', 'genWFood', 'genWWater', 'genScoreMode', 'oscillator', 'latch', 'oscPeriod', 'ageScale', 'ageTherm', 'thermMode', 'oscGene', 'timer', 'geneMut', 'wallSense'];
 const CIRCLES = [[W * 0.75, H * 0.25], [W * 0.25, H * 0.75]], CR = 9;
 
 function pageDefaults() {
@@ -35,7 +35,20 @@ function randomPonds(mapSeed, n, minDist, maxDist) {
   return out;
 }
 
-function buildMap(layout, shift, mapSeed, pondN, pondMin, pondMax) {
+// walls = 1 ("corner cups", meant for the far-corners ponds): an L-shaped wall around each far pond, a horizontal arm along y = 10 and a vertical arm along x = 10
+// (mirrored for the other corner), with a gap `wallGap` tiles wide centred on the pond in the vertical arm. Wall tiles (kind 4) block movement and hold no food or water.
+function addWalls(kind, fert, walls, gap) {
+  if (!walls) return;
+  if (walls !== 1) throw new Error('walls must be 0 or 1');
+  const g = Math.max(0, Math.min(9, Math.round(gap == null ? 3 : gap))), lo = 5 - Math.floor(g / 2), hi = lo + g;   // open rows lo .. hi - 1 of the vertical arm
+  const put = (x, y) => { kind[y * W + x] = 4; fert[y * W + x] = 0; };
+  for (let k = 0; k <= 10; k++) {
+    put(k, 10); put(W - 1 - k, W - 1 - 10);                                      // horizontal arms
+    if (!(k >= lo && k < hi) || k === 0 || k === 10) { put(10, k); put(W - 1 - 10, H - 1 - k); }   // vertical arms, except the gap
+  }
+}
+
+function buildMap(layout, shift, mapSeed, pondN, pondMin, pondMax, walls, wallGap) {
   const kind = new Uint8Array(W * H), fert = new Float32Array(W * H);
   if (!['circles', 'handmade', 'handfar', 'handnear', 'handcurr', 'randpond'].includes(layout)) throw new Error('layout "' + layout + '" is not supported by the WASM engine (use circles, handmade, handfar, handnear, handcurr or randpond)');
   for (let i = 0; i < W * H; i++) {
@@ -48,13 +61,14 @@ function buildMap(layout, shift, mapSeed, pondN, pondMin, pondMax) {
     const ponds = layout === 'randpond' ? randomPonds(mapSeed || 0, pondN || 2, pondMin || 30, pondMax || 0) : layout === 'handfar' ? [[2, 2], [55, 55]] : layout === 'handnear' ? [[45, 26], [13, 32]] : layout === 'handcurr' ? [[lerp(45, 55, t), lerp(26, 55, t)], [lerp(13, 2, t), lerp(32, 2, t)]] : [[13, 13], [45, 45]];
     for (const p of ponds) for (let y = p[1]; y < p[1] + 7; y++) for (let x = p[0]; x < p[0] + 7; x++) { kind[y * W + x] = 3; fert[y * W + x] = 0.8; }
   }
+  addWalls(kind, fert, walls, wallGap);
   return { kind, fert };
 }
 
 let moduleCache = null;
 class Engine {
   constructor(overrides, seed) {
-    this.cfg = Object.assign(pageDefaults(), { genP: 200, genLen: 1000, genElite: 2, genTourn: 3, genXover: 0, genSpawn: 0, genWSurv: 1, genWFood: 0, genWWater: 0, genScoreMode: 0, pondShift: 0, oscPeriod: 0, ageScale: 0, ageTherm: 0, thermMode: 0, oscGene: 0, timer: 0, geneMut: 0.25 }, overrides || {});
+    this.cfg = Object.assign(pageDefaults(), { genP: 200, genLen: 1000, genElite: 2, genTourn: 3, genXover: 0, genSpawn: 0, genWSurv: 1, genWFood: 0, genWWater: 0, genScoreMode: 0, pondShift: 0, oscPeriod: 0, ageScale: 0, ageTherm: 0, thermMode: 0, oscGene: 0, timer: 0, geneMut: 0.25, wallSense: 0, walls: 0, wallGap: 3 }, overrides || {});
     if (this.cfg.shiftEvery > 0) throw new Error('food relocation (shiftEvery) is not supported by the WASM engine');
     if (this.cfg.archive) throw new Error('"newcomers copy parents" (archive) is not supported by the WASM engine');
     if (this.cfg.maxPop > 2000) throw new Error('maxPop above 2000 is not supported');
@@ -65,14 +79,15 @@ class Engine {
     this.mem = mem;
     const c = new Float64Array(mem, x.cfg_ptr(), 64);
     CFG_KEYS.forEach((k, i) => { c[i] = +this.cfg[k]; });
-    this.setMap(this.cfg.layout, this.cfg.pondShift, this.cfg.mapSeed, this.cfg.pondN, this.cfg.pondMin, this.cfg.pondMax);
+    this.setMap(this.cfg.layout, this.cfg.pondShift, this.cfg.mapSeed, this.cfg.pondN, this.cfg.pondMin, this.cfg.pondMax, this.cfg.walls, this.cfg.wallGap);
     this.seed = seed;
     x.init_world(seed >>> 0);
   }
   // replace the map between rounds without touching the dots (used by the curriculum runner)
   // randpond takes a mapSeed (which layout), pondN (number of ponds, default 2) and pondMin (minimum distance from the food, default 30), pondMax (optional: ponds no farther than this from the nearer food centre)
-  setMap(layout, shift, mapSeed, pondN, pondMin, pondMax) {
-    const map = buildMap(layout, shift, mapSeed, pondN, pondMin, pondMax);
+  setMap(layout, shift, mapSeed, pondN, pondMin, pondMax, walls, wallGap) {
+    // walls and wallGap default to the engine's cfg values, so curriculum runners that call setMap keep the walls
+    const map = buildMap(layout, shift, mapSeed, pondN, pondMin, pondMax, walls === undefined ? this.cfg.walls : walls, wallGap === undefined ? this.cfg.wallGap : wallGap);
     new Uint8Array(this.mem, this.x.kind_ptr(), W * H).set(map.kind);
     new Float32Array(this.mem, this.x.fert_ptr(), W * H).set(map.fert);
   }

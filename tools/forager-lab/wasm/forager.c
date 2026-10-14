@@ -21,7 +21,7 @@ typedef unsigned long long u64;
 
 #define W 64
 #define H 64
-#define N_IN 34
+#define N_IN 37
 #define N_MEM 4
 #define N_OUT (3 + 2 * N_MEM)
 #define MAXHID 32
@@ -33,7 +33,7 @@ enum Cfg {
   C_REGROW, C_WREGROW, C_LOSSE, C_LOSSW, C_MOVEE, C_MOVEW, C_GAINE, C_GAINW, C_MAXE, C_MAXW,
   C_STARTE, C_STARTW, C_REQE, C_REQW, C_PAYE, C_PAYW, C_KIDE, C_KIDW, C_STEPLEN, C_COOLDOWN,
   C_SIGHT, C_HIDDEN, C_LAYERS, C_MEMORY, C_POSITION, C_NOISE, C_AGE, C_FEEDBACK, C_TUMBLE,
-  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_AGESCALE, C_AGETHERM, C_THERMMODE, C_OSCGENE, C_TIMER, C_GENEMUT, C_COUNT
+  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_AGESCALE, C_AGETHERM, C_THERMMODE, C_OSCGENE, C_TIMER, C_GENEMUT, C_WALLSENSE, C_COUNT
 };
 static double CFG[64];
 EXPORT("cfg_ptr") double *cfg_ptr(void) { return CFG; }
@@ -84,16 +84,17 @@ EXPORT("log_test") double log_test(double x) { return mylog(x); }
 // ---------- world ----------
 static float FOOD[W * H], FERT[W * H];
 static u8 KIND[W * H];
-static u64 FM[H], WM[H];            // per row: bit x set when a food / water tile there has at least MIN_SEE
+static u64 FM[H], WM[H], WLM[H];            // per row: bit x set when a food / water tile there has at least MIN_SEE
 static int FERTILE[W * H], NFERT;
 EXPORT("kind_ptr") u8 *kind_ptr(void) { return KIND; }
 EXPORT("fert_ptr") float *fert_ptr(void) { return FERT; }
 EXPORT("food_ptr") float *food_ptr(void) { return FOOD; }
 
 static void rebuild_masks(void) {
-  for (int y = 0; y < H; y++) { FM[y] = 0; WM[y] = 0; }
+  for (int y = 0; y < H; y++) { FM[y] = 0; WM[y] = 0; WLM[y] = 0; }
   NFERT = 0;
   for (int i = 0; i < W * H; i++) {
+    if (KIND[i] == 4) WLM[i / W] |= 1ULL << (i % W);   // wall tiles block movement; the wall sense looks for these
     if (FERT[i] > 0) FERTILE[NFERT++] = i;
     if ((double)FOOD[i] >= MIN_SEE) {
       if (KIND[i] == 1) FM[i / W] |= 1ULL << (i % W);
@@ -157,6 +158,7 @@ static void setup_brain(void) {
     else if (i == 25 || i == 26) on = CFG[C_LATCH] != 0;
     else if (i >= 27 && i <= 32) on = CFG[C_AGETHERM] != 0;
     else if (i == 33) on = CFG[C_TIMER] != 0;
+    else if (i >= 34 && i <= 36) on = CFG[C_WALLSENSE] != 0;
     if (on) ACT[NACT++] = i;
   }
   TMRIDX = NOUT; if (CFG[C_TIMER] != 0) NOUT += 1;   // resettable timer: one output, above 0 resets it
@@ -302,6 +304,12 @@ static void sense(int s) {
   if (CFG[C_OSC] != 0) { inp[23] = (float)sin2pi(APH[s]); inp[24] = (float)sin2pi(APH[s] + 0.25); }
   if (CFG[C_LATCH] != 0) { inp[25] = (float)ALAT[s][0]; inp[26] = (float)ALAT[s][1]; }
   if (CFG[C_TIMER] != 0) { double v = mylog(1 + ATMR[s]) * 1.4426950408889634 / 11; inp[33] = (float)(v < 1 ? v : 1); }   // log2(1 + ticks since reset) / 11, so it covers about 2000 ticks without a hand-picked scale
+  if (CFG[C_WALLSENSE] != 0) {   // nearest wall tile within sight: direction and closeness, like food and water
+    if (nearest(x, y, ox, oy, R, WLM, &d2, &dx, &dy) >= 0) {
+      double d = __builtin_sqrt(d2); if (d == 0) d = 1;
+      inp[34] = (float)(dx / d); inp[35] = (float)(dy / d); inp[36] = (float)(1 - d / (R + 1));
+    } else { inp[34] = 0; inp[35] = 0; inp[36] = 0; }
+  }
   if (CFG[C_AGETHERM] != 0) for (int k = 0; k < 6; k++) inp[27 + k] = AAGE[s] >= ATH[s][k] ? 1.0f : 0.0f;   // thermometer: on once the dot is old enough; thresholds are 50, 100, 200, 400, 800, 1600 unless the brain sets them
 }
 
@@ -444,6 +452,11 @@ void step(int count) {
           double dist = speed * stepLen, px = AX[s], py = AY[s];
           double nx = px + mx / len * dist, ny = py + my / len * dist;
           double cx = nx < 0 ? 0 : (nx > W - 0.001 ? W - 0.001 : nx), cy = ny < 0 ? 0 : (ny > H - 0.001 ? H - 0.001 : ny);
+          if (KIND[((int)cy) * W + (int)cx] == 4) {   // a wall tile: slide along it (keep one axis), or stay if both are walls
+            if (KIND[((int)py) * W + (int)cx] != 4) cy = py;
+            else if (KIND[((int)cy) * W + (int)px] != 4) cx = px;
+            else { cx = px; cy = py; }
+          }
           AX[s] = cx; AY[s] = cy;
           if (cx != nx) AVX[s] = 0;
           if (cy != ny) AVY[s] = 0;
