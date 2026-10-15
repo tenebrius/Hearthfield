@@ -73,7 +73,7 @@ With K = 3 and bars after the foothold, rerun no wall sense against gated wall s
 - Record every result in `forager-lab-generational-plan.md` with the per-seed numbers, and say when an estimate or a claim was wrong.
 
 
-## Step 5: speed-ups (NEXT, chosen by the user on 2026-10-15)
+## Step 5: speed-ups (done 2026-10-15, results below)
 
 Goal: make a generation cheaper without changing any result. Every speed-up must keep the engine bit-identical: `node wasm/test-wasm.js` passes, and seed 1 of the standard check (`node wasm/run-gen.js '{"maxE":500,"maxW":500,"startE":500,"startW":500,"memory":true,"oscillator":true,"oscPeriod":200,"genSpawn":1}' 1 1000 1000`) still ends at exactly 905 survived, 87% drank, 52% full. Read that line in full; a cut-off output once hid a broken build. A change that cannot be bit-identical (for example a different summation order in the forward pass) needs its own statistical check against the old build (16 seeds, same setups) and must be called out.
 
@@ -90,3 +90,38 @@ Current cost (4-core cloud container, one run alone): 1000 generations of 1000-t
 4. **Batch-level savings that need no code:** run 8 seeds first and add 8 more only if the interval is inconclusive; drop arms whose answer is known; report the number of seeds that learned first.
 
 Report: the profile shares, each change with its speed-up on the standard run and on a K = 3 random-pond run (`run-multi.js`), and confirmation of bit-identity (905 / 87% / 52%, test-wasm, and one `run-multi.js` seed that reproduces its stage lines exactly).
+
+### Step 5 results (2026-10-15)
+
+All changes are bit-identical to the engine before step 5. Checks: `node wasm/test-wasm.js` passes; the standard check still ends at 905 / 87% / 52%; a hash of every generation's stats plus the final genomes, food and dot state matches the old build on four setups (standard; many options at once with long walls, crossover, gene clock, timer, latch, thermometer, momentum, wander, noise, wall sense; K = 3 random ponds with bars; open-ended 40,000 ticks); and `run-multi.js` (seed 1, K = 3, wallN 3, finalGens 100) prints the same stage lines and tests, byte for byte.
+
+**Profile** (`node --cpu-prof`, standard setup, 300 generations; a build with `sense`, `think`, `nearest`, the regrow loop and `mark_visit` kept out of line so they show up separately). JavaScript and breeding together were under 1.5%.
+
+| Part | Before | After |
+|---|---|---|
+| forward pass (`think` + `layer` + tanh) | 44% | 40% |
+| nearest-tile searches | 27.5% | 21.5% |
+| `sense` without the searches | 13.6% | 17% |
+| rest of `step` + `mark_visit` | 9% | 13% |
+| regrow loop | 5% | 7% |
+
+Counts over a 1000-generation run: 2 searches per dot per tick; 54% to 59% find nothing in the box; the others visit about 2.9 rows. Dots eat (stand still) on 36% to 41% of dot-ticks.
+
+**Changes** (`wasm/forager.c`, `wasm/build.sh`):
+1. Nearest-tile search: return at once when no bit is set in the search box (one pass over the box for both food and water). In each row, check only the set bit nearest to the dot's column on each side, plus the next one to the left when the left candidate is the dot's own column (it can tie with the column to its left when x is a whole number; the lower index wins). The first version missed that tie. It passed `test-wasm` (random positions only) and the standard check, but changed `run-multi.js` from its first stage (the centre start is x = 32.0). `test-wasm` now also queries tile corners, centres and positions just past a corner, and fails that version with 699 differences out of 120,000.
+2. Forward pass: the layer loop is specialised per number of 4-wide vectors, so the accumulators stay in registers instead of stack memory (same order of additions).
+3. Regrow: a list of tiles below 1 replaces the scan over all fertile tiles. Little gain here: most fertile tiles on grazed circles are below 1.
+4. Build: `-mnontrapping-fptoint` (removes the range guards around double-to-int conversions), and the search-box bounds are computed in integers.
+
+**Speed** (this container; one run alone; old then new build, same seed):
+
+| Run | Old | New | Speed-up |
+|---|---|---|---|
+| standard check, 1000 generations | 62.5 s | 48.8 s | 1.28x |
+| `run-multi.js` K = 3, bars, 421 generations | 79.0 s | 61.4 s | 1.29x |
+
+This container was about 2.5 times slower than the one the earlier timings in this document come from; the ratio is what carries over. Remaining time is spread out: the forward pass is close to its minimum arithmetic (7 four-wide tanh with a division each, about 74 vector multiply-adds per dot per tick), and the searches are already short.
+
+**Not done:**
+- Relaxed-SIMD fused multiply-add: it only touches the `layer` share (about 12%), and it would need a 16-seed statistical check.
+- Caching searches for dots that stand still: the dot's own row changes whenever it eats, and nearby rows change all the time from other dots eating and from regrowth.
