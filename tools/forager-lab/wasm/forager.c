@@ -224,17 +224,17 @@ static inline __attribute__((always_inline)) void consider(int tx, int ty, doubl
   int idx = ty * W + tx;
   if (d2 < *best || (d2 == *best && idx < *bi)) { *best = d2; *bi = idx; *bdx = dx; *bdy = dy; *found = 1; }
 }
-static int nearest(double x, double y, int ox, int oy, int R, const u64 *M, double *bd2, double *bdx, double *bdy) {
-  double best = (double)R * R; int bi = 0x7fffffff, found = 0;
-  // ox, oy are (int)x, (int)y and R is whole, so these equal (int)(y - R) etc. clamped to the map
-  int y0 = oy - R; if (y0 < 0) y0 = 0;
-  int y1 = oy + R; if (y1 > H - 1) y1 = H - 1;
+// the search box: rows y0..y1 and the column mask. ox, oy are (int)x, (int)y and R is whole, so these equal (int)(y - R) etc. clamped to the map
+static inline void search_box(int ox, int oy, int R, int *y0, int *y1, u64 *cols) {
+  *y0 = oy - R; if (*y0 < 0) *y0 = 0;
+  *y1 = oy + R; if (*y1 > H - 1) *y1 = H - 1;
   int x0 = ox - R; if (x0 < 0) x0 = 0;
   int x1 = ox + R; if (x1 > W - 1) x1 = W - 1;
-  u64 cols = (x1 - x0 == 63) ? ~0ULL : (((1ULL << (x1 - x0 + 1)) - 1) << x0);
-  u64 anyb = 0;
-  for (int ty = y0; ty <= y1; ty++) anyb |= M[ty];
-  if (!(anyb & cols)) return -1;   // nothing in the box (the common case for water)
+  *cols = (x1 - x0 == 63) ? ~0ULL : (((1ULL << (x1 - x0 + 1)) - 1) << x0);
+}
+// nearest() for a box already known to hold at least one set bit
+static inline int nearest_in(double x, double y, int ox, int oy, int R, int y0, int y1, u64 cols, const u64 *M, double *bd2, double *bdx, double *bdy) {
+  double best = (double)R * R; int bi = 0x7fffffff, found = 0;
   // within one row d2 grows with |dx|, and two columns differ in dx * dx by at least 1, so only the set bit nearest
   // to column ox on each side can be the row's best: the result is the same as checking every bit
   const u64 lowMask = ox >= 63 ? ~0ULL : (2ULL << ox) - 1;   // columns 0..ox
@@ -258,6 +258,13 @@ static int nearest(double x, double y, int ox, int oy, int R, const u64 *M, doub
   }
   if (!found) return -1;
   *bd2 = best; return bi;
+}
+static int nearest(double x, double y, int ox, int oy, int R, const u64 *M, double *bd2, double *bdx, double *bdy) {
+  int y0, y1; u64 cols; search_box(ox, oy, R, &y0, &y1, &cols);
+  u64 anyb = 0;
+  for (int ty = y0; ty <= y1; ty++) anyb |= M[ty];
+  if (!(anyb & cols)) return -1;   // nothing in the box (the common case for water)
+  return nearest_in(x, y, ox, oy, R, y0, y1, cols, M, bd2, bdx, bdy);
 }
 EXPORT("nearest_test")
 double nearest_test(double x, double y, int R, int want) {
@@ -286,11 +293,14 @@ static void sense(int s) {
   inp[1] = KIND[idx] == 3 ? FOOD[idx] : 0;
   int R = (int)CFG[C_SIGHT];
   double d2, dx, dy;
-  if (nearest(x, y, ox, oy, R, FM, &d2, &dx, &dy) >= 0) {
+  int y0, y1; u64 cols; search_box(ox, oy, R, &y0, &y1, &cols);
+  u64 anyf = 0, anyw = 0;   // one pass over the box for both masks; an empty box means no tile in sight
+  for (int ty = y0; ty <= y1; ty++) { anyf |= FM[ty]; anyw |= WM[ty]; }
+  if ((anyf & cols) && nearest_in(x, y, ox, oy, R, y0, y1, cols, FM, &d2, &dx, &dy) >= 0) {
     double d = __builtin_sqrt(d2); if (d == 0) d = 1;
     inp[2] = (float)(dx / d); inp[3] = (float)(dy / d); inp[4] = (float)(1 - d / (R + 1));
   } else { inp[2] = 0; inp[3] = 0; inp[4] = 0; }
-  if (nearest(x, y, ox, oy, R, WM, &d2, &dx, &dy) >= 0) {
+  if ((anyw & cols) && nearest_in(x, y, ox, oy, R, y0, y1, cols, WM, &d2, &dx, &dy) >= 0) {
     double d = __builtin_sqrt(d2); if (d == 0) d = 1;
     inp[5] = (float)(dx / d); inp[6] = (float)(dy / d); inp[7] = (float)(1 - d / (R + 1));
   } else { inp[5] = 0; inp[6] = 0; inp[7] = 0; }
