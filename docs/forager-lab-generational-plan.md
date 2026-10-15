@@ -777,3 +777,29 @@ Per seed (as trained / freeze 25 / freeze 100 / freeze 400 / zero, survived): 1:
 - Not determined: what that state is. Next tools if it matters: record the dot's last N actions and regress on those; or train with a smaller memory (one or two registers) and see what is lost.
 
 **A bug in this work, for the record:** while adding the noise option I put the new line between an `if` and its `else` in `forager.c`, which zeroed the register inputs whenever memory was on. Runs made with that build (a first noise test whose "frozen", "zeroed" and "as trained" columns were identical) were discarded and rerun after the fix; the freeze, zero and decoding results above come from the build before that edit, whose standard check (seed 1: 905 / 87% / 52%) I confirmed, and they reproduce exactly on the fixed build. A new regression test (`test-wasm.js` test 10) checks that memory-on dots see non-zero register inputs.
+
+### Cups with a rotating opening (pilot, 4 runs) and what happens in the first generations (2026-10-15)
+
+**Built:** `cupFacing` (engine option, default 0): the probability that the opening is on the side of the ring facing the nearer food circle. Tests: 0 leaves the maps unchanged (checksum), 1 opens the food side in 80 of 80 usable ponds. `run-multi.js`: `cupFacings` per cup stage. Pilot: secure foothold (80% drank), then cups of gap 3 with the opening facing the food 100%, 75%, 50%, 25%, 10% of the time (250 generations per stage, exit at 60% drank), then 700 generations with random openings; S0 without and S1 with the gated wall sense; seeds 1 and 2; K = 3, 1000-tick rounds.
+
+**Result: negative, in all 4 runs.** At the very first stage, where the opening always faces the food, drinking fell to 0% (6% and 2% in one run) and stayed there; the final tests on random cups, food-facing cups and open maps are all at the thirst wall (809 to 827 survived, 0% drank, 0% to 1% on open maps). So the dots do not get any foothold on cups even when the opening faces them, and they lose their drinking on open maps as well.
+
+**Diagnostic (`diag-cups.js`, seed 1, one population per run, evaluated without breeding before and after, then trained generation by generation):**
+
+| | Open maps | Cups, opening faces the food (20 maps) |
+|---|---|---|
+| 1000-tick rounds, gap 3, before any cup training | 859 / 35% / 77% | 758 / 6% / 24% |
+| after 40 generations of cup training | 818 / 10% / 18% | 803 / 4% / 7% |
+| 3000-tick rounds, gap 9, supply 0.1, seed 1, before | 1709 / 35% / 88% | 893 / 5% / 33% |
+| after 40 generations | 1310 / 18% / 50% | 961 / 6% / 19% |
+| same, seed 2, before | 1625 / 31% / 84% | 1036 / 10% / 37% |
+| after 40 generations | 1227 / 13% / 56% | 1013 / 7% / 26% |
+| 3000-tick rounds, gap 3, seed 1, before | 1709 / 35% / 88% | 767 / 1% / 24% |
+| after 40 generations | 1093 / 10% / 41% | 843 / 1% / 11% |
+
+(survived / full / drank)
+
+- **A secure open-map foothold does not transfer to cups, even when the opening faces the food and is 9 tiles wide:** the dots drink in only 24% to 37% of the cup maps (against 77% to 88% on open maps), and they survive less than a dot that never leaves the food in the 1000-tick world (758 against about 830): a failed trip costs about 70 ticks on average there.
+- **During training on cups the mean survival rises as drinking falls** (1000-tick world: 759 to 798 over 40 generations while drank goes from 14% to 2%): selection correctly finds that giving up the trip pays. With 3000-tick rounds the trip still pays on average (a success lives to 3000), but 40 generations of cup training did not improve the cup result (893 to 961 survived at gap 9) and cost the open-map skill (1709 to 1310).
+- Reading, not tested: the dots chase the nearest pond tile in a straight line (they can see pond tiles through the ring); a 13-tile side with a 3- or 9-tile opening catches a straight line only part of the time, so the first step towards "go to the opening" has no reliable reward. The wall sense (S1) did not change this.
+- **Step 4 is closed as far as this brain and these curricula go.** What might work and has not been tried: occlusion (the dot cannot see the pond through the wall, so wall-following becomes the only way to learn where it is), a ring much larger than the sight range, giving the dots a gradient towards the opening (an opening-direction input), more generations in the 3000-tick world, a bigger network.
