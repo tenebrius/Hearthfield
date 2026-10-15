@@ -7,6 +7,7 @@
 // (walls = 5; set "pondSep":16 so that rings do not touch), each stage until needFull or maxStage generations, then the final stage with the last gap. "wallSense":1 adds the
 // wall inputs and "gateWalls":1 holds their first-layer weights at 0 until the first walled stage. With "cupGaps":[] and "testCups":3 the dots never see a ring in training.
 // "cupFacings":[1,1,1,0.75,0.5,0.25] (one per cup stage; use with the same number of cupGaps, e.g. [3,3,3,3,3,3]): the opening faces the food with that probability in the stage; the final stage and the tests use random openings (TEST_FACING = cups that always face the food).
+// "cupMixes":[1,2,3] (one per cup stage, with K = 3): how many of the K maps each dot plays in a generation are cups, the rest are open maps (mixed training: drinking keeps paying on the open maps). The stage lines then also show the cup maps alone.
 // "secureDrink":0.8 (step 4): after drinking has started, keep training the real task without walls until at least that share of the dots drank (mean of the last 10 generations),
 // at most "secureCap" generations (default 1500), before any bars or cups arrive (a fragile foothold, 26% drinking, was wiped out by cups in 32 of 32 runs). With "cupStageCap"
 // (default maxStage) and "cupExit" (a drank share; a cup stage ends early when the mean of the last 10 generations reaches it) the cup stages can be shortened.
@@ -19,7 +20,8 @@ const needFull = A[7] === undefined ? 0.15 : +A[7], maxFirst = +A[8] || 1000, dr
 const cfg = Object.assign({}, DEFAULTS, mods), pn = cfg.pondN, pm = cfg.pondMin || 30, WN = cfg.wallN, WL = cfg.wallLen, TB = cfg.testBars == null ? 3 : cfg.testBars;
 const CUPS = Array.isArray(cfg.cupGaps), cupGaps = CUPS ? cfg.cupGaps : [], TC = cfg.testCups != null ? cfg.testCups : cupGaps.length ? cupGaps[cupGaps.length - 1] : 3;
 const cupFacings = Array.isArray(cfg.cupFacings) ? cfg.cupFacings : [];   // per cup stage, the probability that the opening faces the food (curriculum that rotates the opening away); the final stage and the tests use random openings
-const NOW = { t: 0, gap: 0, n: 0, f: 0 }, bars = n => ({ t: n > 0 ? 4 : 0, gap: 0, n, f: 0 }), cups = (g, f) => ({ t: 5, gap: g, n: 0, f: f || 0 });
+const cupMixes = Array.isArray(cfg.cupMixes) ? cfg.cupMixes : [];   // per cup stage, how many of the K maps of a generation are cup maps (the rest are open maps); default all K
+const NOW = { t: 0, gap: 0, n: 0, f: 0 }, bars = n => ({ t: n > 0 ? 4 : 0, gap: 0, n, f: 0 }), cups = (g, f, mix) => ({ t: 5, gap: g, n: 0, f: f || 0, mix });
 const e = new Engine(Object.assign({}, cfg, { layout: 'randpond', mapSeed: 1, walls: 0 }), seed);
 e.genInit(seed);
 const f = (v, d) => (+v).toFixed(d === undefined ? 0 : d), avg = (a, k) => a.reduce((s, x) => s + x[k], 0) / a.length;
@@ -32,12 +34,12 @@ function zeroWallWeights() {   // first-layer weights of the three wall inputs, 
   for (let s = 0; s < e.cfg.genP; s++) for (let j = 0; j < 3; j++) for (let c = 0; c < HP; c++) G[s * NW + (k0 + j) * HP + c] = 0;
 }
 let total = 0, mapSeed = 1;
-const gen = (lo, hi, w) => { if (mods.gateWalls && w.t === 0) zeroWallWeights(); const sets = []; for (let k = 0; k < K; k++) { const ms = mapSeed++; sets.push(() => setMap(ms, lo, hi, w)); } total++; return e.genRoundMulti(sets); };
+const gen = (lo, hi, w) => { if (mods.gateWalls && w.t === 0) zeroWallWeights(); const sets = [], nc = w.t === 5 && w.mix != null ? Math.min(K, w.mix) : K; for (let k = 0; k < K; k++) { const ms = mapSeed++, wk = (w.t === 5 && k >= nc) ? NOW : w; sets.push(() => setMap(ms, lo, hi, wk)); } total++; const r = e.genRoundMulti(sets); if (w.t === 5) { const c = r.perLayout.slice(0, nc), a = k2 => c.reduce((x, y) => x + y[k2], 0) / c.length; r.cupMean = a('mean'); r.cupFull = a('fullShare'); r.cupDrank = a('drankShare'); } return r; };
 function stage(label, lo, hi, w, cap, exit) {
   const hist = []; let g = 0;
   while (g < cap) { hist.push(gen(lo, hi, w)); g++; const last = hist.slice(-10); if (exit && last.length === 10 && exit(last)) break; }
   const last = hist.slice(-10);
-  console.log(label, '| gens used', g, '(total ' + total + ') | survived', f(avg(last, 'mean')), 'full', f(100 * avg(last, 'fullShare')) + '%', 'drank', f(100 * avg(last, 'drankShare')) + '%');
+  console.log(label, '| gens used', g, '(total ' + total + ') | survived', f(avg(last, 'mean')), 'full', f(100 * avg(last, 'fullShare')) + '%', 'drank', f(100 * avg(last, 'drankShare')) + '%' + (last[0] && last[0].cupDrank != null ? ' | on the cup maps only: survived ' + f(avg(last, 'cupMean')) + ' full ' + f(100 * avg(last, 'cupFull')) + '% drank ' + f(100 * avg(last, 'cupDrank')) + '%' : ''));
   return g;
 }
 const fullExit = last => avg(last, 'fullShare') >= needFull;
@@ -46,7 +48,7 @@ const before = total, used = stage('real task, no bars, until drinking starts', 
 const started = used < drinkCap ? before + used : -1;
 if (cfg.secureDrink) stage('real task, no walls, until drinking is secure', pm, 0, NOW, cfg.secureCap || 1500, last => avg(last, 'drankShare') >= cfg.secureDrink);
 const cupCap = cfg.cupStageCap || maxStage, cupExitFn = cfg.cupExit ? (last => avg(last, 'drankShare') >= cfg.cupExit) : fullExit;   // generation (total so far) at which the 10-generation mean of "drank" first reached drinkStart; -1 if never
-if (CUPS) cupGaps.forEach((g, i) => stage('real task, cups gap ' + g + (cupFacings.length ? ' opening faces the food ' + Math.round(100 * (cupFacings[i] || 0)) + '%' : ''), pm, 0, cups(g, cupFacings[i]), cupCap, cupExitFn));
+if (CUPS) cupGaps.forEach((g, i) => stage('real task, cups gap ' + g + (cupFacings.length ? ' opening faces the food ' + Math.round(100 * (cupFacings[i] || 0)) + '%' : ''), pm, 0, cups(g, cupFacings[i], cupMixes[i]), cupCap, cupExitFn));
 else if (WN > 0) for (const b of [Math.min(1, WN), Math.min(2, WN), WN]) stage('real task, bars ' + b, pm, 0, bars(b), maxStage, fullExit);
 const finalW = CUPS ? (cupGaps.length ? cups(cupGaps[cupGaps.length - 1]) : NOW) : bars(WN);
 stage('final, ' + (CUPS ? 'cups gap ' + (cupGaps.length ? cupGaps[cupGaps.length - 1] : '-') : 'bars ' + WN), pm, 0, finalW, finalGens, null);

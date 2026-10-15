@@ -200,6 +200,7 @@ class Engine {
     x.gen_breed();
     const out = {}; for (const k in stats[0]) out[k] = stats.reduce((a, b) => a + b[k], 0) / K;
     out.gen = stats[0].gen;
+    out.perLayout = stats;   // the stats of each layout's round, in the order of setLayouts
     return out;
   }
   get pop() { return this.x.n_agents(); }
