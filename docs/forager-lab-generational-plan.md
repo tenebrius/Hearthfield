@@ -714,3 +714,22 @@ Paired by seed (mean difference, bootstrap 95% interval): fixed 200 minus none +
 - **A failed trip costs little** (non-drinkers die at about 832, the same as dots that never leave the food; only the earliest tenth die before 720 to 800). My second explanation, that failed trips are expensive, was also wrong.
 - **A successful trip pays little:** on open maps 68% of the dots that drank survive the whole 1000-tick round; with cups only 29% to 43% do, and 34% to 44% of the drinkers die inside the ring (stuck or starved), so drinking in a cup is roughly worth nothing in survival ticks and the 70% failed trips cost a little. Under the survival score the trip is about neutral and slightly negative, which selection removes. That is a likely explanation, not a tested one: the ring might also trap dots for another reason.
 - Consequence: with 1000-tick rounds, where a food-sitter reaches 832 and a perfect run gains at most 168 more ticks, there is no gradient for learning to enter a cup. The fix has to come from the world, not from the score: make drinking worth much more. Longer rounds (a dot that drinks can live up to 3000 ticks while a food-sitter dies at 833) or a faster thirst are the options; the pilot below tries 3000-tick rounds.
+
+**Pilot in 3000-tick rounds (food and water regrowth 0.1, secure foothold, cups 9, 5, 3 at 200 generations each, 500 final; seeds 1 and 2; N = the same dots without cups):**
+
+| | open-map test | cup-map test (gap 3) |
+|---|---|---|
+| N, seed 1 (trained without cups) | 2561 / 74% full / 93% drank | 828 / 2% / 34% |
+| N, seed 2 | 2679 / 80% / 97% | 837 / 1% / 40% |
+| S0, seed 1 (cup curriculum) | 826 / 0% / 0% | 826 / 0% / 0% |
+| S0, seed 2 | 809 / 0% / 0% | 809 / 0% / 0% |
+
+- In 3000-tick rounds a successful drinker could live up to 3000 ticks against 833 for a food-sitter, so the payoff argument ("a trip must succeed about 70% of the time to pay") no longer applies, **and drinking was still wiped out by the cup stages (0% in both runs, even at gap 9).**
+- The N dots show why: on cup maps 34% to 40% of the dots drink but the mean survival is 828 to 837, no better than a dot that never drinks (833). **Drinking inside a cup does not extend life: the dots that get in do not get out** (they starve inside; in the 1000-tick trace 34% to 44% of the drinkers died inside the ring). A dead-end enclosure is a trap, entering it is a net loss, and nothing in the curriculum rewards "enter and then leave", so selection removes entering. That is an explanation consistent with both traces, not a tested one (no trace of a dot inside a ring yet).
+- The pilot is 4 runs; the 1000-tick version had 32 runs plus 4 pilot runs with the same outcome, so the result is not in doubt for these cups, but whether any curriculum can teach them is open.
+
+**Conclusion of step 4 so far:**
+1. Cups are a real navigation obstacle: sliding cannot solve them (open-map dots lose 188 ticks and 57 points of full survival, and in 3000-tick rounds go from 74% to 2% full).
+2. A cup is a dead end, so the first skill that pays is "enter and leave", which gives no gradient: the curriculum from open ponds to cups removed drinking in every run (36 runs at 1000 ticks, 2 at 3000 ticks, with and without the wall sense, with a fragile or a secure foothold).
+3. The wall sense was never tested in a world where anything learned to use it.
+4. Not tried: obstacles with a through-route (a ring with two openings on opposite sides, or a long corridor), shields that are open on three sides (sliding solves those, like the bars), more memory or a larger network for the brain, or a curriculum that starts with rings that have almost no wall (gap 11) and adds wall tiles one at a time.

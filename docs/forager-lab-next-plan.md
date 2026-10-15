@@ -57,7 +57,11 @@ Decision: if B beats A on seeds-that-drink or time-to-drinking, the noisy signal
 
 Already defined, lower priority: `run-gen.js` with `"genLen":3000,"waterRegrow":0.1,"regrow":0.1`, setups no clock / fixed 200 / brain-set oscillator, 16 seeds each, 1000 generations. Reference: fixed 200 at these rates gave 2462 survived and 69% full (6 seeds). About 2 minutes per run alone, 48 runs about 1 hour with four in parallel. Report mean survived, full share, seeds above 2000, and the paired difference with intervals. This tells whether the clocks still matter when several thirst cycles must be survived.
 
-## Step 4 (only if step 2 works): navigation on random bars
+## Step 4: navigation (TRIED 2026-10-15, negative; see "Step 4" in `forager-lab-generational-plan.md`)
+
+**Outcome:** 14-tile bars are handled by sliding, so step 4 used cups (a wall ring with one opening around each pond, `walls: 5`). Cups do defeat sliding, but they are a dead end: dots that get in do not get out, and the curriculum from open ponds to cups removed drinking in every run (36 runs at 1000 ticks, 2 at 3000 ticks, with and without the wall sense, fragile or secure foothold). Open options: rings with two openings on opposite sides or a long corridor (a through-route), a gap-11 ring that gains wall tiles one at a time, more memory or a bigger brain, a trace of a dot inside a ring (does it ever try to leave?). The original step text is kept below.
+
+### Original step 4 text
 
 With K = 3 and bars after the foothold, rerun no wall sense against gated wall sense (`"wallSense":1,"gateWalls":1`), 16 seeds, and ablate the wall inputs at the end (already in `run-randwalls.js`). This is the first setup in which a remembered route cannot work, so it is the first real test of steering. Do not build new wall layouts before this.
 
