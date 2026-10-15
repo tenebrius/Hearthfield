@@ -733,3 +733,34 @@ Paired by seed (mean difference, bootstrap 95% interval): fixed 200 minus none +
 2. A cup is a dead end, so the first skill that pays is "enter and leave", which gives no gradient: the curriculum from open ponds to cups removed drinking in every run (36 runs at 1000 ticks, 2 at 3000 ticks, with and without the wall sense, with a fragile or a secure foothold).
 3. The wall sense was never tested in a world where anything learned to use it.
 4. Not tried: obstacles with a through-route (a ring with two openings on opposite sides, or a long corridor), shields that are open on three sides (sliding solves those, like the bars), more memory or a larger network for the brain, or a curriculum that starts with rings that have almost no wall (gap 11) and adds wall tiles one at a time.
+
+## Entry into cups, and what memory does (2026-10-15)
+
+**Cup trace, 8 seeds** (`run-cuptrace.js`: random-pond curriculum, K = 3, 1000 real-task generations, no cups in training; replayed on 10 held-out cup maps of gap 3 per seed; pooled over 15,566 dots):
+
+| First reached the ring at | dots | entered |
+|---|---|---|
+| the open side | 3,687 (24%) | 71.6% |
+| a closed side | 11,879 (76%) | 18.6% |
+
+Per seed the open-side entry share is 62% to 80% and the closed-side share 10% to 30%. Of the 4,850 dots that got in, **68% left again** (per seed 42% to 99%); median time inside 100 to 215 ticks.
+
+- **Getting in is not pure luck of the approach side:** dots that arrive at a closed side still get in 18.6% of the time (they find the opening along the wall), and dots that arrive at the open side still fail 28% of the time. But 76% arrive at a closed side, which is what a random opening gives (one side in four): the dots do not steer towards the opening from a distance.
+- **The "dead end, entrants do not leave" explanation above was partly wrong:** two thirds of the entrants do leave. What remains from the earlier trace is that only 29% to 43% of the dots that drank survive the round (against 68% on open maps) and a third to 44% of the drinkers die inside the ring, which fits the third that never leave.
+
+**Memory ablation.** Memory registers set to 0 after training (same trained dots, no further breeding; the engine now writes 0 into the inputs of a feature that is switched off, memory included):
+- Random ponds, K = 3, 8 seeds, 10 maps each (survived / full / drank): open maps 937 / 59% / 91% as trained against 579 / 4% / 25% with memory off; cup maps 761 / 7% / 30% against 571 / 0% / 6%.
+- Standard far-corners world (fixed 200, stores of 500, 16 seeds): every seed loses survival with memory off (mean 875 to 591 over 10 rounds, see the table below).
+
+**Freeze ablation** (`run-memfreeze.js`, `memFreeze`: the registers keep updating until a given age and then hold their value for the rest of the round; same trained population; 16 seeds, 10 rounds each; survived / full / drank):
+
+| | As trained | Frozen from age 25 | Frozen from age 100 | Frozen from age 400 | Zeroed |
+|---|---|---|---|---|---|
+| mean of 16 seeds | 875 / 44% / 83% | 553 / 1% / 25% | 598 / 2% / 41% | 746 / 7% / 60% | 591 / 2% / 25% |
+| difference from as trained, ticks (bootstrap 95%) | | -322 (-364 to -279) | -277 (-310 to -239) | -130 (-150 to -105) | -284 (-330 to -238) |
+
+Per seed (as trained / freeze 25 / freeze 100 / freeze 400 / zero, survived): 1: 929 / 691 / 633 / 799 / 720; 2: 860 / 538 / 536 / 743 / 561; 3: 883 / 650 / 656 / 763 / 739; 4: 896 / 614 / 671 / 747 / 607; 5: 902 / 581 / 589 / 740 / 682; 6: 886 / 511 / 582 / 729 / 525; 7: 897 / 526 / 647 / 727 / 735; 8: 887 / 578 / 600 / 750 / 619; 9: 891 / 513 / 593 / 725 / 513; 10: 885 / 543 / 554 / 755 / 509; 11: 913 / 494 / 604 / 755 / 525; 12: 838 / 545 / 613 / 747 / 414; 13: 907 / 595 / 566 / 777 / 651; 14: 869 / 356 / 457 / 667 / 451; 15: 770 / 437 / 549 / 719 / 550; 16: 793 / 677 / 722 / 788 / 658. Only 1 seed of 16 has freeze-400 within 30 ticks of its trained survival.
+
+- **The dots use memory as memory.** Freezing the registers at age 25 costs as much as zeroing them (-322 against -284 ticks), and freezing later costs less (-277 at age 100, -130 at age 400) but still a lot: the registers keep changing in a way that matters for hundreds of ticks. They are not a constant offset. The earlier worry that zeroing a register only removes a bias is answered for this setup.
+- **What they store is not known.** Candidates: the phase within the pond/food cycle (the fixed oscillator gives a clock, but a register can count something else), whether the dot has drunk recently, and where it was last (the position inputs are off in generational runs unless set). A regression of each register on hydration, energy, ticks since the last drink and the oscillator phase would show which.
+- Consequence for navigation: a state mechanism exists and is used, so "no memory" is not the reason the cups stalled.
