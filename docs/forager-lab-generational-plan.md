@@ -803,3 +803,21 @@ Per seed (as trained / freeze 25 / freeze 100 / freeze 400 / zero, survived): 1:
 - **During training on cups the mean survival rises as drinking falls** (1000-tick world: 759 to 798 over 40 generations while drank goes from 14% to 2%): selection correctly finds that giving up the trip pays. With 3000-tick rounds the trip still pays on average (a success lives to 3000), but 40 generations of cup training did not improve the cup result (893 to 961 survived at gap 9) and cost the open-map skill (1709 to 1310).
 - Reading, not tested: the dots chase the nearest pond tile in a straight line (they can see pond tiles through the ring); a 13-tile side with a 3- or 9-tile opening catches a straight line only part of the time, so the first step towards "go to the opening" has no reliable reward. The wall sense (S1) did not change this.
 - **Step 4 is closed as far as this brain and these curricula go.** What might work and has not been tried: occlusion (the dot cannot see the pond through the wall, so wall-following becomes the only way to learn where it is), a ring much larger than the sight range, giving the dots a gradient towards the opening (an opening-direction input), more generations in the 3000-tick world, a bigger network.
+
+### Mixed open and cup maps (pilot, 4 runs, 2026-10-15)
+
+`cupMixes` (`run-multi.js`): after the secure foothold (80% drank), cup stages (gap 3, random openings) in which 1, then 2, then 3 of the K = 3 maps a dot plays per generation are cups and the rest open maps (300 generations each), then 700 generations with all cups; S0 without and S1 with the gated wall sense; seeds 1 and 2. The stage lines also give the cup maps alone (survived / full / drank):
+
+| Run | Secure foothold (all maps) | 1 of 3 maps are cups: all maps / cup maps only | 2 of 3: all maps / cup maps only | 3 of 3 (cups only) |
+|---|---|---|---|---|
+| S0 seed 1 | 884 / 42% / 80% | 876 / 35% / 58% — cups 797 / 2% / 14% | 857 / 19% / 36% — cups 834 / 9% / 21% | 816 / 0% / 0% |
+| S0 seed 2 | 913 / 38% / 80% | 877 / 21% / 58% — cups 832 / 7% / 25% | 857 / 14% / 32% — cups 839 / 8% / 16% | 818 / 0% / 0% |
+| S1 seed 1 | 884 / 33% / 80% | 850 / 22% / 54% — cups 791 / 2% / 11% | 836 / 12% / 33% — cups 815 / 2% / 10% | 804 / 0% / 0% |
+| S1 seed 2 | 881 / 34% / 80% | 865 / 30% / 57% — cups 806 / 3% / 11% | 848 / 15% / 30% — cups 822 / 4% / 12% | 807 / 0% / 0% |
+
+After the final 700 generations all four runs are at the thirst wall (814 to 825, 0% drank on cups and open maps).
+
+- **The open maps keep their drinking while cups are only part of the mix** (the all-maps drinking of 54% to 58% with one cup map in three is about the open maps' 80% on two thirds of the maps and 11% to 25% on the cups): mixed training does protect the skill, so the earlier collapses were not simply forgetting.
+- **But cup drinking does not improve in 300 generations, with or without the wall sense:** 14% to 21%, 25% to 16%, 11% to 10%, 11% to 12% from the first to the second stage. A third of the training signal comes from cups for 600 generations and the dots gain nothing on them; when cups become the only maps the populations lose drinking again (0% in all four).
+- **So the limit is not the training schedule** (curriculum, rotation of the opening, mixing) but what the dots can do with their senses: they get into a ring in 10% to 25% of the cup maps, and no mutation found in 600 generations makes that better, even with the wall sense (which was held at weight 0 until the first cup stage, then free to evolve).
+- Step 4 is closed for these inputs. What remains untried (and which each change the world's information, not the schedule): occlusion (pond and food not visible through walls); an opening-direction input (a hand-built aid); a larger or deeper network; much longer training in the 3000-tick world.
