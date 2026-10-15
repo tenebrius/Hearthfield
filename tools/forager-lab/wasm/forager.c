@@ -33,7 +33,7 @@ enum Cfg {
   C_REGROW, C_WREGROW, C_LOSSE, C_LOSSW, C_MOVEE, C_MOVEW, C_GAINE, C_GAINW, C_MAXE, C_MAXW,
   C_STARTE, C_STARTW, C_REQE, C_REQW, C_PAYE, C_PAYW, C_KIDE, C_KIDW, C_STEPLEN, C_COOLDOWN,
   C_SIGHT, C_HIDDEN, C_LAYERS, C_MEMORY, C_POSITION, C_NOISE, C_AGE, C_FEEDBACK, C_TUMBLE,
-  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_AGESCALE, C_AGETHERM, C_THERMMODE, C_OSCGENE, C_TIMER, C_GENEMUT, C_WALLSENSE, C_MEMFREEZE, C_COUNT
+  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_AGESCALE, C_AGETHERM, C_THERMMODE, C_OSCGENE, C_TIMER, C_GENEMUT, C_WALLSENSE, C_MEMFREEZE, C_MEMNOISE, C_COUNT
 };
 static double CFG[64];
 EXPORT("cfg_ptr") double *cfg_ptr(void) { return CFG; }
@@ -284,6 +284,7 @@ static void sense(int s) {
   inp[8] = (float)(e < 1 ? e : 1); inp[9] = (float)(w < 1 ? w : 1);
   inp[10] = 1;
   if (CFG[C_MEMORY] != 0) for (int m = 0; m < N_MEM; m++) inp[11 + m] = MEM[s * N_MEM + m];
+  if (CFG[C_MEMORY] != 0 && CFG[C_MEMNOISE] != 0) for (int m = 0; m < N_MEM; m++) { double u = aux(); inp[11 + m] = (float)(u < 0.3 ? -1 : u < 0.6 ? 1 : (aux() * 2 - 1)); }   // ablation: the registers are replaced by fresh noise every tick (30% -1, 30% +1, 40% uniform), about the distribution the trained registers show
   else for (int m = 0; m < N_MEM; m++) inp[11 + m] = 0;   // memory switched off after training (ablation): the registers read 0
   // a switched-off feature writes 0, so an ablation (feature switched off after training, brain unchanged) feeds 0 rather than the last value
   if (CFG[C_POSITION] != 0) { inp[15] = (float)((x / W) * 2 - 1); inp[16] = (float)((y / H) * 2 - 1); } else { inp[15] = 0; inp[16] = 0; }
