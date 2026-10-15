@@ -71,3 +71,22 @@ With K = 3 and bars after the foothold, rerun no wall sense against gated wall s
 - Job scripts that map a tag to a config, never JSON through `xargs`; print the command with `bash -x` once before a batch; run batches as a tracked background command with the maximum timeout (7200000 ms) and rerun only missing jobs.
 - Run `node wasm/test-wasm.js` after every engine change and check one unchanged setup reproduces exactly (seed 1, fixed 200, far ponds, 1000 generations: 905 survived, 87% drank, 52% full).
 - Record every result in `forager-lab-generational-plan.md` with the per-seed numbers, and say when an estimate or a claim was wrong.
+
+
+## Step 5: speed-ups (NEXT, chosen by the user on 2026-10-15)
+
+Goal: make a generation cheaper without changing any result. Every speed-up must keep the engine bit-identical: `node wasm/test-wasm.js` passes, and seed 1 of the standard check (`node wasm/run-gen.js '{"maxE":500,"maxW":500,"startE":500,"startW":500,"memory":true,"oscillator":true,"oscPeriod":200,"genSpawn":1}' 1 1000 1000`) still ends at exactly 905 survived, 87% drank, 52% full. Read that line in full; a cut-off output once hid a broken build. A change that cannot be bit-identical (for example a different summation order in the forward pass) needs its own statistical check against the old build (16 seeds, same setups) and must be called out.
+
+Current cost (4-core cloud container, one run alone): 1000 generations of 1000-tick rounds with stores of 500 take about 25 s; with 3000-tick rounds about 106 s; with four runs in parallel each run is slower (about 1.5x). That is roughly 180 ns per living dot per tick. K = 3 layouts per generation triples the cost.
+
+1. **Profile first** (no guessing). Two ways: `node --cpu-prof wasm/run-gen.js ...` and look at the wasm function names (build keeps the name section? check with `wasm-objdump -x forager.wasm | grep -i name` if available), or add tick counters around `sense`, `think` and the movement/eat part of `step` in `forager.c` behind a compile-time flag and print the shares. Questions: what share is the forward pass (`think`), the nearest-tile searches (`nearest`, two or three per dot per tick), the rest of `step`, the regrow loop over fertile tiles, and JavaScript overhead (`genRoundMulti`, the stage loops)?
+2. **Then the candidates, depending on the profile:**
+   - Forward pass: inputs that are zero cost nothing already (sparse input-major layout); check that inactive outputs are not computed; consider fusing the two hidden layers; relaxed-SIMD fused multiply-add is NOT bit-identical (rounding changes), so only with a statistical check.
+   - Nearest-tile searches: cache per tile (the answer only changes when a tile is eaten or regrows past the 0.2 visibility threshold), or skip the search when the dot has not moved to a new tile and no tile within sight changed.
+   - Regrow loop: only tiles below 1 need updating; keep a list of depleted tiles instead of scanning all fertile tiles every tick.
+   - Dead dots already cost nothing; rounds stop when all are dead.
+   - JavaScript: per-tick calls are avoided already (`gen_round_ex` runs the whole round in wasm); check `genRoundMulti` for copies.
+3. **Not worth it (judged before):** a native C build (maybe 20 to 40% faster but every runner would need rewriting), threads inside one run (the dots eat from shared tiles in a fixed order, so parallel dots would change results), smaller populations (changes selection, needs its own test).
+4. **Batch-level savings that need no code:** run 8 seeds first and add 8 more only if the interval is inconclusive; drop arms whose answer is known; report the number of seeds that learned first.
+
+Report: the profile shares, each change with its speed-up on the standard run and on a K = 3 random-pond run (`run-multi.js`), and confirmation of bit-identity (905 / 87% / 52%, test-wasm, and one `run-multi.js` seed that reproduces its stage lines exactly).

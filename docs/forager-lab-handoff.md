@@ -1,6 +1,6 @@
 # Forager Lab: handoff
 
-Written 2026-10-13 and updated 2026-10-14 (random ponds, longer rounds, resource supply, walls, foothold traces, K-layout scoring). It is meant to be read cold by someone (or a fresh Claude session) who has none of the conversation.
+Written 2026-10-13 and updated 2026-10-14 (random ponds, longer rounds, resource supply, walls, foothold traces, K-layout scoring) and 2026-10-15 (clocks in 3000-tick rounds, cups, memory decoding; next session: speed-ups). It is meant to be read cold by someone (or a fresh Claude session) who has none of the conversation.
 
 ## 1. What this is
 
@@ -11,9 +11,9 @@ The user's stated aims, which should guide choices:
 - Avoid hand-picked, "opinionated" parts. If a setting has to be tuned by hand for each world, it is a weak solution; the dots or evolution should find it ("self-solving").
 - Wants results with numbers, interval or test, and a time estimate before long runs. Likes being told when a claim turns out wrong.
 
-## Running locally (the next session runs on the user's PC under WSL)
+## Running locally or in the cloud
 
-Earlier sessions ran in a Claude Code cloud container; the next one runs on the user's own PC in WSL (Ubuntu). Everything is on branch `ccr-2e470314-s2yw51` of `tenebrius/hearthfield`.
+Most sessions ran in a Claude Code cloud container (4 cores, clang and wasm-ld installed, scratch files under `/tmp/claude-0/...`); the user's organization has disabled Remote Control, so a local session means running `claude` directly in WSL. The notes below are for a local (WSL) run. Everything is on branch `ccr-2e470314-s2yw51` of `tenebrius/hearthfield`.
 
 ```sh
 git clone https://github.com/tenebrius/hearthfield.git && cd hearthfield
@@ -76,6 +76,9 @@ Running batches (hard-won lessons):
 - Rough cost on the 4-core container: about 18–20 s of wall time per run at default stores, up to about 25 s at stores of 500; a 1000-generation run of one setup is 15–60 s alone. With four runs in parallel each run is slower: a 3000-tick-round run of 1000 generations took 1 min 46 s alone; the wall runs (about 2800 generations) took about 6 minutes each with four in parallel (24 runs: about 40 minutes). Estimates I gave were often off by 30% or much more; give a range, set the background timeout generously (the maximum is 7200000 ms), and rerun only the missing jobs if a batch is killed.
 - Shell quoting: when a job script embeds JSON, a `sed` that edits `"walls":1` will miss the escaped `\"walls\":1`; check the printed command with `bash -x` before trusting a control run (this once produced an invalid control).
 - `pkill -f` can match the shell itself; use `pkill -x node` and `pkill -x xargs`.
+- After a container restart, scratch job scripts can lose their executable bit (a whole batch then fails at once with "Permission denied" while the task reports completed): `chmod +x` them, and check that the `node` processes are really running (`ps aux | grep run-`) a few seconds after launching.
+- Read check output in full. A regression check printed through `cut` once hid a broken engine build (memory inputs zeroed); test 10 in `test-wasm.js` now guards that case.
+- `bash -x ./job.sh ...` runs the whole job; to see the command only, background it and kill it after a few seconds, or `echo` the command instead.
 
 ## 4. Current design
 
@@ -151,7 +154,7 @@ These are in decreasing order of confidence. Details, tables and sample sizes ar
 
 ## 6. Open questions and suggested next steps
 
-**The concrete plan for the next session is in `docs/forager-lab-next-plan.md`.** Steps 1 and 2 are done (step 2 ran in the cloud container): failing populations never leave food, and scoring each dot on K = 3 layouts per generation fixes most of that (finding 14). Step 3 is done too (finding 15). Step 4 (navigation with cups) was tried and is negative (finding 16). **Next, to be decided with the user:** the registers are decoded as far as simple means go (see finding 17); (the rotating-opening and mixed-map cup pilots were negative, findings 18 and 19: the limit is the senses, not the schedule) an occlusion layer (the dot cannot see ponds and food through walls) so that wall-following has to be learned, or leave navigation; or leave navigation for the profile and speed-up ideas and the backlog below. Also open: profile one run (where does the time go, forward pass or the nearest-tile searches), and run 8 seeds first and add more only if the interval is inconclusive. The list below is the longer backlog.
+**Next session: make runs faster.** The plan is `docs/forager-lab-next-plan.md`, section "Step 5: speed-ups". Steps 1 to 4 of that plan are done: failing populations never leave food (step 1); scoring each dot on K = 3 layouts per generation fixes most of that (step 2, finding 14); clocks buy reliability of the foothold in 3000-tick rounds (step 3, finding 15); navigation with cups is negative for these senses whatever the schedule (step 4, findings 16, 18, 19). Memory registers carry a compound state that matters (finding 17). The user chose speed-ups next; navigation is parked (if resumed: occlusion, so ponds and food are not visible through walls, is the untried idea that changes what the dots can sense). The list below is the longer backlog.
 
 1. **Why does a short gene period (10 to 50 ticks) work as well as a long one?** With the timer present the clock may be doing something else. Test the gene clock without the timer, with and without the curriculum.
 2. **Firm up the curriculum result** with more seeds (8 per cell now) and other worlds (hydration loss 0.9, smaller stores), and compare a curriculum for the brain-set oscillator against a longer direct training.
