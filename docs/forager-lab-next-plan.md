@@ -125,3 +125,16 @@ This container was about 2.5 times slower than the one the earlier timings in th
 **Not done:**
 - Relaxed-SIMD fused multiply-add: it only touches the `layer` share (about 12%), and it would need a 16-seed statistical check.
 - Caching searches for dots that stand still: the dot's own row changes whenever it eats, and nearby rows change all the time from other dots eating and from regrowth.
+
+## Step 6: back to navigation (after step 5, agreed with the user on 2026-10-15)
+
+Where it stands (details in `forager-lab-generational-plan.md`, sections "Step 4" to "Mixed open and cup maps"; handoff findings 16 to 19): cups (a wall ring around each pond with one 3-tile opening, `walls: 5`) defeat sliding, but no schedule taught the dots to use them: plain curriculum, secure foothold, 3000-tick rounds, an opening that first faces the food and then rotates away, and mixing open and cup maps (cup drinking flat at 10 to 25% for 600 generations while open-map drinking stayed intact). The wall-sense inputs never helped. Dots that get into a ring mostly leave again (68%); 76% arrive at a closed side; the opening is invisible from a distance (sight 5, ring 13 tiles). The conclusion so far: the limit is what the dots can sense, not how they are trained. Memory registers carry a compound state that the dots rely on (freezing them costs 130 to 320 ticks), so "no memory" is not the cause.
+
+Plan, cheapest and most informative first; each one a 4-run pilot with a trace (`run-cuptrace.js`, `diag-cups.js`) before any batch, 8 seeds before 16:
+
+1. **Occlusion** (the untried idea that changes what the dots sense). Food and water tiles behind a wall tile are not seen: in `nearest()` (`forager.c`), reject a candidate tile if the line from the dot to it crosses a wall tile (a short Bresenham walk over the wall mask, only when walls are on, so open worlds stay bit-identical). Today the dots see the pond through the ring and chase it in a straight line into the wall; with occlusion the pond appears only through the opening, which gives a direct cue towards it. Test: open-map-trained dots on occluded cup maps (trace: entry by arrival side), then the mixed-map schedule (`cupMixes`) with occlusion, with and without the wall sense.
+2. **If occlusion helps but not enough:** a bigger ring than the sight range is not needed; instead try longer training in the 3000-tick world (where a successful drink is worth up to 2000 extra ticks) with mixed maps, and a larger network (`hidden` 12 or 16).
+3. **If nothing helps:** an opening-direction input would surely work but is a hand-built aid against the user's "no opinionated parts" aim; discuss before building it. A through-route obstacle (two openings on opposite sides) is the other untried world.
+4. **Do not:** add new wall layouts before occlusion is tested; run 16-seed batches before a pilot shows cup drinking rising.
+
+Report as before: seeds that learned first, cup-map drinking separately from open maps, ablation of the wall inputs, per-seed numbers, and any claim that turned out wrong.
