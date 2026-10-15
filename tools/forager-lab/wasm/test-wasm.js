@@ -226,5 +226,25 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const vari
   check('memory switched off after the start: the register inputs read 0', zero === 0, zero + ' non-zero');
   check('memNoise: the register inputs are replaced by noise (about 30% + 30% saturated)', noise.sat / noise.tot > 0.4 && noise.sat / noise.tot < 0.8, Math.round(100 * noise.sat / noise.tot) + '% at +-1');
 }
+// 11. cup facing: cupFacing 0 leaves the maps as before (checksum of 5 maps), cupFacing 1 puts the opening on the side facing the food whenever that side is usable
+{
+  let h = 0; for (let m = 1; m <= 5; m++) { const e = new Engine({ layout: 'randpond', mapSeed: m, pondMin: 30, pondSep: 16, walls: 5, wallGap: 3, genSpawn: 1 }, 1), K = new Uint8Array(e.mem, e.x.kind_ptr(), W * H); for (let i = 0; i < W * H; i++) h = (h * 31 + K[i] * (i + 1)) >>> 0; }
+  check('cups: cupFacing 0 gives the same maps as before the option existed (checksum of 5 maps)', h === 2383721437, String(h));
+  let facing = 0, usable = 0, total = 0;
+  for (let m = 1; m <= 40; m++) {
+    const e = new Engine({ layout: 'randpond', mapSeed: m, pondMin: 30, pondSep: 16, walls: 5, wallGap: 3, cupFacing: 1, genSpawn: 1 }, 1), K = new Uint8Array(e.mem, e.x.kind_ptr(), W * H), CIR = [[48, 16], [16, 48]];
+    const seen = new Uint8Array(W * H), ponds = [];
+    for (let i = 0; i < W * H; i++) if (K[i] === 3 && !seen[i]) { const x0 = i % W, y0 = (i / W) | 0; for (let y = y0; y < y0 + 7; y++) for (let x = x0; x < x0 + 7; x++) seen[y * W + x] = 1; ponds.push([x0, y0]); }
+    for (const [px, py] of ponds) {
+      total++;
+      const cx = px + 3.5, cy = py + 3.5, fc = CIR.reduce((b2, c) => Math.hypot(c[0] - cx, c[1] - cy) < Math.hypot(b2[0] - cx, b2[1] - cy) ? c : b2), fdx = fc[0] - cx, fdy = fc[1] - cy;
+      const foodSide = Math.abs(fdx) > Math.abs(fdy) ? (fdx < 0 ? 0 : 1) : (fdy < 0 ? 2 : 3);
+      const ok = [px - 4 >= 0, px + 10 <= W - 1, py - 4 >= 0, py + 10 <= H - 1][foodSide];
+      const mids = [[px - 3, py + 3], [px + 9, py + 3], [px + 3, py - 3], [px + 3, py + 9]], openNow = mids.map(([x, y]) => (x < 0 || y < 0 || x >= W || y >= H) ? 4 : K[y * W + x]).map(v => v !== 4);
+      if (ok) { usable++; if (openNow[foodSide] && openNow.filter(Boolean).length === 1) facing++; }
+    }
+  }
+  check('cups: cupFacing 1 opens the side facing the food whenever it is usable (40 maps)', usable > 0 && facing === usable, facing + ' of ' + usable + ' usable ponds, ' + total + ' ponds');
+}
 console.log(failed ? failed + ' check(s) FAILED' : 'all checks passed');
 process.exit(failed ? 1 : 0);
