@@ -284,6 +284,7 @@ static void sense(int s) {
   inp[8] = (float)(e < 1 ? e : 1); inp[9] = (float)(w < 1 ? w : 1);
   inp[10] = 1;
   if (CFG[C_MEMORY] != 0) for (int m = 0; m < N_MEM; m++) inp[11 + m] = MEM[s * N_MEM + m];
+  else for (int m = 0; m < N_MEM; m++) inp[11 + m] = 0;   // memory switched off after training (ablation): the registers read 0
   // a switched-off feature writes 0, so an ablation (feature switched off after training, brain unchanged) feeds 0 rather than the last value
   if (CFG[C_POSITION] != 0) { inp[15] = (float)((x / W) * 2 - 1); inp[16] = (float)((y / H) * 2 - 1); } else { inp[15] = 0; inp[16] = 0; }
   if (CFG[C_NOISE] != 0) inp[17] = (float)(aux() * 2 - 1); else inp[17] = 0;
