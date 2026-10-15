@@ -61,3 +61,39 @@ if (mods.wallSense) { e.setCfg('wallSense', 0); const off = evalOn(i => setMap(1
 console.log('FINAL seed', seed, '| K', K, '| gens', total, '| DRINK_STARTED', started,
   '| TEST_BARS_TICKS', f(wb.ticks), '| TEST_BARS_FULL', f(100 * wb.full) + '%', '| TEST_BARS_DRANK', f(100 * wb.drank) + '%',
   '| TEST_NOBARS_TICKS', f(nb.ticks), '| TEST_NOBARS_FULL', f(100 * nb.full) + '%', '| TEST_NOBARS_DRANK', f(100 * nb.drank) + '%' + (fc ? ' | TEST_FACING_TICKS ' + f(fc.ticks) + ' | TEST_FACING_FULL ' + f(100 * fc.full) + '% | TEST_FACING_DRANK ' + f(100 * fc.drank) + '%' : '') + abl);
+
+// "traceCups":1 (step 6): after the tests, replay 10 held-out cup maps (gap TC, random openings) with the trained dots and print one TRACE line: where each dot first reaches a ring
+// (the open side or a closed one), how many get in from each, how many leave again, how many of the dots that drank survive, die inside or outside the ring. Same quantities as run-cuptrace.js.
+if (cfg.traceCups && CUPS) {
+  const { W } = require('./engine'), GP = e.cfg.genP, L = e.cfg.genLen, v = e.views(), kindArr = new Uint8Array(e.mem, e.x.kind_ptr(), W * W), R = 10;
+  const acc = { dots: 0, arrOpen: 0, arrOpenIn: 0, arrClosed: 0, arrClosedIn: 0, gotIn: 0, leftAgain: 0, drank: 0, drinkSurvived: 0, drinkDiedInside: 0, drinkDiedOutside: 0, reached: 0 };
+  let survived = 0, drankAll = 0;
+  for (let r = 0; r < R; r++) {
+    setMap(1000000 + r, pm, 0, cups(TC, 0));
+    const kinds = new Uint8Array(kindArr), ponds = [], seen = new Uint8Array(W * W);
+    for (let i = 0; i < W * W; i++) if (kinds[i] === 3 && !seen[i]) { const x0 = i % W, y0 = (i / W) | 0; for (let yy = y0; yy < y0 + 7; yy++) for (let xx = x0; xx < x0 + 7; xx++) seen[yy * W + xx] = 1; ponds.push([x0, y0]); }
+    const kk = (xx, yy) => (xx < 0 || yy < 0 || xx >= W || yy >= W) ? 4 : kinds[yy * W + xx];
+    const openSide = ponds.map(p => [[p[0] - 3, p[1] + 3], [p[0] + 9, p[1] + 3], [p[0] + 3, p[1] - 3], [p[0] + 3, p[1] + 9]].findIndex(m => kk(m[0], m[1]) !== 4));
+    const nearRing = (xx, yy) => ponds.some(p => xx >= p[0] - 6 && xx <= p[0] + 13 && yy >= p[1] - 6 && yy <= p[1] + 13);
+    const inside = (xx, yy) => ponds.some(p => xx >= p[0] - 2 && xx <= p[0] + 8 && yy >= p[1] - 2 && yy <= p[1] + 8);
+    const sideOf = (xx, yy) => { let best = -1, bd = 1e9; ponds.forEach((p, i) => { const d = Math.hypot(xx - (p[0] + 3.5), yy - (p[1] + 3.5)); if (d < bd) { bd = d; best = i; } }); const p = ponds[best], dx = xx - (p[0] + 3.5), dy = yy - (p[1] + 3.5); return { pond: best, side: Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 0 : 1) : (dy < 0 ? 2 : 3) }; };
+    const arrived = new Int8Array(GP).fill(-1), entered = new Uint8Array(GP), wasIn = new Uint8Array(GP), exited = new Uint8Array(GP), lastT = new Int32Array(GP).fill(-1), lastX = new Float64Array(GP), lastY = new Float64Array(GP);
+    e.genBegin();
+    for (let t = 0; t < L; t++) {
+      const n = e.genTick(t);
+      for (let i = 0; i < n; i++) { const sI = v.ord[i], xx = v.ax[sI], yy = v.ay[sI]; if (nearRing(xx, yy) && arrived[sI] < 0) { const sd = sideOf(xx, yy); arrived[sI] = sd.side === openSide[sd.pond] ? 1 : 0; } const nin = inside(xx, yy) ? 1 : 0; if (nin) entered[sI] = 1; if (wasIn[sI] && !nin) exited[sI] = 1; wasIn[sI] = nin; lastT[sI] = t; lastX[sI] = xx; lastY[sI] = yy; }
+      if (n === 0) break;
+    }
+    const st = e.genEnd(false); survived += st.mean / R; drankAll += st.drankShare / R;
+    for (let sI = 0; sI < GP; sI++) {
+      acc.dots++; const dr = v.gwater[sI] > 0;
+      if (arrived[sI] >= 0) acc.reached++;
+      if (arrived[sI] === 1) { acc.arrOpen++; if (entered[sI]) acc.arrOpenIn++; } else if (arrived[sI] === 0) { acc.arrClosed++; if (entered[sI]) acc.arrClosedIn++; }
+      if (entered[sI]) { acc.gotIn++; if (exited[sI]) acc.leftAgain++; }
+      if (dr) { acc.drank++; if (lastT[sI] >= L - 1) acc.drinkSurvived++; else if (inside(lastX[sI], lastY[sI])) acc.drinkDiedInside++; else acc.drinkDiedOutside++; }
+    }
+  }
+  const pc = (a, b) => b ? Math.round(1000 * a / b) / 10 : null;
+  console.log('TRACE ' + JSON.stringify({ seed, survived: Math.round(survived), drank: Math.round(1000 * drankAll) / 10, reachedRing: pc(acc.reached, acc.dots), arrivedAtOpen: pc(acc.arrOpen, acc.arrOpen + acc.arrClosed), enteredFromOpen: pc(acc.arrOpenIn, acc.arrOpen), enteredFromClosed: pc(acc.arrClosedIn, acc.arrClosed),
+    gotIn: pc(acc.gotIn, acc.dots), leftAgain: pc(acc.leftAgain, acc.gotIn), drinkers: acc.drank, drinkersSurvived: pc(acc.drinkSurvived, acc.drank), drinkersDiedInside: pc(acc.drinkDiedInside, acc.drank), drinkersDiedOutside: pc(acc.drinkDiedOutside, acc.drank) }));
+}
