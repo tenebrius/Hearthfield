@@ -85,17 +85,21 @@ EXPORT("log_test") double log_test(double x) { return mylog(x); }
 static float FOOD[W * H], FERT[W * H];
 static u8 KIND[W * H];
 static u64 FM[H], WM[H], WLM[H];            // per row: bit x set when a food / water tile there has at least MIN_SEE
-static int FERTILE[W * H], NFERT;
+// fertile tiles (FERT > 0 when the masks were last rebuilt) whose food is below 1 (only these regrow); the order does not matter, every tile regrows on its own
+static int DEP[W * H], NDEP;
+static u8 INFERT[W * H], INDEP[W * H];
+static inline void mark_depleted(int i) { if (INFERT[i] && !INDEP[i]) { INDEP[i] = 1; DEP[NDEP++] = i; } }
 EXPORT("kind_ptr") u8 *kind_ptr(void) { return KIND; }
 EXPORT("fert_ptr") float *fert_ptr(void) { return FERT; }
 EXPORT("food_ptr") float *food_ptr(void) { return FOOD; }
 
 static void rebuild_masks(void) {
   for (int y = 0; y < H; y++) { FM[y] = 0; WM[y] = 0; WLM[y] = 0; }
-  NFERT = 0;
+  NDEP = 0;
   for (int i = 0; i < W * H; i++) {
+    INFERT[i] = FERT[i] > 0; INDEP[i] = 0;
+    if (INFERT[i] && FOOD[i] < 1) { INDEP[i] = 1; DEP[NDEP++] = i; }
     if (KIND[i] == 4) WLM[i / W] |= 1ULL << (i % W);   // wall tiles block movement; the wall sense looks for these
-    if (FERT[i] > 0) FERTILE[NFERT++] = i;
     if ((double)FOOD[i] >= MIN_SEE) {
       if (KIND[i] == 1) FM[i / W] |= 1ULL << (i % W);
       else if (KIND[i] == 3) WM[i / W] |= 1ULL << (i % W);
@@ -214,13 +218,26 @@ void init_world(u32 seed) {
 // ---------- sensing ----------
 // nearest tile in mask M within radius R of (x, y), excluding tile (ox, oy). Ties go to the lowest tile index, which is
 // what a plain row-by-row scan gives. Returns tile index or -1, and the squared distance and offsets.
+static inline __attribute__((always_inline)) void consider(int tx, int ty, double x, double dy, int R, double *best, int *bi, int *found, double *bdx, double *bdy) {
+  double dx = tx + 0.5 - x, d2 = dx * dx + dy * dy;
+  if (d2 > (double)R * R) return;
+  int idx = ty * W + tx;
+  if (d2 < *best || (d2 == *best && idx < *bi)) { *best = d2; *bi = idx; *bdx = dx; *bdy = dy; *found = 1; }
+}
 static int nearest(double x, double y, int ox, int oy, int R, const u64 *M, double *bd2, double *bdx, double *bdy) {
   double best = (double)R * R; int bi = 0x7fffffff, found = 0;
-  int y0 = (int)(y - R); if (y - R < 0) y0 = 0; if (y0 < 0) y0 = 0;
-  int y1 = (int)(y + R); if (y1 > H - 1) y1 = H - 1;
-  int x0 = (int)(x - R); if (x - R < 0) x0 = 0;
-  int x1 = (int)(x + R); if (x1 > W - 1) x1 = W - 1;
+  // ox, oy are (int)x, (int)y and R is whole, so these equal (int)(y - R) etc. clamped to the map
+  int y0 = oy - R; if (y0 < 0) y0 = 0;
+  int y1 = oy + R; if (y1 > H - 1) y1 = H - 1;
+  int x0 = ox - R; if (x0 < 0) x0 = 0;
+  int x1 = ox + R; if (x1 > W - 1) x1 = W - 1;
   u64 cols = (x1 - x0 == 63) ? ~0ULL : (((1ULL << (x1 - x0 + 1)) - 1) << x0);
+  u64 anyb = 0;
+  for (int ty = y0; ty <= y1; ty++) anyb |= M[ty];
+  if (!(anyb & cols)) return -1;   // nothing in the box (the common case for water)
+  // within one row d2 grows with |dx|, and two columns differ in dx * dx by at least 1, so only the set bit nearest
+  // to column ox on each side can be the row's best: the result is the same as checking every bit
+  const u64 lowMask = ox >= 63 ? ~0ULL : (2ULL << ox) - 1;   // columns 0..ox
   for (int k = 0; k <= 2 * R + 2; k++) {
     int any = 0;
     for (int side = 0; side < 2; side++) {
@@ -232,13 +249,10 @@ static int nearest(double x, double y, int ox, int oy, int R, const u64 *M, doub
       any = 1;
       u64 bits = M[ty] & cols;
       if (ty == oy) bits &= ~(1ULL << ox);
-      while (bits) {
-        int tx = __builtin_ctzll(bits); bits &= bits - 1;
-        double dx = tx + 0.5 - x, d2 = dx * dx + dy * dy;
-        if (d2 > (double)R * R) continue;
-        int idx = ty * W + tx;
-        if (d2 < best || (d2 == best && idx < bi)) { best = d2; bi = idx; *bdx = dx; *bdy = dy; found = 1; }
-      }
+      if (!bits) continue;
+      u64 lo = bits & lowMask, hi = bits & ~lowMask;   // left candidate first, as in a scan by increasing column
+      if (lo) consider(63 - __builtin_clzll(lo), ty, x, dy, R, &best, &bi, &found, bdx, bdy);
+      if (hi) consider(__builtin_ctzll(hi), ty, x, dy, R, &best, &bi, &found, bdx, bdy);
     }
     if (!any) break;   // row distances only grow with k, so nothing further out can beat the best so far
   }
@@ -346,14 +360,28 @@ static inline double pow2(double x) {
 EXPORT("pow2_test") double pow2_test(double x) { return pow2(x); }
 static float HID1[MAXHID + 4] __attribute__((aligned(16))), HID2[MAXHID + 4] __attribute__((aligned(16))), OUTV[32] __attribute__((aligned(16)));
 // out[0..cols) = sum over rows r of x[r] * W[r][0..cols)   (W row-major, row length `stride`), cols a multiple of 4, all in f32
-static inline void layer(const float *x, int rows, const float *Wt, int stride, int cols, v4f *acc) {
-  int nv = cols >> 2;
-  for (int v = 0; v < nv; v++) acc[v] = splat(0);
+// NV is a constant in each copy, so the accumulators stay in registers (same order of additions as one generic loop)
+static inline __attribute__((always_inline)) void layer_n(const float *x, int rows, const float *Wt, int stride, v4f *out, const int NV) {
+  v4f acc[8];
+  for (int v = 0; v < NV; v++) acc[v] = splat(0);
   for (int r = 0; r < rows; r++) {
     float xr = x[r];
     if (xr == 0) continue;   // a zero input adds nothing
     v4f xv = splat(xr); const v4f *row = (const v4f *)(Wt + r * stride);
-    for (int v = 0; v < nv; v++) acc[v] += xv * row[v];
+    for (int v = 0; v < NV; v++) acc[v] += xv * row[v];
+  }
+  for (int v = 0; v < NV; v++) out[v] = acc[v];
+}
+static inline void layer(const float *x, int rows, const float *Wt, int stride, int cols, v4f *acc) {
+  switch (cols >> 2) {
+    case 1: layer_n(x, rows, Wt, stride, acc, 1); break;
+    case 2: layer_n(x, rows, Wt, stride, acc, 2); break;
+    case 3: layer_n(x, rows, Wt, stride, acc, 3); break;
+    case 4: layer_n(x, rows, Wt, stride, acc, 4); break;
+    case 5: layer_n(x, rows, Wt, stride, acc, 5); break;
+    case 6: layer_n(x, rows, Wt, stride, acc, 6); break;
+    case 7: layer_n(x, rows, Wt, stride, acc, 7); break;
+    default: layer_n(x, rows, Wt, stride, acc, 8); break;
   }
 }
 static void think(int s) {
@@ -370,7 +398,7 @@ static void think(int s) {
     for (int v = 0; v < nvh; v++) *(v4f *)(HID2 + 4 * v) = vtanh(acc[v]);
     last = HID2;
   }
-  v4f oacc[6];
+  v4f oacc[8];
   layer(last, NH, g + OFFO, OP, OP, oacc);
   for (int v = 0; v < (OP >> 2); v++) *(v4f *)(OUTV + 4 * v) = oacc[v];
   v4f mv = vtanh(*(v4f *)OUTV);
@@ -447,8 +475,8 @@ void step(int count) {
       if (AEAT[s]) {
         ABLK[s] = 0;
         int idx = ((int)AY[s]) * W + (int)AX[s]; double amt = FOOD[idx]; int kd = KIND[idx];
-        if (kd == 1) { double v = AE[s] + amt * gainE; if (v > maxE) v = maxE; if (v > AE[s]) AE[s] = v; GFOOD[s] += amt * gainE; FOOD[idx] = 0; FM[idx / W] &= ~(1ULL << (idx % W)); }
-        else if (kd == 3) { double v = AW[s] + amt * gainW; if (v > maxW) v = maxW; if (v > AW[s]) AW[s] = v; GWATER[s] += amt * gainW; FOOD[idx] = 0; WM[idx / W] &= ~(1ULL << (idx % W)); }
+        if (kd == 1) { double v = AE[s] + amt * gainE; if (v > maxE) v = maxE; if (v > AE[s]) AE[s] = v; GFOOD[s] += amt * gainE; FOOD[idx] = 0; FM[idx / W] &= ~(1ULL << (idx % W)); mark_depleted(idx); }
+        else if (kd == 3) { double v = AW[s] + amt * gainW; if (v > maxW) v = maxW; if (v > AW[s]) AW[s] = v; GWATER[s] += amt * gainW; FOOD[idx] = 0; WM[idx / W] &= ~(1ULL << (idx % W)); mark_depleted(idx); }
         AEATRES[s] = ((kd == 1 || kd == 3) && amt > 0.001) ? amt : -1;
       } else {
         AEATRES[s] = 0;
@@ -487,18 +515,17 @@ void step(int count) {
     NAG = nalive;
     if (!GENMODE) while (NAG < floorN) ORD[NAG++] = random_agent();
     const double rf = CFG[C_REGROW], rw = CFG[C_WREGROW];
-    for (int k = 0; k < NFERT; k++) {
-      int i = FERTILE[k];
+    for (int k = 0; k < NDEP; k++) {
+      int i = DEP[k];
       float old = FOOD[i];
-      if (old < 1) {
-        double nv = (double)old + (KIND[i] == 3 ? rw : rf) * (double)FERT[i];
-        if (nv > 1) nv = 1;
-        FOOD[i] = (float)nv;
-        if ((double)old < MIN_SEE && (double)FOOD[i] >= MIN_SEE) {
-          if (KIND[i] == 1) FM[i / W] |= 1ULL << (i % W);
-          else if (KIND[i] == 3) WM[i / W] |= 1ULL << (i % W);
-        }
+      double nv = (double)old + (KIND[i] == 3 ? rw : rf) * (double)FERT[i];
+      if (nv > 1) nv = 1;
+      FOOD[i] = (float)nv;
+      if ((double)old < MIN_SEE && (double)FOOD[i] >= MIN_SEE) {
+        if (KIND[i] == 1) FM[i / W] |= 1ULL << (i % W);
+        else if (KIND[i] == 3) WM[i / W] |= 1ULL << (i % W);
       }
+      if (!(FOOD[i] < 1)) { INDEP[i] = 0; DEP[k--] = DEP[--NDEP]; }   // full again: drop it from the list
     }
     TICK++;
   }
