@@ -203,5 +203,19 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const vari
   const spread = Math.max(...keyRef) - Math.min(...keyRef);
   check('three different layouts: each dot is scored on the mean of its three rounds, stats are the mean', Math.abs(sm.mean - ref) < 1e-9 && maxd < 1e-9 && spread > 1, 'mean ' + sm.mean.toFixed(2) + ' vs ' + ref.toFixed(2) + ', max key difference ' + maxd.toExponential(1) + ', key spread ' + spread.toFixed(0));
 }
+// 9. cups (walls = 5): every pond is reachable from the centre when the gap is open (3 and 11 wide) and sealed when it is 0; rings keep off food and water; same seed, same map
+{
+  const mkc = (seedv, gap) => new Engine({ layout: 'randpond', mapSeed: seedv, pondMin: 30, pondSep: 16, walls: 5, wallGap: gap, genSpawn: 1 }, 1);
+  const kindOf = e => new Uint8Array(e.mem, e.x.kind_ptr(), W * H).slice();
+  const reach = K => { const seen = new Uint8Array(W * H), q = [32 * W + 32]; seen[q[0]] = 1; while (q.length) { const i = q.pop(), x = i % W, y = (i / W) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const j = ny * W + nx; if (!seen[j] && K[j] !== 4) { seen[j] = 1; q.push(j); } } } return seen; };
+  const stat = gap => { let reachable = 0, sealed = 0, ponds = 0, walls = 0; for (let m = 1; m <= 40; m++) { const K = kindOf(mkc(m, gap)), seen = reach(K); let any = 0, all = 1; for (let i = 0; i < W * H; i++) { if (K[i] === 4) walls++; } for (let i = 0; i < W * H; i++) if (K[i] === 3) { any |= seen[i]; all &= seen[i]; } ponds++; if (all) reachable++; if (!any) sealed++; } return { reachable, sealed, ponds, walls }; };
+  const g3 = stat(3), g11 = stat(11), g0 = stat(0);
+  check('cups: all ponds reachable from the centre with gap 3 and gap 11 (40 maps each)', g3.reachable === 40 && g11.reachable === 40, g3.reachable + ' and ' + g11.reachable + ' of 40');
+  check('cups: with gap 0 no pond is reachable', g0.sealed === 40 && g0.reachable === 0, g0.sealed + ' of 40 sealed');
+  let bad = 0; for (let m = 1; m <= 40; m++) { const K = kindOf(mkc(m, 3)), F = kindOf(new Engine({ layout: 'randpond', mapSeed: m, pondMin: 30, pondSep: 16, walls: 0, genSpawn: 1 }, 1)); for (let i = 0; i < W * H; i++) { if (F[i] === 1 || F[i] === 3) { if (K[i] !== F[i]) bad++; } } }
+  check('cups: food and water tiles are the same as without walls (rings never overwrite them)', bad === 0, bad + ' tiles changed');
+  const A1 = kindOf(mkc(5, 3)), A2 = kindOf(mkc(5, 3)), A3 = kindOf(mkc(6, 3));
+  check('cups: same seed same map, different seed different map; ponds at least 16 apart', A1.every((v, i) => v === A2[i]) && A1.some((v, i) => v !== A3[i]));
+}
 console.log(failed ? failed + ' check(s) FAILED' : 'all checks passed');
 process.exit(failed ? 1 : 0);

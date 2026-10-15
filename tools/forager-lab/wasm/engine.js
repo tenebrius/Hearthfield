@@ -22,14 +22,14 @@ function mapRng(seed) { let a = seed >>> 0; return () => { a += 0x6D2B79F5; let 
 
 // randpond: the food circles stay where they are; `n` 7x7 ponds are placed at random, each at least `minDist` tiles
 // (centre to centre) from both food circle centres (and, with maxDist, within maxDist of the nearer one), and not touching each other. Same mapSeed gives the same layout.
-function randomPonds(mapSeed, n, minDist, maxDist) {
+function randomPonds(mapSeed, n, minDist, maxDist, sep) {
   const r = mapRng(mapSeed * 2654435761 + 12345), out = [];
   for (let tries = 0; out.length < n; tries++) {
     if (tries > 10000) throw new Error('could not place ponds with minDist ' + minDist);
     const x = Math.floor(r() * (W - 6)), y = Math.floor(r() * (H - 6)), cx = x + 3.5, cy = y + 3.5;
     const near = Math.min(...CIRCLES.map(c => Math.hypot(cx - c[0], cy - c[1])));   // distance to the nearer food centre
     if (near < minDist || (maxDist && near > maxDist)) continue;
-    if (out.some(p => Math.max(Math.abs(p[0] - x), Math.abs(p[1] - y)) < 8)) continue;
+    if (out.some(p => Math.max(Math.abs(p[0] - x), Math.abs(p[1] - y)) < (sep || 8))) continue;
     out.push([x, y]);
   }
   return out;
@@ -44,10 +44,34 @@ function randomPonds(mapSeed, n, minDist, maxDist) {
 //   the wall towards its target slides away from the gap and has to turn back.
 // walls = 4 ("random bars", any ponds): `wallN` straight bars of length `wallLen`, each horizontal or vertical at random, placed by mapSeed, keeping 2 tiles
 //   clear of food and water tiles and the centre start area (tiles 26 to 37). Bars are finite, so everything stays reachable.
-function addWalls(kind, fert, walls, gap, mapSeed, wallN, wallLen) {
+// walls = 5 ("cups", any ponds): every pond is enclosed by a square wall ring at distance 3 (13 x 13 tiles around the 7 x 7 pond), open only in a gap of `wallGap` tiles
+//   (default 3) in the middle of one side. The open side is chosen at random by mapSeed among the sides that keep a free strip outside the opening (the map edge is a wall too).
+//   Use `pondSep` 16 (minimum distance between ponds, default 8) so that the rings of two ponds do not touch.
+//   A dot that slides along the outside of a cup ends up in a corner of the ring and has to turn back to find the opening. Ring tiles that would fall on food or water are left out.
+function addWalls(kind, fert, walls, gap, mapSeed, wallN, wallLen, ponds) {
   if (!walls) return;
-  if (![1, 2, 3, 4].includes(walls)) throw new Error('walls must be 0, 1, 2, 3 or 4');
+  if (![1, 2, 3, 4, 5].includes(walls)) throw new Error('walls must be 0, 1, 2, 3, 4 or 5');
   const put = (x, y) => { kind[y * W + x] = 4; fert[y * W + x] = 0; };
+  if (walls === 5) {
+    const r = mapRng((mapSeed || 0) * 69069 + 4242), g = Math.max(0, Math.min(11, Math.round(gap == null ? 3 : gap)));
+    for (const [px, py] of ponds) {
+      const sides = [];   // 0 west (x = px - 3), 1 east (x = px + 9), 2 north (y = py - 3), 3 south (y = py + 9): usable as the opening when that line is inside the map
+      if (px - 4 >= 0) sides.push(0); if (px + 10 <= W - 1) sides.push(1); if (py - 4 >= 0) sides.push(2); if (py + 10 <= H - 1) sides.push(3);   // a free strip must remain outside the opening
+      const open = sides.length ? sides[Math.floor(r() * sides.length)] : -1;
+      const lo = 5 - Math.floor(g / 2) + 0, hi = lo + g;   // open positions along the side, 0 to 12
+      for (let k = 0; k <= 12; k++) {
+        const inGap = k >= lo + 1 && k < hi + 1 && g > 0;   // centred on position 6 for odd g
+        const cells = [[px - 3, py - 3 + k, 0], [px + 9, py - 3 + k, 1], [px - 3 + k, py - 3, 2], [px - 3 + k, py + 9, 3]];
+        for (const [x, y, side] of cells) {
+          if (x < 0 || y < 0 || x >= W || y >= H) continue;
+          if (side === open && inGap) continue;
+          if (kind[y * W + x] === 1 || kind[y * W + x] === 3) continue;
+          put(x, y);
+        }
+      }
+    }
+    return;
+  }
   if (walls === 4) {
     const r = mapRng((mapSeed || 0) * 40503 + 777), n = wallN == null ? 3 : wallN, len = wallLen || 14;
     const clear = (x, y) => {
@@ -73,27 +97,28 @@ function addWalls(kind, fert, walls, gap, mapSeed, wallN, wallLen) {
   }
 }
 
-function buildMap(layout, shift, mapSeed, pondN, pondMin, pondMax, walls, wallGap, wallN, wallLen) {
+function buildMap(layout, shift, mapSeed, pondN, pondMin, pondMax, walls, wallGap, wallN, wallLen, pondSep) {
   const kind = new Uint8Array(W * H), fert = new Float32Array(W * H);
   if (!['circles', 'handmade', 'handfar', 'handnear', 'handcurr', 'randpond'].includes(layout)) throw new Error('layout "' + layout + '" is not supported by the WASM engine (use circles, handmade, handfar, handnear, handcurr or randpond)');
   for (let i = 0; i < W * H; i++) {
     const px = i % W + 0.5, py = Math.floor(i / W) + 0.5;
     for (const c of CIRCLES) { const dx = px - c[0], dy = py - c[1]; if (dx * dx + dy * dy <= CR * CR) { kind[i] = 1; fert[i] = 0.8; } }
   }
+  let ponds = [];
   if (layout !== 'circles') {
     const lerp = (a, b, t) => Math.round(a + (b - a) * t), t = shift || 0;
     // handcurr: ponds slide from touching the food circles (t = 0, same as handnear) out to the corners (t = 1, same as handfar)
-    const ponds = layout === 'randpond' ? randomPonds(mapSeed || 0, pondN || 2, pondMin || 30, pondMax || 0) : layout === 'handfar' ? [[2, 2], [55, 55]] : layout === 'handnear' ? [[45, 26], [13, 32]] : layout === 'handcurr' ? [[lerp(45, 55, t), lerp(26, 55, t)], [lerp(13, 2, t), lerp(32, 2, t)]] : [[13, 13], [45, 45]];
+    ponds = layout === 'randpond' ? randomPonds(mapSeed || 0, pondN || 2, pondMin || 30, pondMax || 0, pondSep) : layout === 'handfar' ? [[2, 2], [55, 55]] : layout === 'handnear' ? [[45, 26], [13, 32]] : layout === 'handcurr' ? [[lerp(45, 55, t), lerp(26, 55, t)], [lerp(13, 2, t), lerp(32, 2, t)]] : [[13, 13], [45, 45]];
     for (const p of ponds) for (let y = p[1]; y < p[1] + 7; y++) for (let x = p[0]; x < p[0] + 7; x++) { kind[y * W + x] = 3; fert[y * W + x] = 0.8; }
   }
-  addWalls(kind, fert, walls, wallGap, mapSeed, wallN, wallLen);
+  addWalls(kind, fert, walls, wallGap, mapSeed, wallN, wallLen, ponds);
   return { kind, fert };
 }
 
 let moduleCache = null;
 class Engine {
   constructor(overrides, seed) {
-    this.cfg = Object.assign(pageDefaults(), { genP: 200, genLen: 1000, genElite: 2, genTourn: 3, genXover: 0, genSpawn: 0, genWSurv: 1, genWFood: 0, genWWater: 0, genScoreMode: 0, pondShift: 0, oscPeriod: 0, ageScale: 0, ageTherm: 0, thermMode: 0, oscGene: 0, timer: 0, geneMut: 0.25, wallSense: 0, walls: 0, wallGap: 3, wallN: 3, wallLen: 14 }, overrides || {});
+    this.cfg = Object.assign(pageDefaults(), { genP: 200, genLen: 1000, genElite: 2, genTourn: 3, genXover: 0, genSpawn: 0, genWSurv: 1, genWFood: 0, genWWater: 0, genScoreMode: 0, pondShift: 0, oscPeriod: 0, ageScale: 0, ageTherm: 0, thermMode: 0, oscGene: 0, timer: 0, geneMut: 0.25, wallSense: 0, walls: 0, wallGap: 3, wallN: 3, wallLen: 14, pondSep: 8 }, overrides || {});
     if (this.cfg.shiftEvery > 0) throw new Error('food relocation (shiftEvery) is not supported by the WASM engine');
     if (this.cfg.archive) throw new Error('"newcomers copy parents" (archive) is not supported by the WASM engine');
     if (this.cfg.maxPop > 2000) throw new Error('maxPop above 2000 is not supported');
@@ -112,7 +137,7 @@ class Engine {
   // randpond takes a mapSeed (which layout), pondN (number of ponds, default 2) and pondMin (minimum distance from the food, default 30), pondMax (optional: ponds no farther than this from the nearer food centre)
   setMap(layout, shift, mapSeed, pondN, pondMin, pondMax, walls, wallGap, wallN, wallLen) {
     // walls and wallGap default to the engine's cfg values, so curriculum runners that call setMap keep the walls
-    const map = buildMap(layout, shift, mapSeed, pondN, pondMin, pondMax, walls === undefined ? this.cfg.walls : walls, wallGap === undefined ? this.cfg.wallGap : wallGap, wallN === undefined ? this.cfg.wallN : wallN, wallLen === undefined ? this.cfg.wallLen : wallLen);
+    const map = buildMap(layout, shift, mapSeed, pondN, pondMin, pondMax, walls === undefined ? this.cfg.walls : walls, wallGap === undefined ? this.cfg.wallGap : wallGap, wallN === undefined ? this.cfg.wallN : wallN, wallLen === undefined ? this.cfg.wallLen : wallLen, this.cfg.pondSep);
     new Uint8Array(this.mem, this.x.kind_ptr(), W * H).set(map.kind);
     new Float32Array(this.mem, this.x.fert_ptr(), W * H).set(map.fert);
   }
