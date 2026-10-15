@@ -685,3 +685,32 @@ Paired by seed (mean difference, bootstrap 95% interval): fixed 200 minus none +
 - **With enough food and water, clocks still matter, but less than in the 1000-tick world with low supply** (no clock reached 6% full and 1030 ticks at the supply of 0.03; here 56% and 2106). Most of the earlier 3000-tick shortfall was supply.
 - **Fixed 200 and the brain-set oscillator are equal** (the interval includes 0 and is narrow in full-round share), as in the earlier three-world result: the brain-set clock needs no hand-picked period.
 - This matches the pattern from steps 1 and 2: what a clock changes is whether populations get a first foothold on drinking.
+
+## Step 4: cups, an obstacle that sliding cannot solve (2026-10-15)
+
+**Built:** `walls: 5` ("cups"): every pond is enclosed by a square wall ring at distance 3 (13 x 13 tiles around the 7 x 7 pond) with an opening of `wallGap` tiles (default 3) in the middle of one side, chosen at random by map seed among the sides that keep a free strip outside the opening. A dot that slides along the outside ends up in a corner of the ring and has to turn back. `pondSep` (new engine option, default 8) sets the minimum distance between ponds; 16 keeps the rings apart. Tests (`test-wasm.js`): on 40 random maps every pond is reachable from the centre with gap 3 and gap 11, none with gap 0; rings never overwrite food or water; same seed same map. Runner `run-multi.js` gained `cupGaps` (cup stages after the real task), `wallSense`, `gateWalls`, `secureDrink`, `cupExit`, `cupStageCap`, `testCups` and a test with the wall inputs at 0; `run-cuptrace.js` replays open-map-trained dots on cup maps. All runs: K = 3 layouts per generation, fixed 200 oscillator, stores of 500, 1000-tick rounds unless stated.
+
+**Premise check (setup N, 16 seeds):** dots trained without cups, K = 3, pondSep 16: no-wall test 942 / 63% full / 92% drank; the same dots on cup maps (gap 3) 754 / 6% / 31%: cups cost 188 ticks, 57 points of full survival and 61 points of drinking, so cups defeat sliding as designed (drinking is not zero because some openings face the dots).
+
+**Cup curriculum from a fragile foothold (S0 no wall sense, S1 gated wall sense; 16 seeds each):** drinking started in all 16 seeds (at 25% drank), then cups with gaps 9, 5, 3 (400 generations each) and 1000 final generations. **All 32 runs ended at 0% drinking on cup maps and on maps without walls** (survived 777 to 832): drinking was wiped out within the first cup stage and never came back. The wall sense (ablation: no change) could not be judged.
+
+**Cup curriculum from a secure foothold (pilot, 4 runs):** cups added only after 80% of dots drank (33% to 42% full round, 39 to 312 extra generations); stages of 300 generations (exit at 70% drank), 700 final. Same result: drinking fell to 0% (1% in one run) at the first cup stage (gap 9, almost open) and stayed there, with and without the wall sense. So a stronger foothold did not help. (My first explanation, that the foothold was too weak, was wrong.)
+
+**Why drinking disappears (cup trace, open-map dots on cup maps, seeds 1 and 2, gaps 3 and 9, 10 maps each):**
+
+| | gap 9, seed 1 | gap 3, seed 1 | gap 9, seed 2 | gap 3, seed 2 |
+|---|---|---|---|---|
+| left the food | 100% | 100% | 100% | 100% |
+| reached the ring (within 3 tiles) | 95.5% | 95.8% | 96.5% | 96.6% |
+| got inside | 32% | 27% | 28% | 23% |
+| drank | 32% | 26% | 27% | 22% |
+| median death tick | 832 | 832 | 832 | 832 |
+| death tick of non-drinkers, 10th percentile | 743 | 720 | 804 | 787 |
+| drinkers that survived the round | 33% | 29% | 43% | 40% |
+| drinkers that died inside the ring | 34% | 40% | 41% | 44% |
+| drinkers that died outside the ring | 33% | 31% | 15% | 16% |
+
+- **Almost every dot reaches the ring but only a quarter get in, and widening the gap from 3 to 9 barely changes it (28 to 32% against 23 to 27%).**
+- **A failed trip costs little** (non-drinkers die at about 832, the same as dots that never leave the food; only the earliest tenth die before 720 to 800). My second explanation, that failed trips are expensive, was also wrong.
+- **A successful trip pays little:** on open maps 68% of the dots that drank survive the whole 1000-tick round; with cups only 29% to 43% do, and 34% to 44% of the drinkers die inside the ring (stuck or starved), so drinking in a cup is roughly worth nothing in survival ticks and the 70% failed trips cost a little. Under the survival score the trip is about neutral and slightly negative, which selection removes. That is a likely explanation, not a tested one: the ring might also trap dots for another reason.
+- Consequence: with 1000-tick rounds, where a food-sitter reaches 832 and a perfect run gains at most 168 more ticks, there is no gradient for learning to enter a cup. The fix has to come from the world, not from the score: make drinking worth much more. Longer rounds (a dot that drinks can live up to 3000 ticks while a food-sitter dies at 833) or a faster thirst are the options; the pilot below tries 3000-tick rounds.
