@@ -283,9 +283,9 @@ static void sense(int s) {
   double e = AE[s] / CFG[C_MAXE], w = AW[s] / CFG[C_MAXW];
   inp[8] = (float)(e < 1 ? e : 1); inp[9] = (float)(w < 1 ? w : 1);
   inp[10] = 1;
-  if (CFG[C_MEMORY] != 0) for (int m = 0; m < N_MEM; m++) inp[11 + m] = MEM[s * N_MEM + m];
-  if (CFG[C_MEMORY] != 0 && CFG[C_MEMNOISE] != 0) for (int m = 0; m < N_MEM; m++) { double u = aux(); inp[11 + m] = (float)(u < 0.3 ? -1 : u < 0.6 ? 1 : (aux() * 2 - 1)); }   // ablation: the registers are replaced by fresh noise every tick (30% -1, 30% +1, 40% uniform), about the distribution the trained registers show
-  else for (int m = 0; m < N_MEM; m++) inp[11 + m] = 0;   // memory switched off after training (ablation): the registers read 0
+  if (CFG[C_MEMORY] == 0) { for (int m = 0; m < N_MEM; m++) inp[11 + m] = 0; }   // memory switched off after training (ablation): the registers read 0
+  else if (CFG[C_MEMNOISE] != 0) { for (int m = 0; m < N_MEM; m++) { double u = aux(); inp[11 + m] = (float)(u < 0.3 ? -1 : u < 0.6 ? 1 : (aux() * 2 - 1)); } }   // ablation: the registers are replaced by fresh noise every tick (30% -1, 30% +1, 40% uniform), about the distribution the trained registers show
+  else { for (int m = 0; m < N_MEM; m++) inp[11 + m] = MEM[s * N_MEM + m]; }
   // a switched-off feature writes 0, so an ablation (feature switched off after training, brain unchanged) feeds 0 rather than the last value
   if (CFG[C_POSITION] != 0) { inp[15] = (float)((x / W) * 2 - 1); inp[16] = (float)((y / H) * 2 - 1); } else { inp[15] = 0; inp[16] = 0; }
   if (CFG[C_NOISE] != 0) inp[17] = (float)(aux() * 2 - 1); else inp[17] = 0;

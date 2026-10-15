@@ -217,5 +217,14 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const vari
   const A1 = kindOf(mkc(5, 3)), A2 = kindOf(mkc(5, 3)), A3 = kindOf(mkc(6, 3));
   check('cups: same seed same map, different seed different map; ponds at least 16 apart', A1.every((v, i) => v === A2[i]) && A1.some((v, i) => v !== A3[i]));
 }
+// 10. memory inputs: with memory on the brain sees the registers (non-zero values after a while); memory off and memNoise change that as documented
+{
+  const run = extra => { const e = new Engine(Object.assign({ layout: 'handfar', memory: true, maxPop: 300 }, extra), 4), x = e.x; e.step(150); const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 37); let nz = 0, sat = 0; for (let i = 0; i < n; i++) for (let m = 0; m < 4; m++) { const v = INP[ord[i] * 37 + 11 + m]; if (v !== 0) nz++; if (Math.abs(v) === 1) sat++; } return { n, nz, sat }; };
+  const on = run({}), off = run({}), noise = (() => { const e = new Engine({ layout: 'handfar', memory: true, maxPop: 300 }, 4), x = e.x; e.step(100); e.setCfg('memNoise', 1); e.step(1); const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 37); let sat = 0, tot = 0; for (let i = 0; i < n; i++) for (let m = 0; m < 4; m++) { tot++; if (Math.abs(INP[ord[i] * 37 + 11 + m]) === 1) sat++; } return { sat, tot }; })();
+  const zero = (() => { const e = new Engine({ layout: 'handfar', memory: true, maxPop: 300 }, 4), x = e.x; e.step(100); e.setCfg('memory', 0); e.step(1); const n = x.n_agents(), ord = new Int32Array(e.mem, x.ord_ptr(), n), INP = new Float32Array(e.mem, x.inp_ptr(), 2048 * 37); let nz = 0; for (let i = 0; i < n; i++) for (let m = 0; m < 4; m++) if (INP[ord[i] * 37 + 11 + m] !== 0) nz++; return nz; })();
+  check('memory on: the brain sees non-zero register values', on.n > 0 && on.nz > 0, on.nz + ' of ' + on.n * 4 + ' register inputs non-zero');
+  check('memory switched off after the start: the register inputs read 0', zero === 0, zero + ' non-zero');
+  check('memNoise: the register inputs are replaced by noise (about 30% + 30% saturated)', noise.sat / noise.tot > 0.4 && noise.sat / noise.tot < 0.8, Math.round(100 * noise.sat / noise.tot) + '% at +-1');
+}
 console.log(failed ? failed + ' check(s) FAILED' : 'all checks passed');
 process.exit(failed ? 1 : 0);
