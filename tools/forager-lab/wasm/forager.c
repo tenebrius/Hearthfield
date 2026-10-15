@@ -33,7 +33,7 @@ enum Cfg {
   C_REGROW, C_WREGROW, C_LOSSE, C_LOSSW, C_MOVEE, C_MOVEW, C_GAINE, C_GAINW, C_MAXE, C_MAXW,
   C_STARTE, C_STARTW, C_REQE, C_REQW, C_PAYE, C_PAYW, C_KIDE, C_KIDW, C_STEPLEN, C_COOLDOWN,
   C_SIGHT, C_HIDDEN, C_LAYERS, C_MEMORY, C_POSITION, C_NOISE, C_AGE, C_FEEDBACK, C_TUMBLE,
-  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_AGESCALE, C_AGETHERM, C_THERMMODE, C_OSCGENE, C_TIMER, C_GENEMUT, C_WALLSENSE, C_COUNT
+  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_AGESCALE, C_AGETHERM, C_THERMMODE, C_OSCGENE, C_TIMER, C_GENEMUT, C_WALLSENSE, C_MEMFREEZE, C_COUNT
 };
 static double CFG[64];
 EXPORT("cfg_ptr") double *cfg_ptr(void) { return CFG; }
@@ -396,7 +396,7 @@ static void think(int s) {
     double per = CFG[C_OSCPERIOD] > 0 ? CFG[C_OSCPERIOD] : CFG[C_OSCGENE] != 0 ? pow2(G[(u64)s * NW + GENEOFF]) : 4 + 396 * 0.5 * (1 + ftanh(0.5 * OUTV[OSCIDX]));
     APER[s] = per; APH[s] += 1.0 / per;
   }   // the brain sets the period (4 to 400 ticks), or it is fixed by oscPeriod
-  if (CFG[C_MEMORY] != 0) {   // memory: mem = gate * tanh(value) + (1 - gate) * mem, four registers at once
+  if (CFG[C_MEMORY] != 0 && !(CFG[C_MEMFREEZE] > 0 && AAGE[s] > CFG[C_MEMFREEZE])) {   // memFreeze (ablation): from that age on the registers keep their value; memory: mem = gate * tanh(value) + (1 - gate) * mem, four registers at once
     v4f nv = vtanh(*(v4f *)(OUTV + 3));
     v4f gate = splat(0.5f) * (splat(1) + vtanh(splat(0.5f) * *(v4f *)(OUTV + 3 + N_MEM)));
     v4f *mem = (v4f *)(MEM + s * N_MEM);

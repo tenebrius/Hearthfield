@@ -7,7 +7,7 @@ const W = 64, H = 64;
 const CFG_KEYS = ['regrow', 'waterRegrow', 'lossE', 'lossW', 'moveE', 'moveW', 'gainE', 'gainW', 'maxE', 'maxW',
   'startE', 'startW', 'reqE', 'reqW', 'payE', 'payW', 'kidE', 'kidW', 'stepLen', 'cooldown',
   'sight', 'hidden', 'layers', 'memory', 'position', 'noise', 'age', 'feedback', 'tumble',
-  'tumbleEvery', 'inertia', 'mutRate', 'mutSize', 'baseline', 'floorN', 'maxPop', 'brainMomentum', 'genP', 'genLen', 'genElite', 'genTourn', 'genXover', 'genSpawn', 'genWSurv', 'genWFood', 'genWWater', 'genScoreMode', 'oscillator', 'latch', 'oscPeriod', 'ageScale', 'ageTherm', 'thermMode', 'oscGene', 'timer', 'geneMut', 'wallSense'];
+  'tumbleEvery', 'inertia', 'mutRate', 'mutSize', 'baseline', 'floorN', 'maxPop', 'brainMomentum', 'genP', 'genLen', 'genElite', 'genTourn', 'genXover', 'genSpawn', 'genWSurv', 'genWFood', 'genWWater', 'genScoreMode', 'oscillator', 'latch', 'oscPeriod', 'ageScale', 'ageTherm', 'thermMode', 'oscGene', 'timer', 'geneMut', 'wallSense', 'memFreeze'];
 const CIRCLES = [[W * 0.75, H * 0.25], [W * 0.25, H * 0.75]], CR = 9;
 
 function pageDefaults() {
@@ -118,7 +118,7 @@ function buildMap(layout, shift, mapSeed, pondN, pondMin, pondMax, walls, wallGa
 let moduleCache = null;
 class Engine {
   constructor(overrides, seed) {
-    this.cfg = Object.assign(pageDefaults(), { genP: 200, genLen: 1000, genElite: 2, genTourn: 3, genXover: 0, genSpawn: 0, genWSurv: 1, genWFood: 0, genWWater: 0, genScoreMode: 0, pondShift: 0, oscPeriod: 0, ageScale: 0, ageTherm: 0, thermMode: 0, oscGene: 0, timer: 0, geneMut: 0.25, wallSense: 0, walls: 0, wallGap: 3, wallN: 3, wallLen: 14, pondSep: 8 }, overrides || {});
+    this.cfg = Object.assign(pageDefaults(), { genP: 200, genLen: 1000, genElite: 2, genTourn: 3, genXover: 0, genSpawn: 0, genWSurv: 1, genWFood: 0, genWWater: 0, genScoreMode: 0, pondShift: 0, oscPeriod: 0, ageScale: 0, ageTherm: 0, thermMode: 0, oscGene: 0, timer: 0, geneMut: 0.25, wallSense: 0, memFreeze: 0, walls: 0, wallGap: 3, wallN: 3, wallLen: 14, pondSep: 8 }, overrides || {});
     if (this.cfg.shiftEvery > 0) throw new Error('food relocation (shiftEvery) is not supported by the WASM engine');
     if (this.cfg.archive) throw new Error('"newcomers copy parents" (archive) is not supported by the WASM engine');
     if (this.cfg.maxPop > 2000) throw new Error('maxPop above 2000 is not supported');
