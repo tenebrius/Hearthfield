@@ -235,8 +235,9 @@ static inline void search_box(int ox, int oy, int R, int *y0, int *y1, u64 *cols
 // nearest() for a box already known to hold at least one set bit
 static inline int nearest_in(double x, double y, int ox, int oy, int R, int y0, int y1, u64 cols, const u64 *M, double *bd2, double *bdx, double *bdy) {
   double best = (double)R * R; int bi = 0x7fffffff, found = 0;
-  // within one row d2 grows with |dx|, and two columns differ in dx * dx by at least 1, so only the set bit nearest
-  // to column ox on each side can be the row's best: the result is the same as checking every bit
+  // within one row d2 grows with |dx|. Columns left of ox have dx <= -0.5 and columns right of it dx >= 1.5, and two of
+  // them on the same side differ in dx * dx by at least 1, so only the set bit nearest to x on each side can be the row's
+  // best; column ox itself (dx in (-0.5, 0.5]) can tie with ox - 1, so then that one is checked too. Same result as checking every bit.
   const u64 lowMask = ox >= 63 ? ~0ULL : (2ULL << ox) - 1;   // columns 0..ox
   for (int k = 0; k <= 2 * R + 2; k++) {
     int any = 0;
@@ -251,7 +252,13 @@ static inline int nearest_in(double x, double y, int ox, int oy, int R, int y0, 
       if (ty == oy) bits &= ~(1ULL << ox);
       if (!bits) continue;
       u64 lo = bits & lowMask, hi = bits & ~lowMask;   // left candidate first, as in a scan by increasing column
-      if (lo) consider(63 - __builtin_clzll(lo), ty, x, dy, R, &best, &bi, &found, bdx, bdy);
+      if (lo) {
+        int t = 63 - __builtin_clzll(lo);
+        consider(t, ty, x, dy, R, &best, &bi, &found, bdx, bdy);
+        // column ox and the set bit left of it can tie (x a whole number, or by rounding), and the lower index wins a tie
+        lo &= ~(1ULL << t);
+        if (t == ox && lo) consider(63 - __builtin_clzll(lo), ty, x, dy, R, &best, &bi, &found, bdx, bdy);
+      }
       if (hi) consider(__builtin_ctzll(hi), ty, x, dy, R, &best, &bi, &found, bdx, bdy);
     }
     if (!any) break;   // row distances only grow with k, so nothing further out can beat the best so far

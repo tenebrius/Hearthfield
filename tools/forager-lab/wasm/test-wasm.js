@@ -24,7 +24,9 @@ check('log approximation', maxL < 1e-9, 'max abs error ' + maxL.toExponential(2)
     for (let i = 0; i < W * H; i++) if (kind[i]) food[i] = rnd() < 0.3 ? 0.1 : 0.2 + rnd() * 0.8;   // some tiles below the 0.2 sight threshold
     x.rebuild_masks();
     for (let q = 0; q < 3000; q++) {
-      const px = rnd() * W, py = rnd() * H, R = 1 + Math.floor(rnd() * 8), want = rnd() < 0.5 ? 1 : 3;
+      // a quarter of the positions each on a tile corner, a tile centre and just past a corner: exact ties between columns happen there
+      const at = v => q % 4 === 0 ? v : q % 4 === 1 ? Math.floor(v) : q % 4 === 2 ? Math.floor(v) + 0.5 : Math.floor(v) + 1e-12;
+      const px = at(rnd() * W), py = at(rnd() * H), R = 1 + Math.floor(rnd() * 8), want = rnd() < 0.5 ? 1 : 3;
       const ox = Math.floor(px), oy = Math.floor(py), R2 = R * R;
       let best = 1e9, bi = -1;
       const x0_ = Math.max(0, Math.floor(px - R)), x1_ = Math.min(W - 1, Math.floor(px + R)), y0_ = Math.max(0, Math.floor(py - R)), y1_ = Math.min(H - 1, Math.floor(py + R));
