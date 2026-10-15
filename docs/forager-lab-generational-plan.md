@@ -666,3 +666,22 @@ What this says:
 - **With K = 3, bars added after the foothold no longer cost seeds** (D: 16 of 16 drink, against 9 of 16 for C with K = 1). At K = 1 bars still lose seeds even after drinking has started (C 9 against A 14).
 - **Training with bars does not make dots better with bars.** B, which never saw a bar, does as well on maps with bars as D, which trained with them (868 against 866), and better without bars. Bars of 14 tiles cost B only 28 ticks: sliding handles them. So random bars of this size are not yet a navigation test; step 4 needs obstacles that sliding cannot get around (longer bars, or U shapes, in random places).
 - Decision by the plan: K = 3 should be the default for random worlds from now on. Batches: A+B (32 runs) took 23 minutes, C+D+E (48 runs) 43 minutes, against my estimate of about 3 hours for all; my per-round cost estimate was about three times too high.
+
+## Step 3: clocks in 3000-tick rounds with the supply fixed (2026-10-15, 16 seeds per setup)
+
+3000-tick rounds, water and food regrowth 0.1, far corners, stores of 500, centre start, memory on, 1000 generations, survival score (`run-gen.js`). Mean over the last 20 generations, per setup (16 seeds):
+
+| Setup | Survived (of 3000) | Full round | Drank | Seeds above 2000 ticks |
+|---|---|---|---|---|
+| No clock | 2106 | 55.7% | 72% | 12 of 16 |
+| Fixed period 200 | 2462 | 68.4% | 97% | 16 of 16 |
+| Brain-set oscillator | 2489 | 69.9% | 96% | 16 of 16 |
+
+Per seed (survived / full % / drank %): no clock: 1: 2625/79/97, 2: 2505/73/99, 3: 2690/82/97, 4: 829/0/0, 5: 2314/64/95, 6: 2665/81/96, 7: 2475/71/92, 8: 2545/72/95, 9: 824/0/0, 10: 2535/75/94, 11: 2530/74/96, 12: 2653/80/97, 13: 2383/68/98, 14: 817/0/0, 15: 2476/72/96, 16: 827/0/0. Fixed 200 and brain-set: every seed between 2309 and 2660.
+
+Paired by seed (mean difference, bootstrap 95% interval): fixed 200 minus none +356 ticks (+19 to +741), +12.8 points full (-2 to +30); brain-set minus none +383 (+59 to +754), +14.3 points full (0 to +31); fixed 200 minus brain-set -27 ticks (-101 to +44), -1.5 points full (-6 to +2).
+
+- **Without a clock, 12 of 16 seeds learn to drink; with either clock all 16 do.** The no-clock seeds that learn do as well as clocked dots (mean survived 2533 over the 12 against 2462 and 2489), so the clock's value here is **reliability of getting started** (the foothold), not a higher level. The four no-clock seeds that fail (4, 9, 14, 16) sit at the thirst wall (817 to 829, 0% drank).
+- **With enough food and water, clocks still matter, but less than in the 1000-tick world with low supply** (no clock reached 6% full and 1030 ticks at the supply of 0.03; here 56% and 2106). Most of the earlier 3000-tick shortfall was supply.
+- **Fixed 200 and the brain-set oscillator are equal** (the interval includes 0 and is narrow in full-round share), as in the earlier three-world result: the brain-set clock needs no hand-picked period.
+- This matches the pattern from steps 1 and 2: what a clock changes is whether populations get a first foothold on drinking.

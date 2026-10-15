@@ -51,7 +51,9 @@ Report, per setup: seeds that drink (at least 25% drank on the held-out maps), g
 
 Decision: if B beats A on seeds-that-drink or time-to-drinking, the noisy signal is real and K = 3 becomes the default for random worlds. If D keeps the seeds that C loses, bars can then be used for navigation tests (step 4). If neither helps, the foothold problem is not noise, and the step 1 traces decide what to try next (search, or a scoring that rewards the first pond trip, which the user will not like because it is hand-picked; discuss before building it).
 
-## Step 3: the clock comparison in 3000-tick rounds with the supply fixed
+## Step 3: the clock comparison in 3000-tick rounds with the supply fixed (DONE 2026-10-15)
+
+**Result (details in `forager-lab-generational-plan.md`, "Step 3"):** with supply at 0.1, no clock 2106 / 56% full (12 of 16 seeds learn to drink), fixed 200 2462 / 68% and brain-set 2489 / 70% (16 of 16); the no-clock seeds that learn do as well as clocked ones, so the clock buys reliability of the foothold, not a higher level; fixed and brain-set are equal. The original step text is kept below.
 
 Already defined, lower priority: `run-gen.js` with `"genLen":3000,"waterRegrow":0.1,"regrow":0.1`, setups no clock / fixed 200 / brain-set oscillator, 16 seeds each, 1000 generations. Reference: fixed 200 at these rates gave 2462 survived and 69% full (6 seeds). About 2 minutes per run alone, 48 runs about 1 hour with four in parallel. Report mean survived, full share, seeds above 2000, and the paired difference with intervals. This tells whether the clocks still matter when several thirst cycles must be survived.
 
