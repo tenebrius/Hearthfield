@@ -821,3 +821,35 @@ After the final 700 generations all four runs are at the thirst wall (814 to 825
 - **But cup drinking does not improve in 300 generations, with or without the wall sense:** 14% to 21%, 25% to 16%, 11% to 10%, 11% to 12% from the first to the second stage. A third of the training signal comes from cups for 600 generations and the dots gain nothing on them; when cups become the only maps the populations lose drinking again (0% in all four).
 - **So the limit is not the training schedule** (curriculum, rotation of the opening, mixing) but what the dots can do with their senses: they get into a ring in 10% to 25% of the cup maps, and no mutation found in 600 generations makes that better, even with the wall sense (which was held at weight 0 until the first cup stage, then free to evolve).
 - Step 4 is closed for these inputs. What remains untried (and which each change the world's information, not the schedule): occlusion (pond and food not visible through walls); an opening-direction input (a hand-built aid); a larger or deeper network; much longer training in the 3000-tick world.
+
+## Step 6: occlusion (2026-10-15)
+
+**Built:** `occlude` (engine option, default 0). Food and water tiles behind a wall are not seen: a tile counts for the nearest-food and nearest-water inputs only if the straight line from the dot to the tile's centre passes through no wall tile. The engine walks every tile the line crosses. Where the line passes through a tile corner (within 1e-9, so rounding does not decide), it steps diagonally, and two walls that touch only at a corner do not block sight; dots can move through such a corner too. The wall-sense inputs are not occluded (the nearest wall tile is visible anyway, except in rare corner cases). The option is used only when a wall tile is in the dot's sight box, so maps without walls are unchanged.
+
+Checks: `test-wasm.js` test 12 compares the occluded search against a plain scan with an exact segment-against-square test (100,000 queries on random maps with walls, 12,000 of them with the nearest tile hidden, 0 differences). It also checks that occlusion changes nothing on an open map (3 generations, same genomes) and that the pond is hidden behind a closed side of a ring and seen through the opening. With occlusion off, the standard check still ends at 905 / 87% / 52%, and two `run-multi.js` runs (K = 3 with bars; cups with the wall sense) are byte-identical to the previous build. A first version disagreed with the reference in 791 of 100,000 queries, all at positions 1e-12 past a tile corner, where the line grazes a wall corner and rounding decided; both now use the 1e-9 corner rule.
+
+**Pilot 1: open-map dots on occluded cups** (`run-cuptrace.js` with `"occludeList":[0,1]`; same setup as the step-4 cup trace: random-pond curriculum, K = 3, 1000 real-task generations without walls, then 10 held-out gap-3 cup maps, seeds 1 to 4). Training has no walls, so the same trained dots are replayed without and with occlusion; the runs without occlusion reproduce the step-4 trace lines exactly. 4 minutes for 4 runs.
+
+| Seed | Survived (off / on) | Drank on cups | Arrived at the open side | Entered from the open side | Entered from a closed side | Drinkers dying inside the ring |
+|---|---|---|---|---|---|---|
+| 1 | 796 / 800 | 26% / 31% | 19.9% / 20.0% | 75% / 73% | 16% / 23% | 207 / 231 |
+| 2 | 821 / 823 | 22% / 24% | 26.9% / 26.0% | 62% / 56% | 10% / 16% | 196 / 260 |
+| 3 | 743 / 766 | 32% / 32% | 26.4% / 27.1% | 78% / 76% | 18% / 19% | 322 / 364 |
+| 4 | 782 / 794 | 35% / 43% | 27.1% / 27.3% | 73% / 74% | 23% / 33% | 63 / 73 |
+| pooled | | 28.9% / 32.8% | 25.1% / 25.1% | 71.9% / 69.8% | 16.6% / 22.6% | |
+
+- **Occlusion helps dots that are not trained for it, a little, and only at the ring.** More dots that reach a closed side then get in (16.6% to 22.6%, all 4 seeds up); survival rises by 2 to 23 ticks. Arrival at the open side stays at chance (25%), so the dots still do not steer towards the opening from a distance.
+- Why the effect is small: with sight 5 the pond is barely in sight from outside the ring (the ring is 3 tiles from the pond, so a dot 2 tiles outside a side is 5 to 6 tiles from the nearest pond tile). Occlusion only removes the "chase the pond into the wall" pull in a narrow band around the ring; it gives no cue from farther away.
+
+**Pilot 2: mixed open and cup maps with occlusion** (as the step-4 mixed pilot, `cupMixes` [1, 2, 3], 300 generations each, then 700 with all cups; S0 without, S1 with the gated wall sense; seeds 1 and 2; `"occlude":1`). The runs are identical to the step-4 runs up to the first cup stage. 7 minutes for 4 runs. Cup maps only (survived / full / drank), with the step-4 run without occlusion in brackets:
+
+| Run | 1 of 3 maps are cups | 2 of 3 | 3 of 3 | Final 700 (all cups) | Final test: cups / open maps, drank |
+|---|---|---|---|---|---|
+| S0 seed 1 | 795 / 3% / 18% (14%) | 823 / 4% / 19% (21%) | 815 / 0% / 0% (0%) | 809 / 0% / 0% (0%) | 0% / 0% (0% / 0%) |
+| S0 seed 2 | 823 / 4% / 22% (25%) | 824 / 6% / 21% (16%) | 825 / 1% / 14% (0%) | 833 / 1% / 13% (0%) | 10% / 36% (0% / 1%) |
+| S1 seed 1 | 819 / 3% / 12% (11%) | 822 / 5% / 13% (10%) | 812 / 2% / 9% (0%) | 829 / 1% / 17% (0%) | 13% / 36% (0% / 1%) |
+| S1 seed 2 | 798 / 1% / 11% (11%) | 826 / 2% / 8% (12%) | 816 / 0% / 0% (0%) | 816 / 0% / 0% (0%) | 0% / 1% (0% / 0%) |
+
+- **Cup drinking still does not rise during mixed training** (18 to 19%, 22 to 21%, 12 to 13%, 11 to 8% from the first to the second stage), as without occlusion. The pilot's condition for a batch (cup drinking rising) is not met.
+- **One difference: 2 of 4 runs keep some drinking through cups-only training** (13% and 17% at the end; the held-out tests give 10% and 13% on cups and 36% on open maps), against 0 of 4 without occlusion. Survival is still at the thirst wall (829 and 833 against a food-sitter's 833), so the drinking that remains does not pay. Two runs of four; not a result to rank.
+- In S1 seed 1 switching the wall inputs off at the end lowers cup drinking from 13% to 7% (825 against 827 ticks): the first time the wall sense carries anything measurable, and too small to matter.
