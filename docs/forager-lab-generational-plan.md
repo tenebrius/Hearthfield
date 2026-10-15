@@ -853,3 +853,30 @@ Checks: `test-wasm.js` test 12 compares the occluded search against a plain scan
 - **Cup drinking still does not rise during mixed training** (18 to 19%, 22 to 21%, 12 to 13%, 11 to 8% from the first to the second stage), as without occlusion. The pilot's condition for a batch (cup drinking rising) is not met.
 - **One difference: 2 of 4 runs keep some drinking through cups-only training** (13% and 17% at the end; the held-out tests give 10% and 13% on cups and 36% on open maps), against 0 of 4 without occlusion. Survival is still at the thirst wall (829 and 833 against a food-sitter's 833), so the drinking that remains does not pay. Two runs of four; not a result to rank.
 - In S1 seed 1 switching the wall inputs off at the end lowers cup drinking from 13% to 7% (825 against 827 ticks): the first time the wall sense carries anything measurable, and too small to matter.
+
+**Pilot 3: larger network, and 3000-tick rounds** (mixed schedule as pilot 2, S0, occlusion on; seeds 1 and 2; 8 minutes for 4 runs). Cup maps only (survived / full / drank) per stage:
+
+| Run | 1 of 3 cups | 2 of 3 | 3 of 3 | Final 700 | Final test: cups / open maps (survived, drank) |
+|---|---|---|---|---|---|
+| hidden 16, seed 1 | 823 / 5% / 20% | 830 / 5% / 17% | 823 / 0% / 2% | 823 / 0% / 0% | 821, 0% / 821, 0% |
+| hidden 16, seed 2 | 816 / 4% / 21% | 836 / 4% / 17% | 823 / 0% / 0% | 824 / 0% / 0% | 819, 0% / 816, 1% |
+| 3000 ticks, seed 1 | 942 / 2% / 37% | 911 / 2% / 36% | 884 / 1% / 32% | 908 / 0% / 33% | 877, 33% / 1157, 89% |
+| 3000 ticks, seed 2 | 951 / 4% / 41% | 935 / 2% / 43% | 980 / 3% / 45% | 967 / 2% / 42% | 889, 28% / 1623, 93% |
+
+- **A larger network (hidden 16) changes nothing:** the same flat 17 to 21% and then 0%.
+- **In 3000-tick rounds (food and water regrowth 0.1) cup drinking survives cups-only training** (33% and 42% after 1000 generations), but it does not rise either.
+
+**Control: 3000-tick rounds without occlusion** (the same schedule, seeds 1 to 4, plus occlusion for seeds 3 and 4; the runs are identical up to the first cup stage; 13 minutes for 6 runs). Final tests on held-out maps (survived, drank):
+
+| Seed | Cups, off / on | Open maps, off / on | Cup drinking after cups-only training (last stage), off / on |
+|---|---|---|---|
+| 1 | 859, 20% / 877, 33% | 1311, 77% / 1157, 89% | 34% / 33% |
+| 2 | 871, 22% / 889, 28% | 1247, 85% / 1623, 93% | 30% / 42% |
+| 3 | 880, 42% / 900, 38% | 1032, 87% / 1443, 94% | 44% / 40% |
+| 4 | 822, 0% / 955, 33% | 822, 0% / 1418, 75% | 0% / 29% |
+
+- **It is the 3000-tick world, not occlusion, that keeps cup drinking alive:** without occlusion 3 of 4 seeds still drink on cups after 1000 generations (the step-4 3000-tick pilot, a cup curriculum without open maps, lost it in 2 of 2). With occlusion 4 of 4.
+- **Occlusion is a little better on cups in every seed** (+18, +18, +20, +133 ticks on the cup test; the +133 is the seed that lost drinking without occlusion). 4 seeds; suggestive, not established.
+- **No setup learns cups.** On cup maps the dots survive 860 to 960 ticks against 833 for a food-sitter and 1000 to 1600 on open maps; cup drinking stays at 30 to 45% from the first cup stage to the end. In every run the open-map skill is worn down by cups-only training (open-map survival 1032 to 1623, against 1754 at the secure foothold for seed 1).
+
+**Conclusion of step 6, item 1 and 2 of the plan (occlusion; larger network and 3000-tick rounds):** occlusion helps a little at the ring and is never worse, but cup drinking does not rise in any of 10 runs with it. The reading from pilot 1 stands: with sight 5 the dots see the pond only from 1 to 3 tiles outside the ring, so occlusion adds a cue only where they already are. An untried consequence that is not hand-built: occlusion with a longer sight (8 or 12; on open maps sight made no difference, finding 3), so that the pond shows through the opening from farther away and is hidden elsewhere.
