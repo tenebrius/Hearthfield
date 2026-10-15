@@ -880,3 +880,38 @@ Checks: `test-wasm.js` test 12 compares the occluded search against a plain scan
 - **No setup learns cups.** On cup maps the dots survive 860 to 960 ticks against 833 for a food-sitter and 1000 to 1600 on open maps; cup drinking stays at 30 to 45% from the first cup stage to the end. In every run the open-map skill is worn down by cups-only training (open-map survival 1032 to 1623, against 1754 at the secure foothold for seed 1).
 
 **Conclusion of step 6, item 1 and 2 of the plan (occlusion; larger network and 3000-tick rounds):** occlusion helps a little at the ring and is never worse, but cup drinking does not rise in any of 10 runs with it. The reading from pilot 1 stands: with sight 5 the dots see the pond only from 1 to 3 tiles outside the ring, so occlusion adds a cue only where they already are. An untried consequence that is not hand-built: occlusion with a longer sight (8 or 12; on open maps sight made no difference, finding 3), so that the pond shows through the opening from farther away and is hidden elsewhere.
+
+### Pilot 4: occlusion with a longer sight (sight 8 and 12; 2026-10-15)
+
+Same setups as pilots 1 to 3, only `sight` changed (16 runs, about 35 minutes; scripts in the scratch area, `jobT.sh` and `jobM.sh` of step 6 with `"sight"` added).
+
+**Transfer trace** (as pilot 1: dots trained on open maps with the given sight, replayed on gap-3 cups without and with occlusion; seeds 1 to 4, pooled; the sight-5 row is pilot 1):
+
+| Sight | Occlusion | Survived on cups | Drank on cups | Arrived at the open side | Entered from the open side | Entered from a closed side |
+|---|---|---|---|---|---|---|
+| 5 | off / on | 786 / 796 | 28.9% / 32.8% | 25.1% / 25.1% | 71.9% / 69.8% | 16.6% / 22.6% |
+| 8 | off / on | 763 / 784 | 28.3% / 37.1% | 21.1% / 21.1% | 79.8% / 75.7% | 17.3% / 30.7% |
+| 12 | off / on | 703 / 719 | 33.6% / 47.6% | 21.4% / 22.7% | 81.9% / 82.4% | 22.7% / 42.0% |
+
+Per seed, entry from a closed side without / with occlusion: sight 8: 11/33, 15/30, 24/29, 20/31%; sight 12: 22/30, 26/58, 15/32, 28/46%. (The survival column at sight 5 is the mean of the four seeds of pilot 1.)
+
+- **The effect of occlusion grows with sight.** Dots that reach a closed side get in 6 points more often with occlusion at sight 5, 13 points at sight 8 and 19 points at sight 12 (22.7% to 42.0%; every seed up). With occlusion and a long sight the pond shows only through the opening, and dots that reach the ring now find it along the wall far more often.
+- **Arrival at the open side stays at chance (21% to 25%)**: the dots still do not steer towards the opening from a distance.
+- Longer sight alone (without occlusion) lowers survival on cups (786, 763, 703 at sight 5, 8, 12): the farther they see the pond, the more of them run into the ring. Not explored further.
+
+**Mixed open and cup maps with occlusion** (as pilots 2 and 3, S0, seeds 1 and 2; cup maps only, drank, per stage: 1 of 3 cups / 2 of 3 / 3 of 3 / final 700; then the held-out tests on cups and open maps, survived / drank):
+
+| World, sight | Seed | Cup drinking by stage | Test on cups | Test on open maps |
+|---|---|---|---|---|
+| 1000 ticks, sight 5 (pilot 2) | 1 / 2 | 18, 19, 0, 0 / 22, 21, 14, 13% | ?, 0% / ?, 10% | 0% / 36% drank |
+| 1000 ticks, sight 8 | 1 / 2 | 23, 24, 20, 25 / 30, 25, 12, 15% | 837, 20% / 787, 16% | 876, 64% / 804, 41% |
+| 1000 ticks, sight 12 | 1 / 2 | 19, 25, 19, 38 / 28, 29, 38, 35% | 865, 39% / 875, 38% | 874, 84% / 928, 90% |
+| 3000 ticks, sight 5 (pilot 3) | 1 / 2 | 37, 36, 32, 33 / 41, 43, 45, 42% | 877, 33% / 889, 28% | 1157, 89% / 1623, 93% |
+| 3000 ticks, sight 8 | 1 / 2 | 61, 43, 40, 49 / 43, 50, 43, 45% | 1224, 52% / 906, 33% | 2460, 99% / 2039, 93% |
+| 3000 ticks, sight 12 | 1 / 2 | 50, 32, 46, 55 / 36, 59, 47, 59% | 1110, 69% / 1021, 45% | 2005, 97% / 2098, 97% |
+
+- **With sight 12 and occlusion, cups pay for the first time in the 1000-tick world:** after cups-only training the dots survive 865 and 875 ticks on held-out cup maps (a food-sitter reaches 833) and drink in 38% to 39% of them, against 0% and 10% at sight 5. Both seeds also keep their open-map skill (84% and 90% drank).
+- **The cup result rises with sight in both worlds:** held-out cup drinking 0 / 10% (sight 5), 20 / 16% (8), 39 / 38% (12) at 1000 ticks; 33 / 28%, 52 / 33%, 69 / 45% at 3000 ticks. In the 3000-tick world the final 700 cups-only generations raise cup drinking in all four longer-sight runs (40 to 49, 43 to 45, 46 to 55, 47 to 59%), where sight 5 stayed flat (32 to 33, 45 to 42%).
+- **Caution:** two seeds per cell, and no control with sight 12 without occlusion in the mixed schedule, so the part of the gain that comes from sight alone is not known (the transfer trace says sight alone adds a little at the ring: 16.6% to 22.7% entry from a closed side, and it costs survival). This is the first setup in which cup performance improves with training, so it deserves a proper batch.
+
+**Proposed next batch:** 1000-tick world, the mixed schedule, 8 seeds each: sight 5 with occlusion, sight 12 with occlusion, sight 12 without occlusion (24 runs, about 45 to 60 minutes); then the wall sense with sight 12 and occlusion if the gain holds.
