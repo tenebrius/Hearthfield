@@ -2,7 +2,7 @@
 // then replays `rounds` held-out cup maps (map seeds 1000000 and up, gap `gap`) without breeding and logs, per dot: did it leave the food, reach the ring, get inside, drink, and how it died.
 // Also logged: the side of the ring each dot first reached and whether that side is the open one (is getting in luck of the approach side?), how many dots that got in ever left
 // again, and at the end an ablation of memory (registers read 0) on cup maps and open maps with the same trained dots.
-// Usage: node run-cuptrace.js '<cfg overrides as JSON>' <seed> [K=3] [realGens=1000] [gap=3] [rounds=10]   (cfg: pondSep 16 expected)
+// Usage: node run-cuptrace.js '<cfg overrides as JSON>' <seed> [K=3] [realGens=1000] [gap=3] [rounds=10]   (cfg: pondSep 16 expected; "occlude":1 or "occludeList":[0,1] for occlusion)
 const { Engine, W } = require('./engine');
 const DEFAULTS = { layout: 'handfar', lossE: 1.5, lossW: 0.6, layers: 2, startE: 100, startW: 100, feedback: false, genSpawn: 1, pondSep: 16 };
 const A = process.argv, mods = JSON.parse(A[2] || '{}'), seed = +A[3], K = +A[4] || 3, realGens = A[5] === undefined ? 1000 : +A[5], gap = A[6] === undefined ? 3 : +A[6], R = +A[7] || 10;
@@ -14,6 +14,11 @@ let mapSeed = 1;
 const gen = (lo, hi) => { const sets = []; for (let k = 0; k < K; k++) { const ms = mapSeed++; sets.push(() => e.setMap('randpond', 0, ms, pn, lo, hi, 0, 0, 0, 14)); } return e.genRoundMulti(sets); };
 [[12, 16], [12, 22], [12, 28], [12, 36]].forEach(([lo, hi], i) => { const hist = []; for (let g = 0; g < (i === 0 ? 1000 : 400); g++) { hist.push(gen(lo, hi)); const l = hist.slice(-10); if (l.length === 10 && avg(l, 'fullShare') >= 0.15) break; } });
 for (let g = 0; g < realGens; g++) gen(pm, 0);
+// replay on held-out cup maps; with "occludeList":[0,1] the same trained dots are replayed once without and once with occlusion (training has no walls, so occlusion does not change it)
+const occList = Array.isArray(cfg.occludeList) ? cfg.occludeList : [cfg.occlude ? 1 : 0];
+for (const occ of occList) replay(occ);
+function replay(occ) {
+e.setCfg('occlude', occ);
 const GP = e.cfg.genP, L = e.cfg.genLen, v = e.views(), kindArr = new Uint8Array(e.mem, e.x.kind_ptr(), W * W);
 const acc = { arrOpen: 0, arrOpenIn: 0, arrClosed: 0, arrClosedIn: 0, gotIn: 0, leftAgain: 0, timeInside: [], drinkSurvived: 0, drinkDiedInside: 0, drinkDiedOutside: 0, nonDrinkInsideAtEnd: 0, drinkDeathTicks: [], dots: 0, leftFood: 0, reachedRing: 0, inside: 0, drank: 0, drankInside: 0, died: 0, hunger: 0, thirst: 0, deathTicks: [], failDeathTicks: [], ringSide: { openFacing: 0 } };
 let survived = 0;
@@ -51,6 +56,8 @@ const sh = k => Math.round(1000 * acc[k] / acc.dots) / 10;
 // ablation of memory with the same trained dots: cup maps and open maps, with the registers as trained and reading 0
 const evalMaps = (w) => { let t = 0, full = 0, drank = 0; for (let r = 0; r < R; r++) { e.setMap('randpond', 0, 1000000 + r, pn, pm, 0, w ? 5 : 0, gap, 0, 14); const st = e.genRound(false); t += st.mean / R; full += st.fullShare / R; drank += st.drankShare / R; } return [Math.round(t), Math.round(100 * full), Math.round(100 * drank)]; };
 const abl = { cupsOn: evalMaps(true), openOn: evalMaps(false) }; e.setCfg('memory', 0); abl.cupsMemoryOff = evalMaps(true); abl.openMemoryOff = evalMaps(false); e.setCfg('memory', 1);
+
 const pc = (a, b) => b ? Math.round(1000 * a / b) / 10 : null;
-console.log('CUPTRACE ' + JSON.stringify({ seed, gap, entryBySide: { arrivedAtOpenSide: acc.arrOpen, enteredShare: pc(acc.arrOpenIn, acc.arrOpen), arrivedAtClosedSide: acc.arrClosed, enteredShareClosed: pc(acc.arrClosedIn, acc.arrClosed) }, gotIn: acc.gotIn, leftAgainShare: pc(acc.leftAgain, acc.gotIn), ticksInsideMedian: q(acc.timeInside, 0.5), memoryAblation_ticks_full_drank: abl, survived: Math.round(survived), dots: acc.dots, leftFood: sh('leftFood'), reachedRing: sh('reachedRing'), insideRing: sh('inside'), drank: sh('drank'), drankAndInside: sh('drankInside'),
+console.log('CUPTRACE ' + JSON.stringify({ seed, gap, occlude: occ, entryBySide: { arrivedAtOpenSide: acc.arrOpen, enteredShare: pc(acc.arrOpenIn, acc.arrOpen), arrivedAtClosedSide: acc.arrClosed, enteredShareClosed: pc(acc.arrClosedIn, acc.arrClosed) }, gotIn: acc.gotIn, leftAgainShare: pc(acc.leftAgain, acc.gotIn), ticksInsideMedian: q(acc.timeInside, 0.5), memoryAblation_ticks_full_drank: abl, survived: Math.round(survived), dots: acc.dots, leftFood: sh('leftFood'), reachedRing: sh('reachedRing'), insideRing: sh('inside'), drank: sh('drank'), drankAndInside: sh('drankInside'),
   died: sh('died'), diedHunger: sh('hunger'), diedThirst: sh('thirst'), ofDrinkers: { survivedRound: acc.drinkSurvived, diedInsideRing: acc.drinkDiedInside, diedOutsideRing: acc.drinkDiedOutside, total: acc.drank, deathTickMedian: q(acc.drinkDeathTicks, 0.5) }, deathTick: { p10: q(acc.deathTicks, 0.1), median: q(acc.deathTicks, 0.5), p90: q(acc.deathTicks, 0.9) }, deathTickOfNonDrinkers: { p10: q(acc.failDeathTicks, 0.1), median: q(acc.failDeathTicks, 0.5), p90: q(acc.failDeathTicks, 0.9) } }));
+}

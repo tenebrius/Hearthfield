@@ -248,5 +248,80 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const vari
   }
   check('cups: cupFacing 1 opens the side facing the food whenever it is usable (40 maps)', usable > 0 && facing === usable, facing + ' of ' + usable + ' usable ponds, ' + total + ' ponds');
 }
+// 12. occlusion: with occlude on, the nearest food / water tile is the nearest one whose line of sight (dot to tile centre) crosses no wall tile.
+//     Reference: plain scan in order of distance (ties by index) and an exact segment test against the open interior of every wall square.
+//     With occlude on but no walls, a whole round is the same as with occlude off.
+{
+  const e = new Engine({ layout: 'handfar' }, 1), x = e.x;
+  e.setCfg('occlude', 1);
+  const blockedRef = (kind, px, py, ex, ey) => {
+    const dx = ex - px, dy = ey - py;
+    const xa = Math.max(0, Math.floor(Math.min(px, ex))), xb = Math.min(W - 1, Math.floor(Math.max(px, ex))), ya = Math.max(0, Math.floor(Math.min(py, ey))), yb = Math.min(H - 1, Math.floor(Math.max(py, ey)));
+    for (let ty = ya; ty <= yb; ty++) for (let tx = xa; tx <= xb; tx++) {
+      if (kind[ty * W + tx] !== 4) continue;
+      let t0 = 0, t1 = 1, ok = true;   // segment parameter range strictly inside the open square (tx, tx + 1) x (ty, ty + 1)
+      for (const [p0, d, lo] of [[px, dx, tx], [py, dy, ty]]) {
+        if (d === 0) { if (!(p0 > lo && p0 < lo + 1)) ok = false; continue; }
+        let a = (lo - p0) / d, b = (lo + 1 - p0) / d; if (a > b) [a, b] = [b, a];
+        t0 = Math.max(t0, a); t1 = Math.min(t1, b);
+      }
+      if (ok && t0 < t1 - 1e-9) return true;   // a line that only grazes a corner (within 1e-9) is not blocked, as in the engine
+    }
+    return false;
+  };
+  let bad = 0, queries = 0, withHit = 0, hidden = 0, visBad = 0;
+  for (let trial = 0; trial < 40; trial++) {
+    const density = 0.05 + rnd() * 0.4, wd = 0.05 + rnd() * 0.25;
+    const kind = new Uint8Array(e.mem, x.kind_ptr(), W * H), fert = new Float32Array(e.mem, x.fert_ptr(), W * H), food = new Float32Array(e.mem, x.food_ptr(), W * H);
+    for (let i = 0; i < W * H; i++) { const r = rnd(); kind[i] = r < wd ? 4 : r < wd + density / 2 ? 1 : r < wd + density ? 3 : 0; fert[i] = (kind[i] === 1 || kind[i] === 3) ? 0.8 : 0; }
+    x.init_world(1);
+    for (let i = 0; i < W * H; i++) if (kind[i] === 1 || kind[i] === 3) food[i] = rnd() < 0.3 ? 0.1 : 0.2 + rnd() * 0.8;
+    x.rebuild_masks();
+    for (let q = 0; q < 3000; q++) {
+      const at = v => q % 4 === 0 ? v : q % 4 === 1 ? Math.floor(v) : q % 4 === 2 ? Math.floor(v) + 0.5 : Math.floor(v) + 1e-12;
+      const px = at(rnd() * W), py = at(rnd() * H), R = 1 + Math.floor(rnd() * 8), want = rnd() < 0.5 ? 1 : 3;
+      const ox = Math.floor(px), oy = Math.floor(py), R2 = R * R;
+      if (kind[oy * W + ox] === 4) continue;   // dots never stand in a wall
+      const cand = [];
+      const x0_ = Math.max(0, Math.floor(px - R)), x1_ = Math.min(W - 1, Math.floor(px + R)), y0_ = Math.max(0, Math.floor(py - R)), y1_ = Math.min(H - 1, Math.floor(py + R));
+      let wallInBox = false;
+      for (let ty = y0_; ty <= y1_; ty++) for (let tx = x0_; tx <= x1_; tx++) {
+        const j = ty * W + tx; if (kind[j] === 4) wallInBox = true;
+        if (tx === ox && ty === oy) continue;
+        if (food[j] < 0.2 || kind[j] !== want) continue;
+        const dx = tx + 0.5 - px, dy = ty + 0.5 - py, d2 = dx * dx + dy * dy; if (d2 > R2) continue;
+        cand.push([d2, j]);
+      }
+      cand.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+      let bi = -1;
+      for (const [, j] of cand) {
+        const tx = j % W, ty = (j / W) | 0, blk = blockedRef(kind, px, py, tx + 0.5, ty + 0.5);
+        if (x.visible_test(px, py, tx, ty) !== (blk ? 0 : 1)) visBad++;
+        if (!wallInBox || !blk) { bi = j; break; }
+      }
+      queries++; if (bi >= 0) withHit++; if (cand.length && bi !== cand[0][1]) hidden++;
+      if (x.nearest_test(px, py, R, want) !== bi) bad++;
+    }
+  }
+  check('occlusion: nearest visible tile matches a plain scan with an exact line-of-sight test', bad === 0 && visBad === 0 && hidden > 100, queries + ' queries, ' + withHit + ' with a hit, ' + hidden + ' where the nearest tile was hidden, ' + bad + ' differences, ' + visBad + ' line-of-sight differences');
+  // open map: occlude on and off give the same generation (stats and genomes)
+  const run = occ => { const g = new Engine({ layout: 'handfar', maxE: 500, maxW: 500, startE: 500, startW: 500, memory: true, oscillator: true, oscPeriod: 200, genSpawn: 1, occlude: occ }, 3); g.genInit(3); let st; for (let k = 0; k < 3; k++) st = g.genRound(); const nw = g.x.genome_stride(); return { st, G: new Float32Array(g.mem, g.x.genome_ptr(), 200 * nw).slice() }; };
+  const a = run(0), b = run(1);
+  check('occlusion on a map without walls changes nothing (3 generations)', a.st.mean === b.st.mean && a.G.every((v, i) => v === b.G[i]), 'mean ' + a.st.mean.toFixed(3) + ' vs ' + b.st.mean.toFixed(3));
+  // a cup: from outside a closed side the pond is hidden, from in front of the opening it is seen
+  const c = new Engine({ layout: 'randpond', mapSeed: 3, pondMin: 30, pondSep: 16, walls: 5, wallGap: 3, genSpawn: 1, occlude: 1 }, 1), K = new Uint8Array(c.mem, c.x.kind_ptr(), W * H);
+  c.x.rebuild_masks();
+  let px = -1, py = -1; for (let i = 0; i < W * H && px < 0; i++) if (K[i] === 3) { px = i % W; py = (i / W) | 0; }
+  const mids = [[px - 3, py + 3, -1, 0], [px + 9, py + 3, 1, 0], [px + 3, py - 3, 0, -1], [px + 3, py + 9, 0, 1]];
+  let seenClosed = 0, closed = 0, seenOpen = 0, open = 0;
+  for (const [mx, my, ux, uy] of mids) {
+    const sx = mx + 2 * ux + 0.5, sy = my + 2 * uy + 0.5;   // two tiles outside the middle of the side
+    if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+    const isOpen = K[my * W + mx] !== 4, hit = c.x.nearest_test(sx, sy, 5, 3) >= 0;
+    if (isOpen) { open++; seenOpen += hit; } else { closed++; seenClosed += hit; }
+  }
+  c.setCfg('occlude', 0); let seenNoOcc = 0; for (const [mx, my, ux, uy] of mids) { const sx = mx + 2 * ux + 0.5, sy = my + 2 * uy + 0.5; if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue; seenNoOcc += c.x.nearest_test(sx, sy, 5, 3) >= 0; }
+  check('occlusion: the pond is hidden behind a closed side of the ring and seen through the opening', open === 1 && seenOpen === 1 && closed >= 1 && seenClosed === 0 && seenNoOcc === open + closed, 'open sides ' + seenOpen + '/' + open + ' seen, closed sides ' + seenClosed + '/' + closed + ' seen, without occlusion ' + seenNoOcc + '/' + (open + closed));
+}
 console.log(failed ? failed + ' check(s) FAILED' : 'all checks passed');
 process.exit(failed ? 1 : 0);

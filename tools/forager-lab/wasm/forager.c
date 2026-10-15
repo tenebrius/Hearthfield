@@ -33,7 +33,7 @@ enum Cfg {
   C_REGROW, C_WREGROW, C_LOSSE, C_LOSSW, C_MOVEE, C_MOVEW, C_GAINE, C_GAINW, C_MAXE, C_MAXW,
   C_STARTE, C_STARTW, C_REQE, C_REQW, C_PAYE, C_PAYW, C_KIDE, C_KIDW, C_STEPLEN, C_COOLDOWN,
   C_SIGHT, C_HIDDEN, C_LAYERS, C_MEMORY, C_POSITION, C_NOISE, C_AGE, C_FEEDBACK, C_TUMBLE,
-  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_AGESCALE, C_AGETHERM, C_THERMMODE, C_OSCGENE, C_TIMER, C_GENEMUT, C_WALLSENSE, C_MEMFREEZE, C_MEMNOISE, C_COUNT
+  C_TUMBLEEVERY, C_INERTIA, C_MUTRATE, C_MUTSIZE, C_BASELINE, C_FLOORN, C_MAXPOP, C_BRAINMOM, C_GENP, C_GENLEN, C_GENELITE, C_GENTOURN, C_GENXOVER, C_GENSPAWN, C_GWSURV, C_GWFOOD, C_GWWATER, C_GSCOREMODE, C_OSC, C_LATCH, C_OSCPERIOD, C_AGESCALE, C_AGETHERM, C_THERMMODE, C_OSCGENE, C_TIMER, C_GENEMUT, C_WALLSENSE, C_MEMFREEZE, C_MEMNOISE, C_OCCLUDE, C_COUNT
 };
 static double CFG[64];
 EXPORT("cfg_ptr") double *cfg_ptr(void) { return CFG; }
@@ -273,13 +273,72 @@ static int nearest(double x, double y, int ox, int oy, int R, const u64 *M, doub
   if (!(anyb & cols)) return -1;   // nothing in the box (the common case for water)
   return nearest_in(x, y, ox, oy, R, y0, y1, cols, M, bd2, bdx, bdy);
 }
+// occlusion: is tile (tx, ty) visible from (x, y)? The straight line from the dot to the tile's centre must not pass through a wall tile.
+// Walks every tile the line passes through (grid traversal); where it passes through a tile corner (within 1e-9 of the line's length, so that
+// rounding does not decide) it steps diagonally, so a corner of
+// two walls that only touch diagonally does not block sight (dots can move through such a corner too, since movement checks only the destination tile).
+static int visible(double x, double y, int tx, int ty) {
+  int cx = (int)x, cy = (int)y;
+  double ex = tx + 0.5, ey = ty + 0.5, dx = ex - x, dy = ey - y;
+  int sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1;
+  double adx = dx > 0 ? dx : -dx, ady = dy > 0 ? dy : -dy;
+  double tdx = adx > 0 ? 1 / adx : 1e30, tdy = ady > 0 ? 1 / ady : 1e30;
+  double tmx = adx > 0 ? (sx > 0 ? (cx + 1 - x) : (x - cx)) * tdx : 1e30;
+  double tmy = ady > 0 ? (sy > 0 ? (cy + 1 - y) : (y - cy)) * tdy : 1e30;
+  for (int k = 0; k < 4 * W; k++) {
+    if (cx == tx && cy == ty) return 1;
+    if (tmx < tmy - 1e-9) { cx += sx; tmx += tdx; }
+    else if (tmy < tmx - 1e-9) { cy += sy; tmy += tdy; }
+    else { cx += sx; cy += sy; tmx += tdx; tmy += tdy; }
+    if (cx < 0 || cy < 0 || cx >= W || cy >= H) return 0;   // cannot happen for a target on the map; kept as a guard
+    if (cx == tx && cy == ty) return 1;
+    if (KIND[cy * W + cx] == 4) return 0;
+  }
+  return 0;
+}
+// nearest visible tile in mask M (occlusion on and a wall tile in the box): the candidates in increasing order of distance (ties by tile index,
+// as in nearest()), the first one the dot can see wins. Same result as nearest() when no wall blocks the line to the nearest tile.
+static int nearest_vis(double x, double y, int ox, int oy, int R, int y0, int y1, u64 cols, const u64 *M, double *bd2, double *bdx, double *bdy) {
+  static double cd2[W * H]; static int ci[W * H]; int n = 0;   // the box never holds more than the whole map
+  double R2 = (double)R * R;
+  for (int ty = y0; ty <= y1; ty++) {
+    u64 bits = M[ty] & cols;
+    if (ty == oy) bits &= ~(1ULL << ox);
+    double ddy = ty + 0.5 - y;
+    while (bits) {
+      int tx = __builtin_ctzll(bits); bits &= bits - 1;
+      double ddx = tx + 0.5 - x, d2 = ddx * ddx + ddy * ddy;
+      if (d2 > R2) continue;
+      cd2[n] = d2; ci[n] = ty * W + tx; n++;
+    }
+  }
+  while (n > 0) {
+    int b = 0;
+    for (int k = 1; k < n; k++) if (cd2[k] < cd2[b] || (cd2[k] == cd2[b] && ci[k] < ci[b])) b = k;
+    int tx = ci[b] % W, ty = ci[b] / W;
+    if (visible(x, y, tx, ty)) { *bd2 = cd2[b]; *bdx = tx + 0.5 - x; *bdy = ty + 0.5 - y; return ci[b]; }
+    cd2[b] = cd2[n - 1]; ci[b] = ci[n - 1]; n--;
+  }
+  return -1;
+}
+// is there a wall tile in the search box? (then occlusion can matter)
+static inline int walls_in_box(int y0, int y1, u64 cols) {
+  u64 a = 0; for (int ty = y0; ty <= y1; ty++) a |= WLM[ty];
+  return (a & cols) != 0;
+}
 EXPORT("nearest_test")
 double nearest_test(double x, double y, int R, int want) {
   double d2 = 0, dx = 0, dy = 0;
   int ox = (int)x, oy = (int)y;
-  int i = nearest(x, y, ox, oy, R, want == 1 ? FM : WM, &d2, &dx, &dy);
+  const u64 *M = want == 1 ? FM : WM;
+  if (CFG[C_OCCLUDE] != 0) {
+    int y0, y1; u64 cols; search_box(ox, oy, R, &y0, &y1, &cols);
+    if (walls_in_box(y0, y1, cols)) return (double)nearest_vis(x, y, ox, oy, R, y0, y1, cols, M, &d2, &dx, &dy);
+  }
+  int i = nearest(x, y, ox, oy, R, M, &d2, &dx, &dy);
   return (double)i;
 }
+EXPORT("visible_test") int visible_test(double x, double y, int tx, int ty) { return visible(x, y, tx, ty); }
 
 // sin(2*pi*x) from a polynomial (no libm here); x is any real number
 static inline double sin2pi(double x) {
@@ -303,11 +362,13 @@ static void sense(int s) {
   int y0, y1; u64 cols; search_box(ox, oy, R, &y0, &y1, &cols);
   u64 anyf = 0, anyw = 0;   // one pass over the box for both masks; an empty box means no tile in sight
   for (int ty = y0; ty <= y1; ty++) { anyf |= FM[ty]; anyw |= WM[ty]; }
-  if ((anyf & cols) && nearest_in(x, y, ox, oy, R, y0, y1, cols, FM, &d2, &dx, &dy) >= 0) {
+  // occlusion (option): food and water behind a wall tile are not seen; only when a wall tile is in the box, so open maps take the usual path
+  int occ = CFG[C_OCCLUDE] != 0 && walls_in_box(y0, y1, cols);
+  if ((anyf & cols) && (occ ? nearest_vis(x, y, ox, oy, R, y0, y1, cols, FM, &d2, &dx, &dy) : nearest_in(x, y, ox, oy, R, y0, y1, cols, FM, &d2, &dx, &dy)) >= 0) {
     double d = __builtin_sqrt(d2); if (d == 0) d = 1;
     inp[2] = (float)(dx / d); inp[3] = (float)(dy / d); inp[4] = (float)(1 - d / (R + 1));
   } else { inp[2] = 0; inp[3] = 0; inp[4] = 0; }
-  if ((anyw & cols) && nearest_in(x, y, ox, oy, R, y0, y1, cols, WM, &d2, &dx, &dy) >= 0) {
+  if ((anyw & cols) && (occ ? nearest_vis(x, y, ox, oy, R, y0, y1, cols, WM, &d2, &dx, &dy) : nearest_in(x, y, ox, oy, R, y0, y1, cols, WM, &d2, &dx, &dy)) >= 0) {
     double d = __builtin_sqrt(d2); if (d == 0) d = 1;
     inp[5] = (float)(dx / d); inp[6] = (float)(dy / d); inp[7] = (float)(1 - d / (R + 1));
   } else { inp[5] = 0; inp[6] = 0; inp[7] = 0; }
