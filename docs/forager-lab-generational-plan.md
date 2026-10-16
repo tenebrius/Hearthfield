@@ -1035,3 +1035,24 @@ Held-out tests, 20 maps (survived / full / drank): cups at 1.5: 866 / 5% / 36%, 
 - **The curriculum gives no gain at 1.5.** The seeds trained straight at 1.5 (same setup, batch): cups 865, 875, 862, 861 survived and 39%, 38%, 33%, 28% drank; the ramp: 866, 865, 848, 853 and 36%, 39%, 38%, 27%: no difference. The skill learned at 0.75 is lost step by step as the budget tightens.
 - **The ramp dots are worse than dots trained at 0.75 even when evaluated at 0.75** (cups 880 to 897 and 22% to 34% full, against 923 to 940 and 33% to 57% for dots trained there throughout): the tightening steps wear down the skill.
 - **Reading, not tested:** at loss 1.5 a pond trip of 30 or more tiles each way plus the stay in a ring costs about as many ticks as the energy store lasts (about 330), so cups may be nearly infeasible at that budget for any policy rather than hard to learn: dots that never go to the pond survive 833, and a trip that succeeds gains at most about 170 ticks, but costs almost the whole store. Loss 1.0 (a 500-tick store) is where the dots still do well (51% to 62% drinking on cups without much training). A direct check of what is achievable at 1.0 and 1.25 (train there from the start, 8 seeds) would locate the frontier.
+
+### The wall sense at energy loss 0.75 (4 seeds per setup, 2026-10-16)
+
+Wall-sense inputs (nearest wall tile: direction and closeness; first-layer weights held at 0 until the first cup stage) added to the energy-budget runs: loss 0.75, mixed cup schedule, K = 3, seeds 1 to 4, the same seeds as the controls without wall sense (the plainest setup, and the sight-12-with-occlusion pilot). Held-out cup maps, 20 maps (survived / full / drank), open-map drinking, per-seed cup tests and cup-map drinking per stage (1 of 3 maps cups / 2 of 3 / 3 of 3 / final 700):
+
+| Setup (loss 0.75) | Cup maps | Open maps drank | Per seed cups (survived / drank) | Cup drinking by stage, per seed |
+|---|---|---|---|---|
+| sight 5, no occlusion | 893 / 22% / 51% | 94% | 887/46, 896/51, 894/51, 896/55 | 31, 42, 56, 48; 31, 41, 58, 55; 26, 38, 47, 56; 34, 46, 49, 63 |
+| the same + wall sense | 908 / 22% / 65% | 91% | 896/59, 920/72, 916/68, 898/60 | 20, 66, 66, 67; 31, 62, 66, 74; 31, 42, 55, 57; 44, 42, 49, 67 |
+| sight 12, occlusion | 931 / 42% / 72% | 98% | 940/78, 923/63, 934/74, 925/73 | 38, 60, 69, 79; 54, 54, 58, 66; 59, 57, 63, 79; 51, 63, 73, 72 |
+| the same + wall sense | 923 / 30% / 76% | 96% | 907/65, 924/75, 926/79, 933/84 | 32, 64, 76, 85; 40, 79, 69, 85; 37, 63, 70, 69; 34, 57, 73, 77 |
+
+Differences with the wall sense, mean over the 4 seeds [lowest to highest seed]: sight 5, no occlusion: cups +14.3 ticks [+2 to +24], +14.0 points drinking [+5 to +21], full-round share -0.3 points [-3 to +3]; sight 12 with occlusion: cups -8.0 ticks [-33 to +8], +3.8 points drinking [-13 to +12], full-round share -11.5 points [-27 to -4].
+
+Ablation (the wall inputs held at 0 at the end of the run; cups survived / full / drank as trained -> without the wall inputs):
+- sight 5, no occlusion: seed 1 896 / 14% / 59% -> 869 / 12% / 27%; seed 2 920 / 26% / 72% -> 884 / 21% / 35%; seed 3 916 / 28% / 68% -> 889 / 22% / 42%; seed 4 898 / 20% / 60% -> 877 / 17% / 33%.
+- sight 12, occlusion: seed 1 907 / 28% / 65% -> 879 / 19% / 34%; seed 2 924 / 34% / 75% -> 906 / 31% / 54%; seed 3 926 / 30% / 79% -> 906 / 24% / 61%; seed 4 933 / 29% / 84% -> 886 / 18% / 43%.
+
+- **First measurable benefit of the wall sense: in the plainest world it raises cup drinking by 14 points and survival by 14 ticks, in all four seeds** (the full-round share is unchanged), and the dots clearly use the inputs: switching them off after training roughly halves cup drinking (59% to 27%, 72% to 35%, 68% to 42%, 60% to 33%). At the tight budget the wall sense never had a measurable effect, because nothing could learn cups there.
+- **With long sight and occlusion the wall sense adds little and costs something:** drinking about the same (+4 points, seeds from -13 to +12) and the full-round share lower in every seed (-11.5 points). The dots use the inputs here too (ablation: 65% to 34%, 75% to 54%, 79% to 61%, 84% to 43%), but more drinking attempts do not turn into survival, consistent with the energy budget being tight even at 0.75 (more wall-following means more ticks spent).
+- Caution: 4 seeds per setup; the sight-5 gain is consistent over all seeds but small (the interval for the difference of means over 4 seeds is wide); needs 8 to 16 seeds. No correction to the earlier negative wall-sense results is needed: they were at the tight budget.
