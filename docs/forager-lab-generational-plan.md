@@ -1056,3 +1056,22 @@ Ablation (the wall inputs held at 0 at the end of the run; cups survived / full 
 - **First measurable benefit of the wall sense: in the plainest world it raises cup drinking by 14 points and survival by 14 ticks, in all four seeds** (the full-round share is unchanged), and the dots clearly use the inputs: switching them off after training roughly halves cup drinking (59% to 27%, 72% to 35%, 68% to 42%, 60% to 33%). At the tight budget the wall sense never had a measurable effect, because nothing could learn cups there.
 - **With long sight and occlusion the wall sense adds little and costs something:** drinking about the same (+4 points, seeds from -13 to +12) and the full-round share lower in every seed (-11.5 points). The dots use the inputs here too (ablation: 65% to 34%, 75% to 54%, 79% to 61%, 84% to 43%), but more drinking attempts do not turn into survival, consistent with the energy budget being tight even at 0.75 (more wall-following means more ticks spent).
 - Caution: 4 seeds per setup; the sight-5 gain is consistent over all seeds but small (the interval for the difference of means over 4 seeds is wide); needs 8 to 16 seeds. No correction to the earlier negative wall-sense results is needed: they were at the tight budget.
+
+### The wall sense at loss 0.75, seeds 5 to 12 added (12 seeds per setup; 2026-10-16)
+
+Sight 5, no occlusion, loss 0.75, mixed cup schedule, with and without the wall sense (gated weights); seeds 5 to 12 run as a confirmation of the seed 1 to 4 result above (the criterion set beforehand: the paired interval above zero and a win in at least 10 of 12 seeds). Held-out cup maps (survived / full / drank) and open-map drinking:
+
+| Seeds | No wall sense: cups | open drank | Wall sense: cups | open drank |
+|---|---|---|---|---|
+| 5 to 12 | 898 / 26.3% / 51.9% | 92.8% | 906 / 23.8% / 63.6% | 89.4% |
+| 1 to 12 | 896 / 24.9% / 51.5% | 93.2% | 907 / 23.2% / 64.0% | 90.0% |
+
+Per seed, cups survived / drank without the wall sense | with it: s5 917/64 | 899/59; s6 902/54 | 912/69; s7 901/58 | 891/50; s8 893/47 | 921/75; s9 868/34 | 898/60; s10 901/50 | 911/71; s11 892/48 | 914/66; s12 910/60 | 903/59 (seeds 1 to 4 in the table above).
+
+Paired by seed, wall sense minus none, mean [bootstrap 95% interval], seeds won:
+- seeds 5 to 12: cup survival +8.1 ticks [-3.8, +19.8] (5 of 8); cup drinking +11.8 points [+2.3, +20.8] (5 of 8); cup full-round share -2.5 points [-7.9, +2.8] (3 of 8); open-map drinking -3.4 points [-5.1, -1.4] (1 of 8).
+- seeds 1 to 12: cup survival +10.2 ticks [+1.7, +18.3] (9 of 12); cup drinking +12.5 points [+6.0, +18.8] (9 of 12); cup full-round share -1.8 points [-5.6, +1.7] (5 of 12); open-map drinking -3.2 points [-4.8, -1.6] (1 of 12).
+- **Ablation (wall inputs held at 0 at the end):** cup drinking falls in all 12 seeds, by 29.8 points on average (every seed by at least 10 points; for example 59% to 27%, 72% to 35%, 69% to 29%, 75% to 30%). The dots use the wall inputs in every seed.
+
+- **The gain is real but modest, and below the bar I set.** The interval over 12 seeds is above zero for cup drinking (+12.5 points) and cup survival (+10 ticks), but the wall sense wins 9 of 12 seeds, not 10, and the new seeds alone won 5 of 8. It does not raise the full-round share, and open-map drinking is consistently a little lower (-3.2 points, 11 of 12 seeds), a small cost of the extra inputs.
+- Together with the other results at loss 0.75: occlusion with a long sight (+38 ticks, +20 points of drinking over the plainest setup at 4 seeds) helps more than the wall sense, and the wall sense on top of it lowered the full-round share. So a direct wall cue helps when the other cues are missing, which is the case the aim of the project cares about (the dots finding use for a new input without a hand-built rule): in every seed the dots found a use for it.
