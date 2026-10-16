@@ -12,6 +12,7 @@
 // at most "secureCap" generations (default 1500), before any bars or cups arrive (a fragile foothold, 26% drinking, was wiped out by cups in 32 of 32 runs). With "cupStageCap"
 // (default maxStage) and "cupExit" (a drank share; a cup stage ends early when the mean of the last 10 generations reaches it) the cup stages can be shortened.
 // Tests (no breeding, one round per map): 20 held-out layouts (map seeds 1000000 and up) with `testBars` bars (default 3) or cups of gap `testCups` (default: the last cup gap, or 3), and without walls; with wall sense on, also with the wall inputs at 0.
+// "noCurriculum":1 skips the pond-distance stages and the 'until drinking starts' stage: training begins on the real task (cup stages, if any, straight away; use with "cupGaps":[3],"cupStageCap":1 for cups only).
 // Usage: node run-multi.js '<cfg overrides as JSON>' <seed> [K=1] [finalGens=500] [maxStage=400] [needFull=0.15] [maxFirst=1000] [drinkCap=2000] [drinkStart=0.25]
 const { Engine } = require('./engine');
 const DEFAULTS = { layout: 'handfar', lossE: 1.5, lossW: 0.6, layers: 2, startE: 100, startW: 100, feedback: false, genSpawn: 1, wallN: 0, wallLen: 14 };
@@ -43,9 +44,9 @@ function stage(label, lo, hi, w, cap, exit) {
   return g;
 }
 const fullExit = last => avg(last, 'fullShare') >= needFull;
-[[12, 16], [12, 22], [12, 28], [12, 36]].forEach(([lo, hi], i) => stage('stage ponds ' + lo + '..' + hi, lo, hi, NOW, i === 0 ? maxFirst : maxStage, fullExit));
-const before = total, used = stage('real task, no bars, until drinking starts', pm, 0, NOW, drinkCap, last => avg(last, 'drankShare') >= drinkStart);
-const started = used < drinkCap ? before + used : -1;
+if (!cfg.noCurriculum) [[12, 16], [12, 22], [12, 28], [12, 36]].forEach(([lo, hi], i) => stage('stage ponds ' + lo + '..' + hi, lo, hi, NOW, i === 0 ? maxFirst : maxStage, fullExit));
+const before = total, used = cfg.noCurriculum ? 0 : stage('real task, no bars, until drinking starts', pm, 0, NOW, drinkCap, last => avg(last, 'drankShare') >= drinkStart);
+const started = cfg.noCurriculum ? -1 : used < drinkCap ? before + used : -1;
 if (cfg.secureDrink) stage('real task, no walls, until drinking is secure', pm, 0, NOW, cfg.secureCap || 1500, last => avg(last, 'drankShare') >= cfg.secureDrink);
 const cupCap = cfg.cupStageCap || maxStage, cupExitFn = cfg.cupExit ? (last => avg(last, 'drankShare') >= cfg.cupExit) : fullExit;   // generation (total so far) at which the 10-generation mean of "drank" first reached drinkStart; -1 if never
 if (CUPS) cupGaps.forEach((g, i) => stage('real task, cups gap ' + g + (cupFacings.length ? ' opening faces the food ' + Math.round(100 * (cupFacings[i] || 0)) + '%' : ''), pm, 0, cups(g, cupFacings[i], cupMixes[i]), cupCap, cupExitFn));
