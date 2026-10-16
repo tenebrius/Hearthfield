@@ -1090,3 +1090,19 @@ Same schedule as the 0.75 runs (cup gap 3, mixed cups, secureDrink 0.8, K=3, 700
 Paired differences (drank on cups, points): sight 12 + occlusion minus sight 5 is +19 [+11,+29] at loss 1.0 and +5 [-8,+18] at 1.25. Loss 1.0 minus 1.25 is +4 [-4,+12] at sight 5 and +18 [+5,+30] at sight 12 + occlusion.
 
 Reading: for sight 12 + occlusion, cup drinking falls as the budget tightens: 72 (0.75, 4 seeds), 49 (1.0), 31 (1.25), 28 (1.5, 8 seeds, earlier test). The step between 1.25 and 1.5 is small; the frontier sits between 1.0 and 1.25. At sight 5 cups stay weak at every loss at or above 1.0 (26 to 30). Sight and occlusion only pay off at 1.0 or looser. Caveat: the 0.75 and 1.5 numbers come from earlier batches and the test labelling may differ slightly, so compare those only roughly; the 1.0 versus 1.25 comparison is within this batch. Wall sense was not run here.
+
+## Ablation of the hand-made help for cups (loss 0.75, sight 12 + occlusion, 8 seeds per variant)
+
+Question: which of the hand-made training aids is needed to learn cups? Same setup as the loose-budget runs (K=3, cup gap 3, no wall sense). Variants: **help** = secureDrink 0.8, cup mix ramp [1,2,3], cupExit 0.99, stage cap 300, then 700 final generations; **nosec** = no secureDrink stage; **nomix** = no mix ramp (all K maps are cups in every cup stage); **noexit** = no cupExit / cap (stages end when the full-round share reaches the usual bar); **none** = no secureDrink, no ramp, no exit: one cup stage of a single generation, then 1500 final generations on cups only. The pond curriculum and "until drinking starts" stages before the cups were left in every variant. Test: held-out cup maps. Mean [bootstrap 95% interval]; raw lines in `docs/forager-lab-ablation-raw.txt`.
+
+| Variant | Drank on cups | Full round | Survived | Drank, open maps | Total generations (mean) | Seeds at 40% or more |
+|---|---|---|---|---|---|---|
+| help | 69 [66,73] | 38 [34,44] | 927 | 98 | 1688 | 8 of 8 |
+| nosec | 67 [63,71] | 33 [26,42] | 921 | 98 | 1674 | 8 of 8 |
+| nomix | 67 [63,70] | 32 [29,34] | 920 | 99 | 1688 | 8 of 8 |
+| noexit | 61 [58,64] | 33 [27,40] | 910 | 98 | 835 | 8 of 8 |
+| none | 67 [63,71] | 33 [28,41] | 921 | 98 | 1575 | 8 of 8 |
+
+Paired differences from help (drank on cups, points): nosec -2.5 [-7.4, +2.8]; nomix -2.1 [-7.4, +3.9]; none -2.0 [-7.2, +2.9]; noexit -7.9 [-12.1, -3.8].
+
+Reading: at the loose budget none of the three aids (secure-drink stage, mix ramp, early exit) is needed. Dots trained on cups only from the first cup generation learn them in 8 of 8 seeds, within 2 points of the fully helped version (interval includes zero; the full-round share is about 5 points lower, interval also includes zero). Dropping the exit rule looks worse (-8 points) but those runs also trained for half as many generations (835 against 1688), because stages end as soon as the full-round share reaches the bar, so that difference is confounded with training length and should not be read as "early exit helps". Limits: this is the loose budget (0.75), where cups are easy; the earlier foothold failure (drinking wiped out by walls) is not tested here because the drinking-start stage remained in every variant, and at the tight budgets the aids might matter (not tested).

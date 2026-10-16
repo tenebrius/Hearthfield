@@ -154,7 +154,8 @@ Details, tables and per-seed numbers are in the generational plan file. Seeds pe
 
 1. **Budget frontier: measured** (see the last section of the generational plan). Sight 12 + occlusion cup drinking: 72 (0.75), 49 (1.0), 31 (1.25), 28 (1.5); at sight 5 it stays 26 to 30 for loss >= 1.0. The frontier is between 1.0 and 1.25. Still open: does the wall sense matter at loss 1.0?
 2. **Why do dots trained with a generous budget not economise?** At loss 1.5 they die earlier than a food-sitter. Ideas: train on a mix of budgets per generation (like K layouts), or give the dots no cue to the budget (they cannot see `lossE`; they see energy ÷ store only).
-3. **Rerun at the loose budget what failed at the tight one:** the rotating-opening curriculum and the wall sense in more settings (loss 1.0), random bars, and the hostile long walls.
+3. **Ablation done (loss 0.75, sight 12 + occlusion, 8 seeds):** none of the hand-made cup aids (secureDrink stage, mix ramp, early exit) is needed; training on cups only from the start gives 67% vs 69% drank. See the last section of the generational plan. Open: do they matter at loss 1.0, and with the drinking-start stage removed?
+4. **Rerun at the loose budget what failed at the tight one:** the rotating-opening curriculum and the wall sense in more settings (loss 1.0), random bars, and the hostile long walls.
 4. **Occlusion setups with more seeds:** the 0.75 results are 4 seeds per setup.
 5. Why a short gene period (10 to 50 ticks) works as well as a long one; why latch + oscillator is worse than either; what the memory registers store (regress on the dot's last N actions, or train with fewer registers).
 6. **Put the generational mode, walls and a replay of trained dots meeting a cup into the page**, and republish the artifact (the user has not seen the dots move, only tables).
