@@ -97,3 +97,5 @@ if (cfg.traceCups && CUPS) {
   console.log('TRACE ' + JSON.stringify({ seed, survived: Math.round(survived), drank: Math.round(1000 * drankAll) / 10, reachedRing: pc(acc.reached, acc.dots), arrivedAtOpen: pc(acc.arrOpen, acc.arrOpen + acc.arrClosed), enteredFromOpen: pc(acc.arrOpenIn, acc.arrOpen), enteredFromClosed: pc(acc.arrClosedIn, acc.arrClosed),
     gotIn: pc(acc.gotIn, acc.dots), leftAgain: pc(acc.leftAgain, acc.gotIn), drinkers: acc.drank, drinkersSurvived: pc(acc.drinkSurvived, acc.drank), drinkersDiedInside: pc(acc.drinkDiedInside, acc.drank), drinkersDiedOutside: pc(acc.drinkDiedOutside, acc.drank) }));
 }
+// "saveTo":"path.bin": write the trained population (all genomes) to that file and the settings to path.bin.json, for run-load.js (examine it later without training).
+if (cfg.saveTo) { e.saveGenomes(cfg.saveTo); require('fs').writeFileSync(cfg.saveTo + '.json', JSON.stringify({ seed, cfg: Object.assign({}, cfg, { saveTo: undefined }) })); }

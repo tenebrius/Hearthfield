@@ -323,5 +323,17 @@ for (const layers of [1, 2]) for (const memory of [true, false]) for (const vari
   c.setCfg('occlude', 0); let seenNoOcc = 0; for (const [mx, my, ux, uy] of mids) { const sx = mx + 2 * ux + 0.5, sy = my + 2 * uy + 0.5; if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue; seenNoOcc += c.x.nearest_test(sx, sy, 5, 3) >= 0; }
   check('occlusion: the pond is hidden behind a closed side of the ring and seen through the opening', open === 1 && seenOpen === 1 && closed >= 1 && seenClosed === 0 && seenNoOcc === open + closed, 'open sides ' + seenOpen + '/' + open + ' seen, closed sides ' + seenClosed + '/' + closed + ' seen, without occlusion ' + seenNoOcc + '/' + (open + closed));
 }
+// 12. save and load a population: a new engine with the loaded genomes reproduces the original's evaluation exactly
+{
+  const fs = require('fs'), cfg = { layout: 'randpond', mapSeed: 3, pondMin: 30, pondSep: 16, memory: true, oscillator: true, oscPeriod: 200, genSpawn: 1, maxE: 500, maxW: 500, startE: 500, startW: 500, genLen: 300 };
+  const a = new Engine(cfg, 9); a.genInit(9); for (let g = 0; g < 8; g++) { a.setMap('randpond', 0, 20 + g, 2, 30, 0); a.genRound(); }
+  const file = '/tmp/forager-test-pop.bin'; a.saveGenomes(file);
+  const b = new Engine(cfg, 1); b.genInit(1); b.loadGenomes(file);
+  let same = true; for (const m of [100, 101, 102]) { a.setMap('randpond', 0, m, 2, 30, 0); b.setMap('randpond', 0, m, 2, 30, 0); const sa = a.genRound(false), sb = b.genRound(false); if (sa.mean !== sb.mean || sa.drankShare !== sb.drankShare || sa.fullShare !== sb.fullShare || sa.score !== sb.score) same = false; }
+  let bad = false; try { const c = new Engine(Object.assign({}, cfg, { hidden: 12 }), 1); c.genInit(1); c.loadGenomes(file); } catch (err) { bad = /does not fit/.test(String(err)); }
+  check('a saved and reloaded population gives the same evaluation (3 maps, stats equal)', same);
+  check('loading a population into an engine with another network shape is refused', bad);
+  fs.unlinkSync(file);
+}
 console.log(failed ? failed + ' check(s) FAILED' : 'all checks passed');
 process.exit(failed ? 1 : 0);

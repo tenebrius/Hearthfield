@@ -203,6 +203,19 @@ class Engine {
     out.perLayout = stats;   // the stats of each layout's round, in the order of setLayouts
     return out;
   }
+  // save / load the whole population (generational mode): the genomes of all dots, so a trained population can be examined later without training it again.
+  // A loaded population needs an engine built with the same settings (same genome layout) and genInit called first. Evaluation without breeding does not use random numbers
+  // for the options used so far, so a loaded population reproduces the saved run's test numbers exactly (checked in test-wasm.js).
+  saveGenomes(file) {
+    const x = this.x, GP = this.cfg.genP, NW = x.genome_stride(), G = new Float32Array(this.mem, x.genome_ptr(), GP * NW), head = Buffer.alloc(16);
+    head.writeUInt32LE(GP, 0); head.writeUInt32LE(NW, 4);
+    fs.writeFileSync(file, Buffer.concat([head, Buffer.from(G.buffer, G.byteOffset, G.byteLength)]));
+  }
+  loadGenomes(file) {
+    const x = this.x, buf = fs.readFileSync(file), GP = buf.readUInt32LE(0), NW = buf.readUInt32LE(4);
+    if (GP !== this.cfg.genP || NW !== x.genome_stride()) throw new Error('genome file does not fit this engine (population ' + GP + ' x ' + NW + ' floats, engine ' + this.cfg.genP + ' x ' + x.genome_stride() + ')');
+    new Float32Array(this.mem, x.genome_ptr(), GP * NW).set(new Float32Array(buf.buffer, buf.byteOffset + 16, GP * NW));
+  }
   get pop() { return this.x.n_agents(); }
   stats() { const x = this.x; return { tick: x.tick(), pop: x.n_agents(), born: x.born(), starved: x.starved(), thirsty: x.thirsty() }; }
   // positions of all living dots, in the order the engine updates them
