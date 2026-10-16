@@ -1075,3 +1075,18 @@ Paired by seed, wall sense minus none, mean [bootstrap 95% interval], seeds won:
 
 - **The gain is real but modest, and below the bar I set.** The interval over 12 seeds is above zero for cup drinking (+12.5 points) and cup survival (+10 ticks), but the wall sense wins 9 of 12 seeds, not 10, and the new seeds alone won 5 of 8. It does not raise the full-round share, and open-map drinking is consistently a little lower (-3.2 points, 11 of 12 seeds), a small cost of the extra inputs.
 - Together with the other results at loss 0.75: occlusion with a long sight (+38 ticks, +20 points of drinking over the plainest setup at 4 seeds) helps more than the wall sense, and the wall sense on top of it lowered the full-round share. So a direct wall cue helps when the other cues are missing, which is the case the aim of the project cares about (the dots finding use for a new input without a hand-built rule): in every seed the dots found a use for it.
+
+## Budget frontier (energy loss 1.0 and 1.25; 8 seeds each, no wall sense)
+
+Same schedule as the 0.75 runs (cup gap 3, mixed cups, secureDrink 0.8, K=3, 700 real-stage generations). Test: held-out cup maps ("bars"). Mean [bootstrap 95% interval] over 8 seeds. Raw lines: `docs/forager-lab-budget-frontier-raw.txt`. The first batches were killed by container restarts and relaunched without the finished seeds; each seed ran once to completion.
+
+| Loss | Setup | Drank on cups | Full round | Survived | Drank, open maps | Seeds drinking >= 40% |
+|---|---|---|---|---|---|---|
+| 1.0 | sight 5 | 30 [27,34] | 11 [9,14] | 861 | 73 | 1 of 8 |
+| 1.0 | sight 12 + occlusion | 49 [42,58] | 17 [13,23] | 892 | 88 | 7 of 8 |
+| 1.25 | sight 5 | 26 [18,34] | 8 [5,11] | 852 | 64 | 2 of 8 |
+| 1.25 | sight 12 + occlusion | 31 [20,42] | 10 [5,14] | 859 | 66 | 3 of 8 |
+
+Paired differences (drank on cups, points): sight 12 + occlusion minus sight 5 is +19 [+11,+29] at loss 1.0 and +5 [-8,+18] at 1.25. Loss 1.0 minus 1.25 is +4 [-4,+12] at sight 5 and +18 [+5,+30] at sight 12 + occlusion.
+
+Reading: for sight 12 + occlusion, cup drinking falls as the budget tightens: 72 (0.75, 4 seeds), 49 (1.0), 31 (1.25), 28 (1.5, 8 seeds, earlier test). The step between 1.25 and 1.5 is small; the frontier sits between 1.0 and 1.25. At sight 5 cups stay weak at every loss at or above 1.0 (26 to 30). Sight and occlusion only pay off at 1.0 or looser. Caveat: the 0.75 and 1.5 numbers come from earlier batches and the test labelling may differ slightly, so compare those only roughly; the 1.0 versus 1.25 comparison is within this batch. Wall sense was not run here.

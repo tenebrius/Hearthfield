@@ -152,7 +152,7 @@ Details, tables and per-seed numbers are in the generational plan file. Seeds pe
 
 ## 7. Open questions and next steps
 
-1. **Find the budget frontier** (suggested next): train directly at energy loss 1.0 and 1.25 (8 seeds each, standard cup schedule, sight 5 and sight 12 with occlusion) to see where cups stop being worth entering, and whether the wall sense matters more where budgets are tighter.
+1. **Budget frontier: measured** (see the last section of the generational plan). Sight 12 + occlusion cup drinking: 72 (0.75), 49 (1.0), 31 (1.25), 28 (1.5); at sight 5 it stays 26 to 30 for loss >= 1.0. The frontier is between 1.0 and 1.25. Still open: does the wall sense matter at loss 1.0?
 2. **Why do dots trained with a generous budget not economise?** At loss 1.5 they die earlier than a food-sitter. Ideas: train on a mix of budgets per generation (like K layouts), or give the dots no cue to the budget (they cannot see `lossE`; they see energy ÷ store only).
 3. **Rerun at the loose budget what failed at the tight one:** the rotating-opening curriculum and the wall sense in more settings (loss 1.0), random bars, and the hostile long walls.
 4. **Occlusion setups with more seeds:** the 0.75 results are 4 seeds per setup.

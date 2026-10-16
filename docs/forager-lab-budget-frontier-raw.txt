@@ -1,0 +1,160 @@
+L1.0 S5 s4 real task, cups gap 3 | gens used 300 (total 407) | survived 910 full 41% drank 71% | on the cup maps only: survived 840 full 12% drank 32%
+L1.0 S5 s4 real task, cups gap 3 | gens used 300 (total 707) | survived 878 full 23% drank 45% | on the cup maps only: survived 858 full 14% drank 27%
+L1.0 S5 s4 real task, cups gap 3 | gens used 300 (total 1007) | survived 858 full 11% drank 23% | on the cup maps only: survived 858 full 11% drank 23%
+L1.0 S5 s4 final, cups gap 3 | gens used 700 (total 1707) | survived 877 full 17% drank 35% | on the cup maps only: survived 877 full 17% drank 35%
+L1.0 S5 s4 FINAL seed 4 | K 3 | gens 1707 | DRINK_STARTED 92 | TEST_BARS_TICKS 878 | TEST_BARS_FULL 17% | TEST_BARS_DRANK 36% | TEST_NOBARS_TICKS 923 | TEST_NOBARS_FULL 35% | TEST_NOBARS_DRANK 73% | TEST_FACING_TICKS 882 | TEST_FACING_FULL 20% | TEST_FACING_DRANK 36%
+L1.0 S5 s2 real task, cups gap 3 | gens used 300 (total 439) | survived 889 full 29% drank 65% | on the cup maps only: survived 841 full 11% drank 37%
+L1.0 S5 s2 real task, cups gap 3 | gens used 300 (total 739) | survived 867 full 16% drank 41% | on the cup maps only: survived 851 full 11% drank 26%
+L1.0 S5 s2 real task, cups gap 3 | gens used 300 (total 1039) | survived 855 full 12% drank 24% | on the cup maps only: survived 855 full 12% drank 24%
+L1.0 S5 s2 final, cups gap 3 | gens used 700 (total 1739) | survived 869 full 18% drank 40% | on the cup maps only: survived 869 full 18% drank 40%
+L1.0 S5 s2 FINAL seed 2 | K 3 | gens 1739 | DRINK_STARTED 123 | TEST_BARS_TICKS 862 | TEST_BARS_FULL 14% | TEST_BARS_DRANK 29% | TEST_NOBARS_TICKS 904 | TEST_NOBARS_FULL 29% | TEST_NOBARS_DRANK 72% | TEST_FACING_TICKS 877 | TEST_FACING_FULL 21% | TEST_FACING_DRANK 41%
+L1.0 S5 s1 real task, cups gap 3 | gens used 300 (total 436) | survived 872 full 15% drank 54% | on the cup maps only: survived 837 full 6% drank 21%
+L1.0 S5 s1 real task, cups gap 3 | gens used 300 (total 736) | survived 868 full 17% drank 39% | on the cup maps only: survived 848 full 10% drank 21%
+L1.0 S5 s1 real task, cups gap 3 | gens used 300 (total 1036) | survived 864 full 10% drank 32% | on the cup maps only: survived 864 full 10% drank 32%
+L1.0 S5 s1 final, cups gap 3 | gens used 700 (total 1736) | survived 860 full 10% drank 25% | on the cup maps only: survived 860 full 10% drank 25%
+L1.0 S5 s1 FINAL seed 1 | K 3 | gens 1736 | DRINK_STARTED 103 | TEST_BARS_TICKS 857 | TEST_BARS_FULL 8% | TEST_BARS_DRANK 25% | TEST_NOBARS_TICKS 901 | TEST_NOBARS_FULL 21% | TEST_NOBARS_DRANK 76% | TEST_FACING_TICKS 856 | TEST_FACING_FULL 9% | TEST_FACING_DRANK 24%
+L1.0 S5 s3 real task, cups gap 3 | gens used 300 (total 507) | survived 899 full 38% drank 62% | on the cup maps only: survived 842 full 11% drank 26%
+L1.0 S5 s3 real task, cups gap 3 | gens used 300 (total 807) | survived 880 full 21% drank 46% | on the cup maps only: survived 860 full 14% drank 30%
+L1.0 S5 s3 real task, cups gap 3 | gens used 300 (total 1107) | survived 843 full 9% drank 24% | on the cup maps only: survived 843 full 9% drank 24%
+L1.0 S5 s3 final, cups gap 3 | gens used 700 (total 1807) | survived 860 full 8% drank 35% | on the cup maps only: survived 860 full 8% drank 35%
+L1.0 S5 s3 FINAL seed 3 | K 3 | gens 1807 | DRINK_STARTED 146 | TEST_BARS_TICKS 851 | TEST_BARS_FULL 5% | TEST_BARS_DRANK 30% | TEST_NOBARS_TICKS 895 | TEST_NOBARS_FULL 18% | TEST_NOBARS_DRANK 81% | TEST_FACING_TICKS 861 | TEST_FACING_FULL 7% | TEST_FACING_DRANK 41%
+L1.0 S5 s8 real task, cups gap 3 | gens used 300 (total 436) | survived 901 full 36% drank 68% | on the cup maps only: survived 846 full 14% drank 36%
+L1.0 S5 s8 real task, cups gap 3 | gens used 300 (total 736) | survived 869 full 17% drank 40% | on the cup maps only: survived 845 full 8% drank 22%
+L1.0 S5 s8 real task, cups gap 3 | gens used 300 (total 1036) | survived 848 full 9% drank 26% | on the cup maps only: survived 848 full 9% drank 26%
+L1.0 S5 s8 final, cups gap 3 | gens used 700 (total 1736) | survived 854 full 12% drank 23% | on the cup maps only: survived 854 full 12% drank 23%
+L1.0 S5 s8 FINAL seed 8 | K 3 | gens 1736 | DRINK_STARTED 107 | TEST_BARS_TICKS 853 | TEST_BARS_FULL 11% | TEST_BARS_DRANK 25% | TEST_NOBARS_TICKS 911 | TEST_NOBARS_FULL 36% | TEST_NOBARS_DRANK 67% | TEST_FACING_TICKS 860 | TEST_FACING_FULL 15% | TEST_FACING_DRANK 27%
+L1.0 S5 s6 real task, cups gap 3 | gens used 300 (total 404) | survived 908 full 40% drank 63% | on the cup maps only: survived 843 full 11% drank 27%
+L1.0 S5 s6 real task, cups gap 3 | gens used 300 (total 704) | survived 887 full 25% drank 47% | on the cup maps only: survived 866 full 15% drank 31%
+L1.0 S5 s6 real task, cups gap 3 | gens used 300 (total 1004) | survived 869 full 11% drank 43% | on the cup maps only: survived 869 full 11% drank 43%
+L1.0 S5 s6 final, cups gap 3 | gens used 700 (total 1704) | survived 877 full 13% drank 44% | on the cup maps only: survived 877 full 13% drank 44%
+L1.0 S5 s6 FINAL seed 6 | K 3 | gens 1704 | DRINK_STARTED 87 | TEST_BARS_TICKS 867 | TEST_BARS_FULL 12% | TEST_BARS_DRANK 40% | TEST_NOBARS_TICKS 900 | TEST_NOBARS_FULL 21% | TEST_NOBARS_DRANK 81% | TEST_FACING_TICKS 865 | TEST_FACING_FULL 12% | TEST_FACING_DRANK 37%
+L1.0 S5 s7 real task, cups gap 3 | gens used 300 (total 476) | survived 889 full 31% drank 61% | on the cup maps only: survived 836 full 10% drank 23%
+L1.0 S5 s7 real task, cups gap 3 | gens used 300 (total 776) | survived 873 full 14% drank 41% | on the cup maps only: survived 858 full 10% drank 24%
+L1.0 S5 s7 real task, cups gap 3 | gens used 300 (total 1076) | survived 858 full 10% drank 27% | on the cup maps only: survived 858 full 10% drank 27%
+L1.0 S5 s7 final, cups gap 3 | gens used 700 (total 1776) | survived 855 full 10% drank 30% | on the cup maps only: survived 855 full 10% drank 30%
+L1.0 S5 s7 FINAL seed 7 | K 3 | gens 1776 | DRINK_STARTED 141 | TEST_BARS_TICKS 853 | TEST_BARS_FULL 11% | TEST_BARS_DRANK 27% | TEST_NOBARS_TICKS 887 | TEST_NOBARS_FULL 21% | TEST_NOBARS_DRANK 67% | TEST_FACING_TICKS 844 | TEST_FACING_FULL 8% | TEST_FACING_DRANK 18%
+L1.0 S5 s5 real task, cups gap 3 | gens used 300 (total 460) | survived 897 full 29% drank 63% | on the cup maps only: survived 833 full 5% drank 16%
+L1.0 S5 s5 real task, cups gap 3 | gens used 300 (total 760) | survived 880 full 14% drank 46% | on the cup maps only: survived 864 full 10% drank 29%
+L1.0 S5 s5 real task, cups gap 3 | gens used 300 (total 1060) | survived 860 full 12% drank 26% | on the cup maps only: survived 860 full 12% drank 26%
+L1.0 S5 s5 final, cups gap 3 | gens used 700 (total 1760) | survived 863 full 14% drank 33% | on the cup maps only: survived 863 full 14% drank 33%
+L1.0 S5 s5 FINAL seed 5 | K 3 | gens 1760 | DRINK_STARTED 97 | TEST_BARS_TICKS 864 | TEST_BARS_FULL 13% | TEST_BARS_DRANK 28% | TEST_NOBARS_TICKS 907 | TEST_NOBARS_FULL 30% | TEST_NOBARS_DRANK 67% | TEST_FACING_TICKS 870 | TEST_FACING_FULL 16% | TEST_FACING_DRANK 32%
+L1.0 S12 s2 real task, cups gap 3 | gens used 300 (total 380) | survived 912 full 37% drank 72% | on the cup maps only: survived 861 full 16% drank 38%
+L1.0 S12 s2 real task, cups gap 3 | gens used 300 (total 680) | survived 902 full 29% drank 59% | on the cup maps only: survived 881 full 20% drank 42%
+L1.0 S12 s2 real task, cups gap 3 | gens used 300 (total 980) | survived 876 full 19% drank 38% | on the cup maps only: survived 876 full 19% drank 38%
+L1.0 S12 s2 final, cups gap 3 | gens used 700 (total 1680) | survived 889 full 22% drank 44% | on the cup maps only: survived 889 full 22% drank 44%
+L1.0 S12 s2 FINAL seed 2 | K 3 | gens 1680 | DRINK_STARTED 70 | TEST_BARS_TICKS 879 | TEST_BARS_FULL 17% | TEST_BARS_DRANK 36% | TEST_NOBARS_TICKS 918 | TEST_NOBARS_FULL 33% | TEST_NOBARS_DRANK 77% | TEST_FACING_TICKS 892 | TEST_FACING_FULL 21% | TEST_FACING_DRANK 49%
+L1.0 S12 s1 real task, cups gap 3 | gens used 300 (total 404) | survived 884 full 28% drank 72% | on the cup maps only: survived 859 full 16% drank 46%
+L1.0 S12 s1 real task, cups gap 3 | gens used 300 (total 704) | survived 893 full 27% drank 57% | on the cup maps only: survived 869 full 18% drank 41%
+L1.0 S12 s1 real task, cups gap 3 | gens used 300 (total 1004) | survived 886 full 17% drank 51% | on the cup maps only: survived 886 full 17% drank 51%
+L1.0 S12 s1 final, cups gap 3 | gens used 700 (total 1704) | survived 896 full 20% drank 52% | on the cup maps only: survived 896 full 20% drank 52%
+L1.0 S12 s1 FINAL seed 1 | K 3 | gens 1704 | DRINK_STARTED 94 | TEST_BARS_TICKS 887 | TEST_BARS_FULL 17% | TEST_BARS_DRANK 43% | TEST_NOBARS_TICKS 919 | TEST_NOBARS_FULL 26% | TEST_NOBARS_DRANK 87% | TEST_FACING_TICKS 900 | TEST_FACING_FULL 24% | TEST_FACING_DRANK 53%
+L1.0 S12 s4 real task, cups gap 3 | gens used 300 (total 406) | survived 910 full 36% drank 76% | on the cup maps only: survived 858 full 14% drank 41%
+L1.0 S12 s4 real task, cups gap 3 | gens used 300 (total 706) | survived 896 full 23% drank 61% | on the cup maps only: survived 882 full 19% drank 46%
+L1.0 S12 s4 real task, cups gap 3 | gens used 300 (total 1006) | survived 874 full 17% drank 47% | on the cup maps only: survived 874 full 17% drank 47%
+L1.0 S12 s4 final, cups gap 3 | gens used 700 (total 1706) | survived 887 full 12% drank 53% | on the cup maps only: survived 887 full 12% drank 53%
+L1.0 S12 s4 FINAL seed 4 | K 3 | gens 1706 | DRINK_STARTED 90 | TEST_BARS_TICKS 883 | TEST_BARS_FULL 11% | TEST_BARS_DRANK 48% | TEST_NOBARS_TICKS 906 | TEST_NOBARS_FULL 15% | TEST_NOBARS_DRANK 89% | TEST_FACING_TICKS 886 | TEST_FACING_FULL 11% | TEST_FACING_DRANK 50%
+L1.0 S12 s3 real task, cups gap 3 | gens used 300 (total 406) | survived 916 full 46% drank 75% | on the cup maps only: survived 850 full 17% drank 43%
+L1.0 S12 s3 real task, cups gap 3 | gens used 300 (total 706) | survived 902 full 31% drank 57% | on the cup maps only: survived 882 full 22% drank 43%
+L1.0 S12 s3 real task, cups gap 3 | gens used 300 (total 1006) | survived 920 full 36% drank 65% | on the cup maps only: survived 920 full 36% drank 65%
+L1.0 S12 s3 final, cups gap 3 | gens used 700 (total 1706) | survived 913 full 26% drank 64% | on the cup maps only: survived 913 full 26% drank 64%
+L1.0 S12 s3 FINAL seed 3 | K 3 | gens 1706 | DRINK_STARTED 96 | TEST_BARS_TICKS 922 | TEST_BARS_FULL 22% | TEST_BARS_DRANK 70% | TEST_NOBARS_TICKS 943 | TEST_NOBARS_FULL 30% | TEST_NOBARS_DRANK 98% | TEST_FACING_TICKS 914 | TEST_FACING_FULL 20% | TEST_FACING_DRANK 66%
+L1.0 S12 s6 real task, cups gap 3 | gens used 300 (total 421) | survived 916 full 34% drank 78% | on the cup maps only: survived 889 full 27% drank 54%
+L1.0 S12 s6 real task, cups gap 3 | gens used 300 (total 721) | survived 897 full 26% drank 56% | on the cup maps only: survived 879 full 20% drank 41%
+L1.0 S12 s6 real task, cups gap 3 | gens used 300 (total 1021) | survived 883 full 13% drank 44% | on the cup maps only: survived 883 full 13% drank 44%
+L1.0 S12 s6 final, cups gap 3 | gens used 700 (total 1721) | survived 874 full 12% drank 40% | on the cup maps only: survived 874 full 12% drank 40%
+L1.0 S12 s6 FINAL seed 6 | K 3 | gens 1721 | DRINK_STARTED 97 | TEST_BARS_TICKS 879 | TEST_BARS_FULL 12% | TEST_BARS_DRANK 42% | TEST_NOBARS_TICKS 900 | TEST_NOBARS_FULL 14% | TEST_NOBARS_DRANK 84% | TEST_FACING_TICKS 879 | TEST_FACING_FULL 14% | TEST_FACING_DRANK 43%
+L1.0 S12 s5 real task, cups gap 3 | gens used 300 (total 439) | survived 907 full 37% drank 69% | on the cup maps only: survived 858 full 16% drank 35%
+L1.0 S12 s5 real task, cups gap 3 | gens used 300 (total 739) | survived 889 full 29% drank 58% | on the cup maps only: survived 867 full 19% drank 43%
+L1.0 S12 s5 real task, cups gap 3 | gens used 300 (total 1039) | survived 884 full 20% drank 45% | on the cup maps only: survived 884 full 20% drank 45%
+L1.0 S12 s5 final, cups gap 3 | gens used 700 (total 1739) | survived 877 full 12% drank 50% | on the cup maps only: survived 877 full 12% drank 50%
+L1.0 S12 s5 FINAL seed 5 | K 3 | gens 1739 | DRINK_STARTED 106 | TEST_BARS_TICKS 876 | TEST_BARS_FULL 10% | TEST_BARS_DRANK 47% | TEST_NOBARS_TICKS 911 | TEST_NOBARS_FULL 20% | TEST_NOBARS_DRANK 85% | TEST_FACING_TICKS 889 | TEST_FACING_FULL 14% | TEST_FACING_DRANK 55%
+L1.0 S12 s8 real task, cups gap 3 | gens used 300 (total 418) | survived 901 full 27% drank 72% | on the cup maps only: survived 857 full 13% drank 38%
+L1.0 S12 s8 real task, cups gap 3 | gens used 300 (total 718) | survived 886 full 29% drank 48% | on the cup maps only: survived 866 full 20% drank 32%
+L1.0 S12 s8 real task, cups gap 3 | gens used 300 (total 1018) | survived 883 full 21% drank 45% | on the cup maps only: survived 883 full 21% drank 45%
+L1.0 S12 s8 final, cups gap 3 | gens used 700 (total 1718) | survived 880 full 15% drank 45% | on the cup maps only: survived 880 full 15% drank 45%
+L1.0 S12 s8 FINAL seed 8 | K 3 | gens 1718 | DRINK_STARTED 92 | TEST_BARS_TICKS 885 | TEST_BARS_FULL 15% | TEST_BARS_DRANK 43% | TEST_NOBARS_TICKS 911 | TEST_NOBARS_FULL 19% | TEST_NOBARS_DRANK 86% | TEST_FACING_TICKS 870 | TEST_FACING_FULL 10% | TEST_FACING_DRANK 31%
+L1.0 S12 s7 real task, cups gap 3 | gens used 300 (total 393) | survived 916 full 47% drank 71% | on the cup maps only: survived 857 full 16% drank 31%
+L1.0 S12 s7 real task, cups gap 3 | gens used 300 (total 693) | survived 909 full 32% drank 60% | on the cup maps only: survived 890 full 22% drank 45%
+L1.0 S12 s7 real task, cups gap 3 | gens used 300 (total 993) | survived 909 full 32% drank 57% | on the cup maps only: survived 909 full 32% drank 57%
+L1.0 S12 s7 final, cups gap 3 | gens used 700 (total 1693) | survived 920 full 31% drank 68% | on the cup maps only: survived 920 full 31% drank 68%
+L1.0 S12 s7 FINAL seed 7 | K 3 | gens 1693 | DRINK_STARTED 79 | TEST_BARS_TICKS 923 | TEST_BARS_FULL 33% | TEST_BARS_DRANK 66% | TEST_NOBARS_TICKS 961 | TEST_NOBARS_FULL 53% | TEST_NOBARS_DRANK 98% | TEST_FACING_TICKS 929 | TEST_FACING_FULL 36% | TEST_FACING_DRANK 64%
+L1.25 S5 s1 real task, cups gap 3 | gens used 300 (total 466) | survived 868 full 28% drank 66% | on the cup maps only: survived 792 full 8% drank 32%
+L1.25 S5 s1 real task, cups gap 3 | gens used 300 (total 766) | survived 865 full 23% drank 46% | on the cup maps only: survived 838 full 13% drank 27%
+L1.25 S5 s1 real task, cups gap 3 | gens used 300 (total 1066) | survived 837 full 8% drank 13% | on the cup maps only: survived 837 full 8% drank 13%
+L1.25 S5 s1 final, cups gap 3 | gens used 700 (total 1766) | survived 866 full 16% drank 31% | on the cup maps only: survived 866 full 16% drank 31%
+L1.25 S5 s1 FINAL seed 1 | K 3 | gens 1766 | DRINK_STARTED 123 | TEST_BARS_TICKS 847 | TEST_BARS_FULL 9% | TEST_BARS_DRANK 20% | TEST_NOBARS_TICKS 888 | TEST_NOBARS_FULL 22% | TEST_NOBARS_DRANK 64% | TEST_FACING_TICKS 843 | TEST_FACING_FULL 9% | TEST_FACING_DRANK 16%
+L1.25 S5 s2 real task, cups gap 3 | gens used 300 (total 537) | survived 876 full 27% drank 62% | on the cup maps only: survived 809 full 2% drank 23%
+L1.25 S5 s2 real task, cups gap 3 | gens used 300 (total 837) | survived 859 full 12% drank 39% | on the cup maps only: survived 842 full 7% drank 24%
+L1.25 S5 s2 real task, cups gap 3 | gens used 300 (total 1137) | survived 833 full 1% drank 16% | on the cup maps only: survived 833 full 1% drank 16%
+L1.25 S5 s2 final, cups gap 3 | gens used 700 (total 1837) | survived 851 full 5% drank 31% | on the cup maps only: survived 851 full 5% drank 31%
+L1.25 S5 s2 FINAL seed 2 | K 3 | gens 1837 | DRINK_STARTED 190 | TEST_BARS_TICKS 842 | TEST_BARS_FULL 5% | TEST_BARS_DRANK 27% | TEST_NOBARS_TICKS 870 | TEST_NOBARS_FULL 11% | TEST_NOBARS_DRANK 67% | TEST_FACING_TICKS 847 | TEST_FACING_FULL 7% | TEST_FACING_DRANK 35%
+L1.25 S5 s4 real task, cups gap 3 | gens used 300 (total 405) | survived 862 full 23% drank 53% | on the cup maps only: survived 809 full 5% drank 21%
+L1.25 S5 s4 real task, cups gap 3 | gens used 300 (total 705) | survived 872 full 23% drank 46% | on the cup maps only: survived 843 full 10% drank 28%
+L1.25 S5 s4 real task, cups gap 3 | gens used 300 (total 1005) | survived 826 full 5% drank 18% | on the cup maps only: survived 826 full 5% drank 18%
+L1.25 S5 s4 final, cups gap 3 | gens used 700 (total 1705) | survived 836 full 2% drank 16% | on the cup maps only: survived 836 full 2% drank 16%
+L1.25 S5 s4 FINAL seed 4 | K 3 | gens 1705 | DRINK_STARTED 85 | TEST_BARS_TICKS 837 | TEST_BARS_FULL 2% | TEST_BARS_DRANK 15% | TEST_NOBARS_TICKS 862 | TEST_NOBARS_FULL 7% | TEST_NOBARS_DRANK 43% | TEST_FACING_TICKS 841 | TEST_FACING_FULL 4% | TEST_FACING_DRANK 18%
+L1.25 S5 s3 real task, cups gap 3 | gens used 300 (total 512) | survived 898 full 42% drank 64% | on the cup maps only: survived 826 full 9% drank 24%
+L1.25 S5 s3 real task, cups gap 3 | gens used 300 (total 812) | survived 876 full 23% drank 41% | on the cup maps only: survived 855 full 13% drank 25%
+L1.25 S5 s3 real task, cups gap 3 | gens used 300 (total 1112) | survived 849 full 11% drank 22% | on the cup maps only: survived 849 full 11% drank 22%
+L1.25 S5 s3 final, cups gap 3 | gens used 700 (total 1812) | survived 854 full 7% drank 22% | on the cup maps only: survived 854 full 7% drank 22%
+L1.25 S5 s3 FINAL seed 3 | K 3 | gens 1812 | DRINK_STARTED 145 | TEST_BARS_TICKS 845 | TEST_BARS_FULL 7% | TEST_BARS_DRANK 18% | TEST_NOBARS_TICKS 889 | TEST_NOBARS_FULL 23% | TEST_NOBARS_DRANK 55% | TEST_FACING_TICKS 854 | TEST_FACING_FULL 11% | TEST_FACING_DRANK 25%
+L1.25 S5 s5 real task, cups gap 3 | gens used 300 (total 572) | survived 871 full 26% drank 59% | on the cup maps only: survived 796 full 2% drank 16%
+L1.25 S5 s5 real task, cups gap 3 | gens used 300 (total 872) | survived 860 full 18% drank 41% | on the cup maps only: survived 837 full 8% drank 22%
+L1.25 S5 s5 real task, cups gap 3 | gens used 300 (total 1172) | survived 834 full 4% drank 14% | on the cup maps only: survived 834 full 4% drank 14%
+L1.25 S5 s5 final, cups gap 3 | gens used 700 (total 1872) | survived 843 full 4% drank 14% | on the cup maps only: survived 843 full 4% drank 14%
+L1.25 S5 s5 FINAL seed 5 | K 3 | gens 1872 | DRINK_STARTED 133 | TEST_BARS_TICKS 840 | TEST_BARS_FULL 4% | TEST_BARS_DRANK 11% | TEST_NOBARS_TICKS 868 | TEST_NOBARS_FULL 13% | TEST_NOBARS_DRANK 37% | TEST_FACING_TICKS 841 | TEST_FACING_FULL 5% | TEST_FACING_DRANK 11%
+L1.25 S5 s6 real task, cups gap 3 | gens used 300 (total 413) | survived 891 full 32% drank 61% | on the cup maps only: survived 838 full 8% drank 25%
+L1.25 S5 s6 real task, cups gap 3 | gens used 300 (total 713) | survived 867 full 16% drank 43% | on the cup maps only: survived 848 full 8% drank 28%
+L1.25 S5 s6 real task, cups gap 3 | gens used 300 (total 1013) | survived 861 full 13% drank 33% | on the cup maps only: survived 861 full 13% drank 33%
+L1.25 S5 s6 final, cups gap 3 | gens used 700 (total 1713) | survived 856 full 6% drank 30% | on the cup maps only: survived 856 full 6% drank 30%
+L1.25 S5 s6 FINAL seed 6 | K 3 | gens 1713 | DRINK_STARTED 87 | TEST_BARS_TICKS 870 | TEST_BARS_FULL 10% | TEST_BARS_DRANK 40% | TEST_NOBARS_TICKS 921 | TEST_NOBARS_FULL 29% | TEST_NOBARS_DRANK 82% | TEST_FACING_TICKS 871 | TEST_FACING_FULL 12% | TEST_FACING_DRANK 36%
+L1.25 S5 s7 real task, cups gap 3 | gens used 300 (total 448) | survived 862 full 23% drank 57% | on the cup maps only: survived 812 full 7% drank 25%
+L1.25 S5 s7 real task, cups gap 3 | gens used 300 (total 748) | survived 868 full 17% drank 40% | on the cup maps only: survived 846 full 9% drank 23%
+L1.25 S5 s7 real task, cups gap 3 | gens used 300 (total 1048) | survived 849 full 7% drank 25% | on the cup maps only: survived 849 full 7% drank 25%
+L1.25 S5 s7 final, cups gap 3 | gens used 700 (total 1748) | survived 865 full 18% drank 37% | on the cup maps only: survived 865 full 18% drank 37%
+L1.25 S5 s7 FINAL seed 7 | K 3 | gens 1748 | DRINK_STARTED 108 | TEST_BARS_TICKS 872 | TEST_BARS_FULL 17% | TEST_BARS_DRANK 45% | TEST_NOBARS_TICKS 922 | TEST_NOBARS_FULL 35% | TEST_NOBARS_DRANK 85% | TEST_FACING_TICKS 867 | TEST_FACING_FULL 17% | TEST_FACING_DRANK 39%
+L1.25 S5 s8 real task, cups gap 3 | gens used 300 (total 483) | survived 895 full 39% drank 66% | on the cup maps only: survived 826 full 9% drank 35%
+L1.25 S5 s8 real task, cups gap 3 | gens used 300 (total 783) | survived 873 full 18% drank 42% | on the cup maps only: survived 850 full 8% drank 26%
+L1.25 S5 s8 real task, cups gap 3 | gens used 300 (total 1083) | survived 848 full 6% drank 30% | on the cup maps only: survived 848 full 6% drank 30%
+L1.25 S5 s8 final, cups gap 3 | gens used 700 (total 1783) | survived 863 full 12% drank 36% | on the cup maps only: survived 863 full 12% drank 36%
+L1.25 S5 s8 FINAL seed 8 | K 3 | gens 1783 | DRINK_STARTED 128 | TEST_BARS_TICKS 866 | TEST_BARS_FULL 10% | TEST_BARS_DRANK 33% | TEST_NOBARS_TICKS 926 | TEST_NOBARS_FULL 38% | TEST_NOBARS_DRANK 78% | TEST_FACING_TICKS 859 | TEST_FACING_FULL 9% | TEST_FACING_DRANK 26%
+L1.25 S12 s1 real task, cups gap 3 | gens used 300 (total 417) | survived 842 full 4% drank 40% | on the cup maps only: survived 828 full 2% drank 19%
+L1.25 S12 s1 real task, cups gap 3 | gens used 300 (total 717) | survived 838 full 3% drank 32% | on the cup maps only: survived 830 full 2% drank 18%
+L1.25 S12 s1 real task, cups gap 3 | gens used 300 (total 1017) | survived 842 full 5% drank 24% | on the cup maps only: survived 842 full 5% drank 24%
+L1.25 S12 s1 final, cups gap 3 | gens used 700 (total 1717) | survived 826 full 0% drank 0% | on the cup maps only: survived 826 full 0% drank 0%
+L1.25 S12 s1 FINAL seed 1 | K 3 | gens 1717 | DRINK_STARTED 92 | TEST_BARS_TICKS 824 | TEST_BARS_FULL 0% | TEST_BARS_DRANK 0% | TEST_NOBARS_TICKS 823 | TEST_NOBARS_FULL 0% | TEST_NOBARS_DRANK 1% | TEST_FACING_TICKS 823 | TEST_FACING_FULL 0% | TEST_FACING_DRANK 1%
+L1.25 S12 s2 real task, cups gap 3 | gens used 300 (total 451) | survived 905 full 41% drank 69% | on the cup maps only: survived 839 full 17% drank 34%
+L1.25 S12 s2 real task, cups gap 3 | gens used 300 (total 751) | survived 874 full 27% drank 48% | on the cup maps only: survived 852 full 16% drank 30%
+L1.25 S12 s2 real task, cups gap 3 | gens used 300 (total 1051) | survived 859 full 9% drank 39% | on the cup maps only: survived 859 full 9% drank 39%
+L1.25 S12 s2 final, cups gap 3 | gens used 700 (total 1751) | survived 873 full 10% drank 40% | on the cup maps only: survived 873 full 10% drank 40%
+L1.25 S12 s2 FINAL seed 2 | K 3 | gens 1751 | DRINK_STARTED 126 | TEST_BARS_TICKS 880 | TEST_BARS_FULL 11% | TEST_BARS_DRANK 46% | TEST_NOBARS_TICKS 899 | TEST_NOBARS_FULL 15% | TEST_NOBARS_DRANK 87% | TEST_FACING_TICKS 878 | TEST_FACING_FULL 14% | TEST_FACING_DRANK 42%
+L1.25 S12 s3 real task, cups gap 3 | gens used 300 (total 539) | survived 890 full 29% drank 69% | on the cup maps only: survived 857 full 20% drank 41%
+L1.25 S12 s3 real task, cups gap 3 | gens used 300 (total 839) | survived 880 full 17% drank 50% | on the cup maps only: survived 868 full 15% drank 36%
+L1.25 S12 s3 real task, cups gap 3 | gens used 300 (total 1139) | survived 866 full 15% drank 42% | on the cup maps only: survived 866 full 15% drank 42%
+L1.25 S12 s3 final, cups gap 3 | gens used 700 (total 1839) | survived 878 full 16% drank 44% | on the cup maps only: survived 878 full 16% drank 44%
+L1.25 S12 s3 FINAL seed 3 | K 3 | gens 1839 | DRINK_STARTED 129 | TEST_BARS_TICKS 865 | TEST_BARS_FULL 13% | TEST_BARS_DRANK 34% | TEST_NOBARS_TICKS 900 | TEST_NOBARS_FULL 21% | TEST_NOBARS_DRANK 75% | TEST_FACING_TICKS 876 | TEST_FACING_FULL 17% | TEST_FACING_DRANK 40%
+L1.25 S12 s4 real task, cups gap 3 | gens used 300 (total 439) | survived 899 full 45% drank 72% | on the cup maps only: survived 848 full 22% drank 46%
+L1.25 S12 s4 real task, cups gap 3 | gens used 300 (total 739) | survived 876 full 21% drank 48% | on the cup maps only: survived 858 full 13% drank 33%
+L1.25 S12 s4 real task, cups gap 3 | gens used 300 (total 1039) | survived 839 full 8% drank 33% | on the cup maps only: survived 839 full 8% drank 33%
+L1.25 S12 s4 final, cups gap 3 | gens used 700 (total 1739) | survived 873 full 13% drank 45% | on the cup maps only: survived 873 full 13% drank 45%
+L1.25 S12 s4 FINAL seed 4 | K 3 | gens 1739 | DRINK_STARTED 102 | TEST_BARS_TICKS 871 | TEST_BARS_FULL 17% | TEST_BARS_DRANK 51% | TEST_NOBARS_TICKS 905 | TEST_NOBARS_FULL 29% | TEST_NOBARS_DRANK 89% | TEST_FACING_TICKS 871 | TEST_FACING_FULL 19% | TEST_FACING_DRANK 48%
+L1.25 S12 s5 real task, cups gap 3 | gens used 300 (total 490) | survived 889 full 31% drank 56% | on the cup maps only: survived 834 full 10% drank 26%
+L1.25 S12 s5 real task, cups gap 3 | gens used 300 (total 790) | survived 855 full 12% drank 31% | on the cup maps only: survived 836 full 4% drank 19%
+L1.25 S12 s5 real task, cups gap 3 | gens used 300 (total 1090) | survived 825 full 1% drank 12% | on the cup maps only: survived 825 full 1% drank 12%
+L1.25 S12 s5 final, cups gap 3 | gens used 700 (total 1790) | survived 841 full 4% drank 19% | on the cup maps only: survived 841 full 4% drank 19%
+L1.25 S12 s5 FINAL seed 5 | K 3 | gens 1790 | DRINK_STARTED 147 | TEST_BARS_TICKS 847 | TEST_BARS_FULL 4% | TEST_BARS_DRANK 24% | TEST_NOBARS_TICKS 866 | TEST_NOBARS_FULL 6% | TEST_NOBARS_DRANK 60% | TEST_FACING_TICKS 854 | TEST_FACING_FULL 6% | TEST_FACING_DRANK 33%
+L1.25 S12 s6 real task, cups gap 3 | gens used 300 (total 440) | survived 868 full 25% drank 50% | on the cup maps only: survived 820 full 8% drank 28%
+L1.25 S12 s6 real task, cups gap 3 | gens used 300 (total 740) | survived 836 full 3% drank 27% | on the cup maps only: survived 830 full 2% drank 16%
+L1.25 S12 s6 real task, cups gap 3 | gens used 300 (total 1040) | survived 839 full 2% drank 19% | on the cup maps only: survived 839 full 2% drank 19%
+L1.25 S12 s6 final, cups gap 3 | gens used 700 (total 1740) | survived 835 full 2% drank 19% | on the cup maps only: survived 835 full 2% drank 19%
+L1.25 S12 s6 FINAL seed 6 | K 3 | gens 1740 | DRINK_STARTED 123 | TEST_BARS_TICKS 830 | TEST_BARS_FULL 1% | TEST_BARS_DRANK 13% | TEST_NOBARS_TICKS 855 | TEST_NOBARS_FULL 6% | TEST_NOBARS_DRANK 47% | TEST_FACING_TICKS 830 | TEST_FACING_FULL 1% | TEST_FACING_DRANK 12%
+L1.25 S12 s8 real task, cups gap 3 | gens used 300 (total 450) | survived 885 full 30% drank 64% | on the cup maps only: survived 835 full 11% drank 34%
+L1.25 S12 s8 real task, cups gap 3 | gens used 300 (total 750) | survived 881 full 21% drank 47% | on the cup maps only: survived 860 full 13% drank 31%
+L1.25 S12 s8 real task, cups gap 3 | gens used 300 (total 1050) | survived 866 full 16% drank 33% | on the cup maps only: survived 866 full 16% drank 33%
+L1.25 S12 s8 final, cups gap 3 | gens used 700 (total 1750) | survived 876 full 11% drank 40% | on the cup maps only: survived 876 full 11% drank 40%
+L1.25 S12 s8 FINAL seed 8 | K 3 | gens 1750 | DRINK_STARTED 114 | TEST_BARS_TICKS 877 | TEST_BARS_FULL 10% | TEST_BARS_DRANK 39% | TEST_NOBARS_TICKS 904 | TEST_NOBARS_FULL 17% | TEST_NOBARS_DRANK 75% | TEST_FACING_TICKS 876 | TEST_FACING_FULL 14% | TEST_FACING_DRANK 38%
+L1.25 S12 s7 real task, cups gap 3 | gens used 300 (total 465) | survived 903 full 44% drank 70% | on the cup maps only: survived 841 full 17% drank 44%
+L1.25 S12 s7 real task, cups gap 3 | gens used 300 (total 765) | survived 894 full 29% drank 55% | on the cup maps only: survived 869 full 18% drank 37%
+L1.25 S12 s7 real task, cups gap 3 | gens used 300 (total 1065) | survived 879 full 19% drank 42% | on the cup maps only: survived 879 full 19% drank 42%
+L1.25 S12 s7 final, cups gap 3 | gens used 700 (total 1765) | survived 882 full 19% drank 49% | on the cup maps only: survived 882 full 19% drank 49%
+L1.25 S12 s7 FINAL seed 7 | K 3 | gens 1765 | DRINK_STARTED 139 | TEST_BARS_TICKS 879 | TEST_BARS_FULL 20% | TEST_BARS_DRANK 43% | TEST_NOBARS_TICKS 937 | TEST_NOBARS_FULL 49% | TEST_NOBARS_DRANK 90% | TEST_FACING_TICKS 885 | TEST_FACING_FULL 26% | TEST_FACING_DRANK 49%
