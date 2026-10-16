@@ -941,3 +941,22 @@ Paired by seed (mean difference, bootstrap 95% interval):
 - **The open-map skill survives cups-only training only with the combination** (65% drank on open maps after 700 cups-only generations, against 5% and 26%): when cups pay, training on them stops wearing down the drinking skill.
 - Why, in short: with occlusion and a long sight the pond is visible only through the opening, from up to 12 tiles away; a dot that heads for what it sees heads for the opening. With sight 5 the pond is barely visible from outside the ring; with sight 12 and no occlusion the pond is visible through the wall and pulls the dot into it.
 - Still not solved: cup survival (854) is far below open-map survival (874 for these dots, about 940 for dots that never trained on cups), arrival at the open side was at chance in the transfer trace, and 2 of 8 seeds stay low. Next: the wall sense with sight 12 and occlusion; the 3000-tick world with sight 12 and occlusion (where pilot 4 already showed cup drinking rising); and a trace of the trained dots on cups (do they now arrive at the open side more often?).
+
+### Trace of the dots trained on cups (sight 12 and occlusion; 2026-10-16)
+
+`traceCups` (`run-multi.js`): after training, 10 held-out gap-3 cup maps with random openings are replayed with the trained dots (no breeding) and the same quantities as the earlier cup trace are logged. The 12 runs are the batch runs of seeds 1 to 4 (same trained populations, bit for bit: the cup-test numbers of the FINAL lines are the batch's). Means over seeds 1 to 4, shares of all dots unless stated:
+
+| Setup | Survived | Drank | Reached the ring | First reached it at the open side | Entered from the open side | Entered from a closed side | Got in | Of those, left again | Drinkers that survived / died inside / died outside |
+|---|---|---|---|---|---|---|---|---|---|
+| sight 5, occlusion | 823 | 2.8% | 12.7% | 26.3% | 23.4% | 9.9% | 3.1% | 27.9% | 2% / 91% / 8% |
+| sight 12, no occlusion | 796 | 7.1% | 14.7% | 24.6% | 47.6% | 38.1% | 7.4% | 74.2% | 2% / 87% / 12% |
+| sight 12, occlusion | **865** | **35.0%** | **79.0%** | 22.5% | 77.7% | 35.8% | **35.7%** | 60.5% | 27% / 61% / 13% |
+
+Per seed, sight 12 with occlusion (cup test survived / drank; first reached at the open side; entered from open; from closed; got in; left again; drinkers survived / died inside): seed 1 865 / 39%; 24%, 77%, 34%, 38%, 55%; 31% / 61%. Seed 2 875 / 38%; 18%, 90%, 41%, 43%, 48%; 36% / 59%. Seed 3 862 / 33%; 25%, 69%, 35%, 32%, 64%; 27% / 66%. Seed 4 861 / 28%; 23%, 75%, 33%, 30%, 75%; 12% / 58%. (The other two setups are in the raw output; their seeds with almost no drinking give null shares.)
+
+- **The trained dots go to the rings:** 79% of them reach a ring (13% to 15% for the other two setups, whose dots mostly stay at the food), and 36% get in.
+- **They still do not steer towards the opening from a distance:** 22.5% first reach the open side (chance is 25%). What changed is what happens at the ring: 78% of those who arrive at the open side get in, and 36% of those who arrive at a closed side find the way in (the earlier untrained dots: 72% and 17% at sight 5, 23% and 42% with occlusion at sight 12 on dots trained without cups).
+- **The remaining loss is inside the ring.** Of the dots that drank, 61% died inside the ring and only 27% survived the round (open maps: about 68% of the drinkers survive). Of the dots that got in, 60% left again. From inside, the food circles (30 or more tiles away) are out of sight, and occlusion hides the pond's surroundings, so the exit has to come from memory or position; that is the plausible weak point and is not tested.
+- Caution: 4 seeds per setup; the other two setups have few dots reaching the ring, so their shares are noisy.
+
+**What this suggests next:** the exit. Options, cheapest first: (1) trace what drinkers do inside (how long they stay, whether they move towards the opening, energy at death: hunger or thirst); (2) the 3000-tick world with sight 12 and occlusion (a dot that is slow to leave has more time; cup drinking rose most there in pilot 4); (3) the wall sense now that cups are learnable (it carried a little in the first occlusion pilot).
