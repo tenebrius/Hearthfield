@@ -50,6 +50,9 @@ if (cfg.secureDrink) stage('real task, no walls, until drinking is secure', pm, 
 const cupCap = cfg.cupStageCap || maxStage, cupExitFn = cfg.cupExit ? (last => avg(last, 'drankShare') >= cfg.cupExit) : fullExit;   // generation (total so far) at which the 10-generation mean of "drank" first reached drinkStart; -1 if never
 if (CUPS) cupGaps.forEach((g, i) => stage('real task, cups gap ' + g + (cupFacings.length ? ' opening faces the food ' + Math.round(100 * (cupFacings[i] || 0)) + '%' : ''), pm, 0, cups(g, cupFacings[i], cupMixes[i]), cupCap, cupExitFn));
 else if (WN > 0) for (const b of [Math.min(1, WN), Math.min(2, WN), WN]) stage('real task, bars ' + b, pm, 0, bars(b), maxStage, fullExit);
+// "lossSteps":[1.0, 1.25, 1.5] (step 6, budget curriculum): after the cup stages, the energy loss per tick is raised to each value in turn (all maps cups, up to `lossStageCap` generations each, default 300,
+// ending early when the cup maps' drinking reaches `lossExit`, default 0.5), then the final stage and the tests run at the last value. Start the run with a generous "lossE", for example 0.75.
+if (Array.isArray(cfg.lossSteps)) for (const lv of cfg.lossSteps) { e.setCfg('lossE', lv); stage('tighten: energy loss ' + lv, pm, 0, cups(TC, 0), cfg.lossStageCap || 300, last => avg(last, 'cupDrank') >= (cfg.lossExit == null ? 0.5 : cfg.lossExit)); }
 const finalW = CUPS ? (cupGaps.length ? cups(cupGaps[cupGaps.length - 1]) : NOW) : bars(WN);
 stage('final, ' + (CUPS ? 'cups gap ' + (cupGaps.length ? cupGaps[cupGaps.length - 1] : '-') : 'bars ' + WN), pm, 0, finalW, finalGens, null);
 const evalOn = layoutFor => { let t = 0, full = 0, drank = 0; for (let i = 0; i < 20; i++) { layoutFor(i); const s = e.genRound(false); t += s.mean; full += s.fullShare; drank += s.drankShare; } return { ticks: t / 20, full: full / 20, drank: drank / 20 }; };
