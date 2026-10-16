@@ -1018,3 +1018,20 @@ Against the same seeds with loss 1.5 (batch, sight 12 and occlusion): cup tests 
 - **The energy budget is the main factor.** With loss 0.75 even the plainest setup (sight 5, no occlusion) learns the cups in all 4 seeds (51% drank, 22% full round, cup drinking rising from the first stage to the end in all four), where the same schedule at loss 1.5 gave 0 to 11% drinking with every sensing variant. Sight 12 adds about 16 ticks and 11 points of drinking, and occlusion on top of it another 22 ticks and 10 points of drinking and 15 points of full survival (four seeds, every seed in the same direction).
 - **A correction to my earlier conclusions:** steps 4 to 6 concluded that "the limit is what the dots can sense, not the training schedule" and that only the combination of long sight and occlusion made the cups learnable. That was a statement about a world with a tight energy budget. With a looser budget the cups are learnable without any change of the senses, and the senses then change how well. The binding constraint in the earlier runs was the energy budget (the cost of the trip), exactly as the supply was for the 3000-tick rounds. The earlier negative results (rotating opening, mixed maps, wall sense) were all obtained at loss 1.5 and are open again at a looser budget; none of them has been rerun.
 - **No setup transfers back to the tight budget** (all at 600 to 740 ticks at loss 1.5, below the 833 of a food-sitter): the dots trained with a generous budget do not economise. A curriculum from a generous to a tight budget is the obvious next experiment.
+
+### Budget curriculum: generous to tight energy (pilot, 4 seeds, 2026-10-16): no gain
+
+`lossSteps` (`run-multi.js`): sight 12 with occlusion, mixed cup schedule at energy loss 0.75 as in the energy-budget pilot, then the loss is raised to 1.0, 1.25 and 1.5 (all maps cups, up to 300 generations per step, early exit when cup drinking reaches 50%), then 700 generations at 1.5, tests at 1.5; the same population is also evaluated at 0.75. Seeds 1 to 4; populations saved in the scratch area. Cup-map drinking in the last 10 generations of each step (seed 1 / 2 / 3 / 4):
+
+| Step | Generations used | Cup-map drinking | Cup-map survived |
+|---|---|---|---|
+| loss 1.0 | 10 / 10 / 10 / 10 (early exit) | 57 / 51 / 62 / 52% | 893 / 867 / 895 / 870 |
+| loss 1.25 | 300 / 300 / 300 / 300 | 30 / 19 / 37 / 27% | 855 / 834 / 861 / 848 |
+| loss 1.5 | 300 / 300 / 300 / 300 | 25 / 34 / 32 / 12% | 842 / 850 / 836 / 836 |
+| final 700 at 1.5 | 700 | 39 / 49 / 43 / 16% | 865 / 869 / 858 / 839 |
+
+Held-out tests, 20 maps (survived / full / drank): cups at 1.5: 866 / 5% / 36%, 865 / 0% / 39%, 848 / 11% / 38%, 853 / 4% / 27% (seeds 1 to 4); open maps at 1.5: 908, 78% drank; 876, 71%; 889, 82%; 865, 47%. The same dots evaluated at 0.75: cups 897 / 33% / 44%, 895 / 30% / 51%, 884 / 34% / 42%, 880 / 22% / 39%; open maps 950, 87%; 913, 89%; 936, 88%; 893, 56%.
+
+- **The curriculum gives no gain at 1.5.** The seeds trained straight at 1.5 (same setup, batch): cups 865, 875, 862, 861 survived and 39%, 38%, 33%, 28% drank; the ramp: 866, 865, 848, 853 and 36%, 39%, 38%, 27%: no difference. The skill learned at 0.75 is lost step by step as the budget tightens.
+- **The ramp dots are worse than dots trained at 0.75 even when evaluated at 0.75** (cups 880 to 897 and 22% to 34% full, against 923 to 940 and 33% to 57% for dots trained there throughout): the tightening steps wear down the skill.
+- **Reading, not tested:** at loss 1.5 a pond trip of 30 or more tiles each way plus the stay in a ring costs about as many ticks as the energy store lasts (about 330), so cups may be nearly infeasible at that budget for any policy rather than hard to learn: dots that never go to the pond survive 833, and a trip that succeeds gains at most about 170 ticks, but costs almost the whole store. Loss 1.0 (a 500-tick store) is where the dots still do well (51% to 62% drinking on cups without much training). A direct check of what is achievable at 1.0 and 1.25 (train there from the start, 8 seeds) would locate the frontier.
