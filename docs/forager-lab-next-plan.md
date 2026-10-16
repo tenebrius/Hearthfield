@@ -1,4 +1,4 @@
-# Forager Lab: plan for the next session
+# Forager Lab: plan for the next session (HISTORY: steps 1 to 6 are done; what is next is in `docs/forager-lab-handoff.md`, section 7)
 
 Written 2026-10-14 for a fresh session to implement. Read `docs/forager-lab-handoff.md` first (repository map, how to run, batch lessons); result tables are in `docs/forager-lab-generational-plan.md`. Everything below uses the standard setup unless stated: far-corners or random ponds, stores of 500 (`maxE`, `maxW`, `startE`, `startW` 500), centre start (`genSpawn` 1), `memory` true, fixed period 200 oscillator (`"oscillator":true,"oscPeriod":200`), survival score, 1000-tick rounds.
 
