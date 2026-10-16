@@ -986,3 +986,21 @@ Per seed, sight 12 with occlusion (cup test survived / drank; first reached at t
 - A dot spends about 160 ticks inside the ring, and a pond trip of 30 or more tiles each way plus that stay costs about as many ticks as the energy store lasts (500 at 1.5 per tick, plus the cost of moving: about 330 ticks). Giving them half the loss raises the share of drinkers that survive from 21% to 59% and halves the deaths inside. Halving again changes nothing more, so about 30% still die inside for another reason (the exit itself is the remaining candidate).
 - So the cup trip does not pay mainly because it costs too much energy, in the same way that the 3000-tick world's supply was the ceiling for its dots: a property of the world's budget, not of the brains. This is not tested as a training world yet: dots trained with a larger energy budget might learn the cups much better, or learn to be quicker.
 - Caution: this evaluation changes the energy loss for dots that were trained at 1.5 (their energy input is normalised by the store, which is unchanged); 8 seeds, one world.
+
+### Energy-budget pilot: train with half the energy loss (2026-10-16, 4 seeds; controls running)
+
+Same run as the sight-12-with-occlusion batch (mixed 1, 2, 3 of 3 cup maps, then 700 all-cup generations, K = 3, 1000 ticks) with the energy loss per tick set to 0.75 instead of 1.5 for the whole run (`"lossE":0.75`), seeds 1 to 4; populations saved to the scratch area (`/tmp/claude-0/pops2/e0.75_<seed>.bin`, not in the repository). `altLossE` then evaluates the same trained population with loss 1.5. Held-out tests, 20 maps each (survived / full / drank):
+
+| Seed | Cup maps, loss 0.75 (trained world) | Open maps, loss 0.75 | Cup maps, opening faces the food | Same dots evaluated at loss 1.5: cups / open maps (survived, drank) |
+|---|---|---|---|---|
+| 1 | 940 / 39% / 78% | 971 / 46% / 99% | 921 / 36% / 63% | 718, 33% / 714, 64% |
+| 2 | 923 / 38% / 63% | 952 / 46% / 95% | 931 / 42% / 68% | 702, 18% / 694, 55% |
+| 3 | 934 / 57% / 74% | 969 / 76% / 99% | 933 / 57% / 75% | 735, 62% / 743, 98% |
+| 4 | 925 / 33% / 73% | 954 / 40% / 99% | 930 / 35% / 77% | 685, 9% / 688, 30% |
+
+Against the same seeds with loss 1.5 (batch, sight 12 and occlusion): cup tests 865, 875, 862, 861 survived and 39%, 38%, 33%, 28% drank; so +75, +48, +72, +64 ticks and +39, +25, +41, +45 points of drinking on cups, every seed. Cup-map drinking per stage (1 of 3 maps cups / 2 of 3 / 3 of 3 / final 700): seed 1: 38, 60, 69, 79%; seed 2: 54, 54, 58, 66%; seed 3: 59, 57, 63, 79%; seed 4: 51, 63, 73, 72%: it rose from the first stage to the end in all four seeds (at loss 1.5: flat or mixed, 15 to 44%).
+
+- **With a bigger energy budget the dots learn the cups:** 63% to 78% of the dots drink on held-out cup maps, 33% to 57% survive the whole round on them (3% to 15% at loss 1.5), and it does not matter whether the opening faces the food (921 to 933 against 923 to 940 for random openings): the arrival side no longer decides much. Open maps are 95% to 99% drinkers.
+- **The skill does not transfer to the tight budget:** the same dots at loss 1.5 survive 685 to 735 ticks, well below the 833 of a dot that stays on the food, so they have not learned to economise their trips. This shows that the cups can be learned (the dots find the opening, get in and get out) once the energy allows it, not that the dots are robust.
+- (Correction to a first summary, which said cup drinking rose in "3 of 4 seeds in the first mixed stage": the table above is the accurate statement, all four rose from the first stage to the end.)
+- **Open:** the two controls at loss 0.75 (sight 5 without occlusion: the energy budget alone; sight 12 without occlusion) decide how much of this is the budget and how much needs the long sight with occlusion; they were killed once by a container restart and are rerunning.
