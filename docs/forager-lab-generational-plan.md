@@ -1003,4 +1003,18 @@ Against the same seeds with loss 1.5 (batch, sight 12 and occlusion): cup tests 
 - **With a bigger energy budget the dots learn the cups:** 63% to 78% of the dots drink on held-out cup maps, 33% to 57% survive the whole round on them (3% to 15% at loss 1.5), and it does not matter whether the opening faces the food (921 to 933 against 923 to 940 for random openings): the arrival side no longer decides much. Open maps are 95% to 99% drinkers.
 - **The skill does not transfer to the tight budget:** the same dots at loss 1.5 survive 685 to 735 ticks, well below the 833 of a dot that stays on the food, so they have not learned to economise their trips. This shows that the cups can be learned (the dots find the opening, get in and get out) once the energy allows it, not that the dots are robust.
 - (Correction to a first summary, which said cup drinking rose in "3 of 4 seeds in the first mixed stage": the table above is the accurate statement, all four rose from the first stage to the end.)
-- **Open:** the two controls at loss 0.75 (sight 5 without occlusion: the energy budget alone; sight 12 without occlusion) decide how much of this is the budget and how much needs the long sight with occlusion; they were killed once by a container restart and are rerunning.
+- The two controls are below (they were killed once by a container restart and rerun).
+
+**Controls at loss 0.75 (4 seeds each, same schedule; cup test survived / full / drank, then cup-map drinking per stage):**
+
+| Setup (loss 0.75) | Cup maps | Open maps (survived, drank) | Cup drinking per stage | Same dots at loss 1.5, cups (survived, drank) |
+|---|---|---|---|---|
+| sight 5, no occlusion (the budget alone) | 893 / 22% / 51% | 938, 94% | 31, 42, 56, 48 / 31, 41, 58, 55 / 26, 38, 47, 56 / 34, 46, 49, 63 | 613 to 681, 9% to 18% |
+| sight 12, no occlusion | 909 / 27% / 62% | 950, 95% | 36, 46, 67, 67 / 42, 60, 68, 75 / 36, 50, 67, 60 / 42, 74, 69, 69 | 655 to 701, 18% to 25% |
+| sight 12, occlusion (the pilot above) | 931 / 42% / 72% | 962, 98% | see the pilot | 685 to 735, 9% to 62% |
+
+(Same four seeds in every row. Cup tests per seed, sight 5 no occlusion: 887, 896, 894, 896; sight 12 no occlusion: 922, 906, 903, 905; sight 12 occlusion: 940, 923, 934, 925.) At loss 1.5 the three setups gave 818 / 0% / 1% (sight 5, occlusion; 8 seeds), 816 / 2% / 11% (sight 12, no occlusion) and 854 / 6% / 28% (sight 12, occlusion).
+
+- **The energy budget is the main factor.** With loss 0.75 even the plainest setup (sight 5, no occlusion) learns the cups in all 4 seeds (51% drank, 22% full round, cup drinking rising from the first stage to the end in all four), where the same schedule at loss 1.5 gave 0 to 11% drinking with every sensing variant. Sight 12 adds about 16 ticks and 11 points of drinking, and occlusion on top of it another 22 ticks and 10 points of drinking and 15 points of full survival (four seeds, every seed in the same direction).
+- **A correction to my earlier conclusions:** steps 4 to 6 concluded that "the limit is what the dots can sense, not the training schedule" and that only the combination of long sight and occlusion made the cups learnable. That was a statement about a world with a tight energy budget. With a looser budget the cups are learnable without any change of the senses, and the senses then change how well. The binding constraint in the earlier runs was the energy budget (the cost of the trip), exactly as the supply was for the 3000-tick rounds. The earlier negative results (rotating opening, mixed maps, wall sense) were all obtained at loss 1.5 and are open again at a looser budget; none of them has been rerun.
+- **No setup transfers back to the tight budget** (all at 600 to 740 ticks at loss 1.5, below the 833 of a food-sitter): the dots trained with a generous budget do not economise. A curriculum from a generous to a tight budget is the obvious next experiment.
