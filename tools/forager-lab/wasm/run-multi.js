@@ -99,3 +99,9 @@ if (cfg.traceCups && CUPS) {
 }
 // "saveTo":"path.bin": write the trained population (all genomes) to that file and the settings to path.bin.json, for run-load.js (examine it later without training).
 if (cfg.saveTo) { e.saveGenomes(cfg.saveTo); require('fs').writeFileSync(cfg.saveTo + '.json', JSON.stringify({ seed, cfg: Object.assign({}, cfg, { saveTo: undefined }) })); }
+// "altLossE":1.5 (step 6): after everything else, evaluate the trained population once more with that energy loss per tick (same 20 held-out cup maps and open maps), printed as an ALT line.
+if (cfg.altLossE != null) {
+  e.setCfg('lossE', cfg.altLossE);
+  const a1 = evalOn(i => setMap(1000000 + i, pm, 0, testW)), a2 = evalOn(i => setMap(1000000 + i, pm, 0, NOW));
+  console.log('ALT lossE', cfg.altLossE, '| CUPS_TICKS', f(a1.ticks), '| CUPS_FULL', f(100 * a1.full) + '%', '| CUPS_DRANK', f(100 * a1.drank) + '%', '| OPEN_TICKS', f(a2.ticks), '| OPEN_FULL', f(100 * a2.full) + '%', '| OPEN_DRANK', f(100 * a2.drank) + '%');
+}
