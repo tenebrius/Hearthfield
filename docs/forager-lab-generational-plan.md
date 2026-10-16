@@ -960,3 +960,29 @@ Per seed, sight 12 with occlusion (cup test survived / drank; first reached at t
 - Caution: 4 seeds per setup; the other two setups have few dots reaching the ring, so their shares are noisy.
 
 **What this suggests next:** the exit. Options, cheapest first: (1) trace what drinkers do inside (how long they stay, whether they move towards the opening, energy at death: hunger or thirst); (2) the 3000-tick world with sight 12 and occlusion (a dot that is slow to leave has more time; cup drinking rose most there in pilot 4); (3) the wall sense now that cups are learnable (it carried a little in the first occlusion pilot).
+
+### Where drinkers die in a ring: not the opening direction; the energy budget (2026-10-16)
+
+**Tools:** the engine can save and load a trained population (`saveGenomes`, `loadGenomes`; the test checks that a reloaded population gives identical evaluations and that a different network shape is refused); `run-multi.js` option `saveTo` writes the population and its settings; `run-load.js` evaluates a saved population on held-out cup maps in seconds (optionally with changed engine settings); `cupreplay.js` accounts for what the dots do at the rings, split by where the opening is relative to the nearer food circle (facing it, on the far side, sideways). The 8 populations of the sight-12-with-occlusion batch were retrained with `saveTo` (same configuration; they reproduce the batch's cup tests exactly: 865, 875, 862, 861 ticks for seeds 1 to 4) and evaluated on 20 held-out cup maps each (gap 3, random openings), pooled over 8 seeds:
+
+| Opening | Dots that reached the ring | Entered | Of those, left again | Drank | Drinkers that survived | Died inside the ring | Died outside | Mean ticks inside per entrant |
+|---|---|---|---|---|---|---|---|---|
+| faces the food | 4,702 | 52.4% | 57.9% | 51.0% | 19.3% | 67.3% | 13.5% | 162 |
+| sideways | 8,510 | 51.7% | 58.0% | 50.0% | 20.5% | 67.7% | 11.8% | 164 |
+| far side from the food | 7,607 | 32.7% | 54.7% | 31.8% | 22.6% | 64.7% | 12.6% | 161 |
+
+(75% to 77% of the drinkers that died inside had lower energy than hydration at their last tick.)
+
+- **A prediction that failed:** the idea that the exit fails when the opening faces away from the food (dots head for the fixed food circles and into the wall) predicted more deaths inside for the far-side group. Drinkers die inside at the same rate for every opening (67%, 68%, 65%), and leave again at the same rate (55% to 58%). It is not the direction of the opening.
+- **Getting in does depend on it:** dots whose ring opens on the far side from the food enter 33% of the time, the others 52%. The dots arrive from the food's direction and the far-side opening is the hardest to find.
+- **Energy is the binding constraint on the drinkers.** The same trained dots, no retraining, evaluated with half the energy loss per tick:
+
+| Energy loss per tick | Survived | Drank | Entered | Drinkers that survived | Drinkers that died inside |
+|---|---|---|---|---|---|
+| 1.5 (as trained) | 854 | 28.4% | 44.9% | 20.8% | 66.8% |
+| 0.75 | 880 | 38.1% | 48.6% | 58.8% | 30.0% |
+| 0.5 | 881 | 38.2% | 48.8% | 57.7% | 29.8% |
+
+- A dot spends about 160 ticks inside the ring, and a pond trip of 30 or more tiles each way plus that stay costs about as many ticks as the energy store lasts (500 at 1.5 per tick, plus the cost of moving: about 330 ticks). Giving them half the loss raises the share of drinkers that survive from 21% to 59% and halves the deaths inside. Halving again changes nothing more, so about 30% still die inside for another reason (the exit itself is the remaining candidate).
+- So the cup trip does not pay mainly because it costs too much energy, in the same way that the 3000-tick world's supply was the ceiling for its dots: a property of the world's budget, not of the brains. This is not tested as a training world yet: dots trained with a larger energy budget might learn the cups much better, or learn to be quicker.
+- Caution: this evaluation changes the energy loss for dots that were trained at 1.5 (their energy input is normalised by the store, which is unchanged); 8 seeds, one world.

@@ -1,5 +1,5 @@
 // Examine a saved population on held-out cup maps without training (needs the files run-multi.js wrote with "saveTo": <file> and <file>.json).
-// Usage: node run-load.js <genome file> [maps=20] [gap=3] [firstMap=1000000]   Prints one LOADED line: survived, drank, and the accounting of cupreplay.js split by where the opening is.
+// Usage: node run-load.js <genome file> [maps=20] [gap=3] [firstMap=1000000] [settings JSON, e.g. {"lossE":0.75}: engine settings changed for the evaluation only]   Prints one LOADED line: survived, drank, and the accounting of cupreplay.js split by where the opening is.
 const fs = require('fs');
 const { Engine } = require('./engine');
 const { replayCups } = require('./cupreplay');
@@ -7,5 +7,7 @@ const A = process.argv, file = A[2], R = +A[3] || 20, gap = A[4] === undefined ?
 const saved = JSON.parse(fs.readFileSync(file + '.json', 'utf8'));
 const e = new Engine(Object.assign({}, saved.cfg, { layout: 'randpond', mapSeed: 1, walls: 0 }), saved.seed);
 e.genInit(saved.seed); e.loadGenomes(file);
+const extra = A[6] ? JSON.parse(A[6]) : {};
+for (const k in extra) e.setCfg(k, extra[k]);   // change engine settings for the evaluation (the population is unchanged)
 const r = replayCups(e, i => { e.cfg.cupFacing = 0; e.setMap('randpond', 0, first + i, saved.cfg.pondN, saved.cfg.pondMin || 30, 0, 5, gap, 0, 14); }, R);
-console.log('LOADED ' + JSON.stringify(Object.assign({ file, seed: saved.seed }, r)));
+console.log('LOADED ' + JSON.stringify(Object.assign({ file, seed: saved.seed, settings: extra }, r)));
