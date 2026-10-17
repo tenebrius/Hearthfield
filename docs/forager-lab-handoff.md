@@ -158,7 +158,7 @@ Details, tables and per-seed numbers are in the generational plan file. Seeds pe
 4. **Rerun at the loose budget what failed at the tight one:** the rotating-opening curriculum and the wall sense in more settings (loss 1.0), random bars, and the hostile long walls.
 4. **Occlusion setups with more seeds:** the 0.75 results are 4 seeds per setup.
 5. Why a short gene period (10 to 50 ticks) works as well as a long one; why latch + oscillator is worse than either; what the memory registers store (regress on the dot's last N actions, or train with fewer registers).
-6. **Put the generational mode, walls and a replay of trained dots meeting a cup into the page**, and republish the artifact (the user has not seen the dots move, only tables).
+6. **Frontend overhaul: planned in `docs/forager-lab-frontend-plan.md`** (Watch / Train / Findings / Roadmap views, WASM engine in the browser, showcase populations). **Put the generational mode, walls and a replay of trained dots meeting a cup into the page**, and republish the artifact (the user has not seen the dots move, only tables).
 7. Remaining code-review items for the open-ended mode (archive file): pinned tiles after "Clear map", island size read live during relocation, relocation can erase water, memory-off freezes registers instead of blanking them. Hearthfield itself is untouched.
 
 Rules for every batch: 8 seeds before 16 (add seeds only if the interval is inconclusive); report seeds that learned first, means second, paired bootstrap intervals for differences; a 4-run pilot with a trace before a batch for anything new; record per-seed numbers and say when a claim turned out wrong.
