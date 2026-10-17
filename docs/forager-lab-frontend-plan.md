@@ -68,11 +68,17 @@ Each card says what the result does **not** show (the caveats in the plan file),
 
 ### 2.4 Roadmap: what comes next, and where it will show
 
-A data-driven list (`ROADMAP` array in the page: id, title, question, status `done | next | later`, which view it will appear in, and the switch or preset it will add). Items now:
+A data-driven list (`ROADMAP` array in the page: id, title, question, status `done | next | later | idea`, which view it will appear in, and the switch or preset it will add). Items now:
 - done: watch trained dots (this plan).
 - next: search changes that need no task knowledge to fix the foothold: bigger K (6, 10), larger population, diversity preservation, novelty search. Each becomes a Train option and a preset.
 - next: trace a stuck vs a working seed for the first 100 generations ("never found" vs "found and lost").
 - later: mixed budgets per generation (one brain for several budgets); memory decoding (Watch gets a register-over-time plot for the followed dot, and the page shows the decoded meaning if found); wall sense at loss 1.0; open plus cup maps from the start (labelled as a fixed training mix, not "no curriculum").
+- idea (possible future directions of the simulation itself; not discussed in depth or decided; shown in their own group "Possible future directions", status `idea`, so the page never presents them as planned):
+  1. **Open world, revisited**: bring back the continuous world (dots reproduce when they have enough energy and water, no rounds, no score we choose), now with walls, cups, occlusion and the fast engine. Closest to the user's aim of avoiding hand-picked parts: survival and reproduction are the only goal. The WASM engine already has the open-ended mode; it has not been tried with walls. Question: does a continuous world learn cups without a curriculum or a score?
+  2. **Richer worlds**: seasons or moving food, poison, predators, several species competing for the same ponds. Question: what behaviour appears when the world changes faster than a generation?
+  3. **Dots that interact**: see and react to other dots, share food, follow each other, simple signals (an output other dots can sense). Question: does following a dot that knows the way solve the foothold problem without a curriculum?
+  4. **Bigger or growing brains**: more neurons, or networks that add neurons and connections as they evolve. Question: which tasks fail because the 8 + 8 network is too small, and which because evolution cannot find the weights?
+  5. **Back to Hearthfield**: use what was learned (budgets, footholds, memory) for the settlement game's characters (`docs/version-1-specification.md`, `docs/expansion-plan.md`).
 Design the Train options panel so a new option (a boolean or a number with a label and one-line explanation) is one entry in an options table, not new HTML by hand. The Roadmap card for an item links to that option once it exists.
 
 ### 2.5 Open world

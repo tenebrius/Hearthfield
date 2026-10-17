@@ -161,6 +161,8 @@ Details, tables and per-seed numbers are in the generational plan file. Seeds pe
 6. **Frontend overhaul: planned in `docs/forager-lab-frontend-plan.md`** (Watch / Train / Findings / Roadmap views, WASM engine in the browser, showcase populations). **Put the generational mode, walls and a replay of trained dots meeting a cup into the page**, and republish the artifact (the user has not seen the dots move, only tables).
 7. Remaining code-review items for the open-ended mode (archive file): pinned tiles after "Clear map", island size read live during relocation, relocation can erase water, memory-off freezes registers instead of blanking them. Hearthfield itself is untouched.
 
+**Possible future directions of the simulation (ideas, not decided; listed in `docs/forager-lab-frontend-plan.md` section 2.4):** the open world revisited with walls and the fast engine (no score chosen by us); richer worlds (seasons, moving food, poison, predators, several species); dots that interact (follow, share, signal; might solve the foothold without a curriculum); bigger or growing brains; using the lessons for Hearthfield's characters.
+
 Rules for every batch: 8 seeds before 16 (add seeds only if the interval is inconclusive); report seeds that learned first, means second, paired bootstrap intervals for differences; a 4-run pilot with a trace before a batch for anything new; record per-seed numbers and say when a claim turned out wrong.
 
 ## 8. Things to know before trusting a number
