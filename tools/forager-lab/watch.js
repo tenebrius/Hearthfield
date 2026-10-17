@@ -37,7 +37,6 @@
               <span class="note" id="w-tick" style="font-family:var(--font-data)">tick 0 / 1000</span>
             </div>
             <div class="ctl" style="margin:10px 0 0"><label for="w-speed">Speed (ticks per frame)</label><output id="w-speed-o">4</output><input type="range" id="w-speed" min="1" max="200" value="4"></div>
-            <div class="row"><label for="w-len">Round length (ticks)</label><input type="number" id="w-len" value="1000" min="100" max="20000" step="100" style="width:100px"><span class="note">Applies when the round restarts. The dots were trained on 1000-tick rounds; beyond that they are in territory selection never tested.</span></div>
             <div class="row"><label for="w-seed">Map seed</label><input type="number" id="w-seed" value="1000000" style="width:110px">
               <button id="w-prev">Previous map</button><button id="w-next">Next map</button><button id="w-rand">Random map</button></div>
             <label class="check" style="margin:8px 0 0"><input type="checkbox" id="w-trails"><span>Show trails (last 30 positions)</span></label>
@@ -46,7 +45,7 @@
         </div>
         <div class="col">
           <section class="panel"><h2>This round</h2><div class="counters" id="w-counters"></div><div class="note" id="w-summary" style="margin-top:8px"></div></section>
-          <section class="panel"><h2>What if</h2><div id="w-switches"></div></section>
+          <section class="panel"><h2>What if</h2><div class="sw"><div class="head"><label for="w-len" style="font-weight:500">Round length (ticks)</label><input type="number" id="w-len" value="1000" min="100" max="20000" step="100" style="width:100px"></div><small>How long a round lasts (100 to 20000). The dots were trained on 1000-tick rounds; beyond that they are in territory selection never tested. The round restarts when you change it.</small></div><div id="w-switches"></div></section>
           <section class="panel"><h2>Follow one dot</h2><div id="w-follow"><p class="note">Click a dot on the map.</p></div></section>
           <section class="panel"><h2>Run the 20 test maps</h2>
             <p class="note">Plays the population on the 20 held-out maps (seeds 1000000 to 1000019) without drawing and without breeding. With the what-if switches at their trained values the result must equal the training run's test numbers.</p>

@@ -12,6 +12,7 @@
     { key: 'lossE', where: 'cfg', type: 'num', min: 0.3, max: 3, step: 0.05, label: 'Energy loss per tick', help: 'The energy budget. Cups pay off at 0.75 to 1.0; at 1.25 or more a trip costs about the whole energy store.' },
     { key: 'sight', where: 'cfg', type: 'int', min: 2, max: 20, label: 'Sight (tiles)', help: 'How far a dot sees the nearest food and water.' },
     { key: 'occlude', where: 'cfg', type: 'bool', label: 'Occlusion', help: 'Food and water behind a wall tile are not seen.' },
+    { key: 'genLen', where: 'cfg', type: 'int', min: 100, max: 5000, step: 100, label: 'Round length (ticks)', help: 'How long every round lasts. Longer rounds ask the dots to go back to water and food again and again; the thirst wall stays at 833 ticks, so survival past it needs repeated trips. All earlier experiments used 1000.' },
     { key: 'finalGens', where: 'opt', type: 'int', min: 20, max: 5000, label: 'Final generations', help: 'Generations on the real task after all stages. More generations raise the numbers slowly.' }
   ];
   const BASE = { genSpawn: 1, memory: true, maxE: 500, maxW: 500, startE: 500, startW: 500, oscillator: true, oscPeriod: 200, pondSep: 16 };
@@ -22,6 +23,7 @@
     { id: 'tight', title: 'Tight budget', story: 'The cups curriculum at energy loss 1.5, where a pond trip costs about the whole energy store.', cfg: Object.assign({}, BASE, CUPS, { lossE: 1.5, sight: 12, occlude: 1 }), values: { seed: 1, K: 3, genP: 200, lossE: 1.5, sight: 12, occlude: true, finalGens: 700 }, about: 'Expect few dots to drink on cups at this budget.' },
     { id: 'open', title: 'Open map, basic drinking', story: 'No walls. Ponds walk away from the food, then the real task. The smallest and fastest preset.', cfg: Object.assign({}, BASE, { lossE: 1.5, sight: 5 }), values: { seed: 1, K: 3, genP: 200, lossE: 1.5, sight: 5, occlude: false, finalGens: 300 }, about: 'Watch the survival chart rise past the thirst wall once dots learn to drink.' }
   ];
+  PRESETS.forEach(p => { p.values.genLen = 1000; });
   const V = {};   // current option values
   let preset = PRESETS[0], runner = null, workerNote = '', run = null, snapshotWaiters = {}, refSeq = 0, last = { chartAt: 0 };
 
@@ -74,7 +76,7 @@
     for (const o of OPTIONS) { const i = $('t-o-' + o.key); if (o.type === 'bool') i.checked = !!V[o.key]; else i.value = V[o.key]; }
     $('t-about').textContent = p.story + ' ' + p.about;
     const fixed = Object.keys(p.cfg).filter(k => !OPTIONS.some(o => o.key === k)).map(k => k + ' ' + JSON.stringify(p.cfg[k])).join(', ');
-    $('t-fixed').innerHTML = '<b>Fixed by the preset:</b> ' + fixed + '. 200-tick clock, stores of 500, 1000-tick rounds, hidden layers of 8 + 8, mutation rate 0.1 and size 0.2.';
+    $('t-fixed').innerHTML = '<b>Fixed by the preset:</b> ' + fixed + '. 200-tick clock, stores of 500, hidden layers of 8 + 8, mutation rate 0.1 and size 0.2.';
   }
 
   // ---- running ----
@@ -176,9 +178,9 @@
     svg.innerHTML = s;
   }
   function drawCharts() {
-    const pts = run ? run.points : [], cfg = run ? run.s.cfg : preset.cfg, wall = (cfg.maxW || 500) / (cfg.lossW || 0.6), len = 1000;
+    const pts = run ? run.points : [], cfg = run ? run.s.cfg : preset.cfg, wall = (cfg.maxW || 500) / (cfg.lossW || 0.6), len = cfg.genLen || 1000;
     const xmax = pts.length ? pts[pts.length - 1].x : 10, marks = run ? run.marks : [];
-    chart($('t-ch1'), { title: 'Mean ticks survived (round length 1000)', xmax, ymin: 0, ymax: 1000, fmt: v => v.toFixed(0), marks, series: [{ name: 'all maps', color: 'var(--accent)', data: bin(pts, 'mean', 260).map(p => p && { x: p.x, y: p.y }) }, { name: 'cup maps only', color: 'var(--chart2)', data: bin(pts, 'cupMean', 260) }], hlines: [{ y: wall, color: 'var(--bad)', label: 'thirst wall ' + wall.toFixed(0) + ': dots that never drink' }] });
+    chart($('t-ch1'), { title: 'Mean ticks survived (round length ' + len + ')', xmax, ymin: 0, ymax: len, fmt: v => v.toFixed(0), marks, series: [{ name: 'all maps', color: 'var(--accent)', data: bin(pts, 'mean', 260).map(p => p && { x: p.x, y: p.y }) }, { name: 'cup maps only', color: 'var(--chart2)', data: bin(pts, 'cupMean', 260) }], hlines: [{ y: wall, color: 'var(--bad)', label: 'thirst wall ' + wall.toFixed(0) + ': dots that never drink' }] });
     chart($('t-ch2'), { title: 'Share of dots', xmax, ymin: 0, ymax: 1, fmt: v => (100 * v).toFixed(0) + '%', marks, series: [{ name: 'drank', color: 'var(--accent)', data: bin(pts, 'drank', 260) }, { name: 'full round', color: 'var(--chart3)', data: bin(pts, 'full', 260) }, { name: 'drank on cups', color: 'var(--chart2)', data: bin(pts, 'cupDrank', 260) }] });
   }
 
