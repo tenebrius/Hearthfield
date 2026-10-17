@@ -1,0 +1,11 @@
+stage ponds 12..16 | gens used 52 (total 52) | survived 804 full 16% drank 48%
+stage ponds 12..22 | gens used 10 (total 62) | survived 815 full 16% drank 52%
+stage ponds 12..28 | gens used 10 (total 72) | survived 837 full 24% drank 61%
+stage ponds 12..36 | gens used 10 (total 82) | survived 833 full 24% drank 62%
+real task, no bars, until drinking starts | gens used 10 (total 92) | survived 848 full 23% drank 52%
+real task, no walls, until drinking is secure | gens used 25 (total 117) | survived 876 full 42% drank 80%
+real task, cups gap 3 | gens used 300 (total 417) | survived 842 full 4% drank 40% | on the cup maps only: survived 828 full 2% drank 19%
+real task, cups gap 3 | gens used 300 (total 717) | survived 838 full 3% drank 32% | on the cup maps only: survived 830 full 2% drank 18%
+real task, cups gap 3 | gens used 300 (total 1017) | survived 842 full 5% drank 24% | on the cup maps only: survived 842 full 5% drank 24%
+final, cups gap 3 | gens used 700 (total 1717) | survived 826 full 0% drank 0% | on the cup maps only: survived 826 full 0% drank 0%
+FINAL seed 1 | K 3 | gens 1717 | DRINK_STARTED 92 | TEST_BARS_TICKS 824 | TEST_BARS_FULL 0% | TEST_BARS_DRANK 0% | TEST_NOBARS_TICKS 823 | TEST_NOBARS_FULL 0% | TEST_NOBARS_DRANK 1% | TEST_FACING_TICKS 823 | TEST_FACING_FULL 0% | TEST_FACING_DRANK 1%

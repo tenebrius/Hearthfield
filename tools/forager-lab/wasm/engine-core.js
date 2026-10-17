@@ -1,6 +1,6 @@
 // Engine core shared by Node (wasm/engine.js) and the browser (tools/forager-lab/forager-lab.html): map builders, the Engine class around forager.wasm,
 // multi-layout rounds, per-dot views, and byte (de)serialisation of populations. Nothing here touches the file system.
-// The compiled module and the default settings are passed in: new Engine(overrides, seed, { module: WebAssembly.Module, defaults: {...page cfg...} }).
+// The compiled module (or an instance's exports) and the default settings are passed in: new Engine(overrides, seed, { module: WebAssembly.Module | exports: instance.exports, defaults: {...page cfg...} }).
 // In Node: module.exports = {...}; in a browser: globalThis.ForagerEngine = {...}.
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(); else root.ForagerEngine = factory();
@@ -122,12 +122,12 @@ function buildMap(layout, shift, mapSeed, pondN, pondMin, pondMax, walls, wallGa
 class Engine {
   // env: { module: compiled WebAssembly.Module of forager.wasm, defaults: the page's cfg object }
   constructor(overrides, seed, env) {
-    if (!env || !env.module || !env.defaults) throw new Error('Engine needs env.module and env.defaults (use wasm/engine.js in Node)');
+    if (!env || !(env.module || env.exports) || !env.defaults) throw new Error('Engine needs env.module (or env.exports) and env.defaults (use wasm/engine.js in Node)');
     this.cfg = Object.assign({}, env.defaults, { genP: 200, genLen: 1000, genElite: 2, genTourn: 3, genXover: 0, genSpawn: 0, genWSurv: 1, genWFood: 0, genWWater: 0, genScoreMode: 0, pondShift: 0, oscPeriod: 0, ageScale: 0, ageTherm: 0, thermMode: 0, oscGene: 0, timer: 0, geneMut: 0.25, wallSense: 0, memFreeze: 0, memNoise: 0, occlude: 0, walls: 0, wallGap: 3, wallN: 3, wallLen: 14, pondSep: 8, cupFacing: 0 }, overrides || {});
     if (this.cfg.shiftEvery > 0) throw new Error('food relocation (shiftEvery) is not supported by the WASM engine');
     if (this.cfg.archive) throw new Error('"newcomers copy parents" (archive) is not supported by the WASM engine');
     if (this.cfg.maxPop > 2000) throw new Error('maxPop above 2000 is not supported');
-    const x = this.x = new WebAssembly.Instance(env.module, {}).exports;
+    const x = this.x = env.exports || new WebAssembly.Instance(env.module, {}).exports;   // browsers refuse a synchronous Instance of a module over 4 KB on the main thread: they pass env.exports from WebAssembly.instantiate
     if (x.cfg_count() !== CFG_KEYS.length) throw new Error('config key list is out of sync with forager.c');
     const mem = x.memory.buffer;
     this.mem = mem;

@@ -1,0 +1,3 @@
+real task, cups gap 3 | gens used 1 (total 1) | survived 669 full 0% drank 2% | on the cup maps only: survived 669 full 0% drank 2%
+final, cups gap 3 | gens used 1500 (total 1501) | survived 919 full 25% drank 72% | on the cup maps only: survived 919 full 25% drank 72%
+FINAL seed 2 | K 3 | gens 1501 | DRINK_STARTED -1 | TEST_BARS_TICKS 919 | TEST_BARS_FULL 22% | TEST_BARS_DRANK 75% | TEST_NOBARS_TICKS 931 | TEST_NOBARS_FULL 21% | TEST_NOBARS_DRANK 97% | TEST_FACING_TICKS 921 | TEST_FACING_FULL 25% | TEST_FACING_DRANK 78%

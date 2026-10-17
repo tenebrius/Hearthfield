@@ -1,0 +1,7 @@
+[
+  { "id": "cups-075", "title": "Cups, generous budget", "story": "Learned to drink from ponds inside wall rings (cups) when the energy budget is generous (loss 0.75), with the pond curriculum.", "seed": 1, "raw": "docs/forager-lab-ablation-raw.txt", "rawTag": "help s1" },
+  { "id": "nocurr-stuck", "title": "Never discovered drinking", "story": "Trained on cups from generation 1 with no curriculum. This seed never found the ponds worth visiting and sits on the food until thirst kills it.", "seed": 1, "raw": "docs/forager-lab-nocurriculum-raw.txt", "rawTag": "g1500 s1" },
+  { "id": "nocurr-ok", "title": "Cups without any curriculum", "story": "Same training as the stuck one, different seed: this one stumbled on drinking early and then learned cups as well as the curriculum runs.", "seed": 2, "raw": "docs/forager-lab-nocurriculum-raw.txt", "rawTag": "g1500 s2" },
+  { "id": "budget-125", "title": "Tight budget: cups barely pay", "story": "Trained and tested at energy loss 1.25: a trip into a cup costs about as much as the energy store holds, so almost nothing drinks on cups.", "seed": 1, "raw": "docs/forager-lab-budget-frontier-raw.txt", "rawTag": "L1.25 S12 s1" },
+  { "id": "sight5-10", "title": "Short sight, loss 1.0", "story": "Sight 5 and no occlusion at energy loss 1.0: the dots see little of the rings and about a quarter get into a cup.", "seed": 1, "raw": "docs/forager-lab-budget-frontier-raw.txt", "rawTag": "L1.0 S5 s1" }
+]

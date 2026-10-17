@@ -1,0 +1,1 @@
+(function(){ Lab.registerView('findings','Findings',{}); Lab.registerView('roadmap','Roadmap',{}); document.addEventListener('DOMContentLoaded', Lab.boot); if (document.readyState !== 'loading') Lab.boot(); })();

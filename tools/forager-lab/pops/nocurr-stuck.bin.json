@@ -1,0 +1,1 @@
+{"seed":1,"cfg":{"layout":"handfar","lossE":0.75,"lossW":0.6,"layers":2,"startE":500,"startW":500,"feedback":false,"genSpawn":1,"wallN":0,"wallLen":14,"memory":true,"maxE":500,"maxW":500,"oscillator":true,"oscPeriod":200,"pondSep":16,"sight":12,"occlude":1,"noCurriculum":1,"cupGaps":[3],"cupStageCap":1}}
