@@ -33,7 +33,60 @@ let failed = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m);
       ok(Math.round(j.survived) === +got.cups.ticks && Math.round(j.drank) === +got.cups.drank, 'run-load.js in Node agrees with the page (survived ' + Math.round(j.survived) + ', drank ' + Math.round(j.drank) + '%)');
     }
   }
-  if (typeof globalThis.__extraTests === 'function') await globalThis.__extraTests(page, ok);
+  // Findings: per-seed data equals the raw file; every Watch button names a showcase population and opens it with its switches
+  const raw = fs.readFileSync(path.join(here, '..', '..', 'docs', 'forager-lab-nocurriculum-raw.txt'), 'utf8').split('\n').filter(l => / FINAL seed /.test(l));
+  const pick = tag => [1, 2, 3, 4, 5, 6, 7, 8].map(s => +raw.find(l => l.startsWith(tag + ' s' + s + ' ')).match(/TEST_BARS_DRANK (\d+)%/)[1]);
+  const data = await page.evaluate(() => ({ n: Lab.data.NOCURR, w: Lab.data.FINDINGS.flatMap(f => (f.watch || []).map(w => w.pop)), p: Lab.pops.map(p => p.id) }));
+  ok(JSON.stringify(data.n.g1500) === JSON.stringify(pick('g1500')) && JSON.stringify(data.n.g3000) === JSON.stringify(pick('g3000')), 'Findings: per-seed data equals docs/forager-lab-nocurriculum-raw.txt');
+  ok(data.w.every(id => data.p.includes(id)), 'Findings: every Watch button names a showcase population');
+  await page.evaluate(() => Lab.show('findings'));
+  await page.click('#f-transfer .actions button');
+  await page.waitForFunction(() => Lab.current === 'watch' && Lab.watch.S.pop && Lab.watch.S.sw.loss === '1.5' && Lab.watch.S.e && Lab.watch.S.e.cfg.lossE === 1.5, null, { timeout: 15000 });
+  ok(true, 'Findings: "Watch loss 0.75 dots at 1.5" opens cups-075 with energy loss 1.5');
+  // 5. in-page training equals Node training, generation by generation (same seed, same settings)
+  const { Engine } = require('./wasm/engine'), T = require('./wasm/trainer');
+  const BASE = { genSpawn: 1, memory: true, maxE: 500, maxW: 500, startE: 500, startW: 500, oscillator: true, oscPeriod: 200, pondSep: 16 };
+  const jobs = [
+    { name: 'cups without curriculum', seed: 5, cfg: Object.assign({}, BASE, { cupGaps: [3], cupStageCap: 1, noCurriculum: 1, lossE: 0.75, sight: 12, occlude: 1 }), opts: { K: 2, finalGens: 4 } },
+    { name: 'open map with the pond stages', seed: 3, cfg: Object.assign({}, BASE, { lossE: 1.5, sight: 5, genP: 60 }), opts: { K: 2, finalGens: 3, maxFirst: 3, maxStage: 3, drinkCap: 3 } }
+  ];
+  const nodeRun = job => {
+    const cfg = Object.assign({}, T.RUN_DEFAULTS, job.cfg), e = new Engine(Object.assign({}, cfg, { layout: 'randpond', mapSeed: 1, walls: 0 }), job.seed); e.genInit(job.seed);
+    const gens = []; let tests = null;
+    for (const ev of T.train(e, cfg, job.opts)) if (ev.type === 'gen') gens.push([ev.stats.mean, ev.stats.fullShare, ev.stats.drankShare]);
+    const t = T.evaluate(e, cfg); tests = [t.wb.ticks, t.wb.full, t.wb.drank, t.nb.ticks, t.nb.full, t.nb.drank];
+    return { gens, tests, genomes: Buffer.from(e.genomesToBytes()).toString('base64') };
+  };
+  const pageRun = (pg, job) => pg.evaluate(job2 => new Promise((resolve, reject) => {
+    const gens = []; let tests = null, runner;
+    runner = ForagerRunner.make(m => {
+      if (m.type === 'gen') gens.push([m.mean, m.full, m.drank]);
+      else if (m.type === 'tests') { tests = [(m.cups || m.bars).ticks, (m.cups || m.bars).full, (m.cups || m.bars).drank, m.open.ticks, m.open.full, m.open.drank]; runner.handle({ cmd: 'snapshot', ref: 1 }); }
+      else if (m.type === 'snapshot') { let s = ''; for (let i = 0; i < m.bytes.length; i++) s += String.fromCharCode(m.bytes[i]); resolve({ gens, tests, genomes: btoa(s) }); }
+      else if (m.type === 'error') reject(new Error(m.message));
+    });
+    runner.handle({ cmd: 'start', cfg: job2.cfg, opts: job2.opts, seed: job2.seed });
+  }), job);
+  for (const job of jobs) {
+    const n = nodeRun(job), p = await pageRun(page, job);
+    ok(JSON.stringify(n.gens) === JSON.stringify(p.gens) && JSON.stringify(n.tests) === JSON.stringify(p.tests) && n.genomes === p.genomes, 'Train in the page = Node, ' + job.name + ' (' + n.gens.length + ' generations: stats, test numbers and the final genomes are identical)');
+  }
+  // 6. a real Web Worker (needs http: browsers refuse workers from file://): run a short preset through the Train tab
+  const http = require('http'), mime = { '.js': 'text/javascript', '.html': 'text/html', '.json': 'application/json' };
+  const srv = http.createServer((q, r) => { const f = path.join(here, decodeURIComponent(q.url.split('?')[0].split('#')[0]).replace(/^\/$/, '/forager-lab.html')); if (!f.startsWith(here) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'content-type': mime[path.extname(f)] || 'application/octet-stream' }); r.end(fs.readFileSync(f)); });
+  await new Promise(r => srv.listen(0, r));
+  const pg2 = await browser.newPage(), errs2 = []; pg2.on('pageerror', e => errs2.push(e.message));
+  await pg2.goto('http://127.0.0.1:' + srv.address().port + '/forager-lab.html#train');
+  await pg2.waitForFunction(() => window.Lab && Lab.train, null, { timeout: 30000 });
+  const job = jobs[0];   // the 'Cups, no curriculum' preset with seed 5, K 2 and 4 final generations (what the panel can set)
+  await pg2.evaluate(j => { Lab.train.choose(Lab.train.PRESETS[1]); Object.assign(Lab.train.V, { seed: j.seed, K: j.opts.K, finalGens: j.opts.finalGens }); document.getElementById('t-start').click(); }, job);
+  await pg2.waitForFunction(() => Lab.train.run && Lab.train.run.tests, null, { timeout: 120000 });
+  const wr = await pg2.evaluate(() => ({ gens: Lab.train.run.points.map(p => [p.mean, p.full, p.drank]), where: document.getElementById('t-where').textContent }));
+  ok(/background worker/.test(wr.where), 'Train over http uses a Web Worker');
+  ok(errs2.length === 0, 'no page errors in the worker run' + (errs2[0] ? ': ' + errs2[0] : ''));
+  const nrun = nodeRun(Object.assign({}, job, { opts: Object.assign({}, job.opts) }));
+  ok(JSON.stringify(wr.gens) === JSON.stringify(nrun.gens), 'Train in a Web Worker = Node generation by generation (' + wr.gens.length + ' generations)');
+  srv.close();
   await browser.close();
   console.log(failed ? failed + ' check(s) failed' : 'all checks passed'); process.exit(failed ? 1 : 0);
 })().catch(e => { console.log('ERROR', e); process.exit(1); });

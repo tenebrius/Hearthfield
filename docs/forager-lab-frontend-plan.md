@@ -137,3 +137,9 @@ Do phases in order; commit and push after each phase (the stop hook requires a c
 - Evaluation without breeding uses no random numbers for the options used so far, so replays are exact; the open-ended mode and anything with `memNoise` or `latch` are not.
 - Speed in the browser: one round of 200 dots for 1000 ticks is the unit; drawing every tick at speed 50 is fine on canvas, but do not rebuild the brain SVG every tick (update it at most 10 times per second).
 - Plain language in all page text; numbers with their interval or seed count; no model names anywhere in the repo or the page.
+
+## 8. Status (2026-10-17)
+
+Phases A to G are done. Gates: `test-wasm.js` passes; standard check 905 / 87% / 52%; `run-multi.js` (now using `wasm/trainer.js`) reproduced the committed raw lines for `help s1` and `g1500 s2` with identical genomes; `test-page.js` passes (page = training run for all five populations, page and Web Worker = Node generation by generation). Open world unchanged (`mkharness.py` regenerates an identical `base.js`).
+
+Deviations from the plan: (1) in the browser `WebAssembly.Instance` of a 56 KB module is refused on the main thread, so the core also accepts an instance's exports (`env.exports`) and the page instantiates asynchronously; (2) per-dot outputs and memory registers needed no new engine exports: registers are read from the input array (`inp_ptr`, what the brain read this tick) and outputs are recomputed in JavaScript from the genome (display only); (3) browsers refuse Web Workers from `file://`, so Train falls back to running on the main thread there (a note says so); the worker path is tested over http; (4) the line-of-sight shading for the followed dot is a JavaScript approximation, labelled as such.
