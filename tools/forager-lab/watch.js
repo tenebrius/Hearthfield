@@ -36,7 +36,8 @@
               <button id="w-play" class="primary">Play</button><button id="w-step">Step 1 tick</button><button id="w-restart">Restart round</button>
               <span class="note" id="w-tick" style="font-family:var(--font-data)">tick 0 / 1000</span>
             </div>
-            <div class="ctl" style="margin:10px 0 0"><label for="w-speed">Speed (ticks per frame)</label><output id="w-speed-o">4</output><input type="range" id="w-speed" min="1" max="50" value="4"></div>
+            <div class="ctl" style="margin:10px 0 0"><label for="w-speed">Speed (ticks per frame)</label><output id="w-speed-o">4</output><input type="range" id="w-speed" min="1" max="200" value="4"></div>
+            <div class="row"><label for="w-len">Round length (ticks)</label><input type="number" id="w-len" value="1000" min="100" max="20000" step="100" style="width:100px"><span class="note">Applies when the round restarts. The dots were trained on 1000-tick rounds; beyond that they are in territory selection never tested.</span></div>
             <div class="row"><label for="w-seed">Map seed</label><input type="number" id="w-seed" value="1000000" style="width:110px">
               <button id="w-prev">Previous map</button><button id="w-next">Next map</button><button id="w-rand">Random map</button></div>
             <label class="check" style="margin:8px 0 0"><input type="checkbox" id="w-trails"><span>Show trails (last 30 positions)</span></label>
@@ -69,6 +70,7 @@
     $('w-play').onclick = () => setPlaying(!S.playing);
     $('w-step').onclick = () => { setPlaying(false); advance(1); draw(); };
     $('w-restart').onclick = () => restartRound();
+    $('w-len').onchange = e => { const v = Math.max(100, Math.min(20000, Math.round((+e.target.value || 1000) / 100) * 100)); e.target.value = v; S.L = v; restartRound(); };
     $('w-speed').oninput = e => { S.speed = +e.target.value; $('w-speed-o').textContent = S.speed; };
     const seedIn = $('w-seed'), setSeed = v => { S.mapSeed = Math.max(1000000, v | 0); seedIn.value = S.mapSeed; restartRound(); };
     seedIn.onchange = () => setSeed(+seedIn.value);
@@ -97,7 +99,7 @@
     let e;
     try { e = await Lab.engineForPop(p); } catch (err) { if (my === token) showError('Could not load this population: ' + err.message); return; }
     if (my !== token) return;
-    S.pop = p; S.e = e; S.v = e.views(); S.L = e.cfg.genLen; S.follow = -1;
+    S.pop = p; S.e = e; S.v = e.views(); S.L = e.cfg.genLen; $('w-len').value = S.L; S.follow = -1;
     S.sw = { loss: '', walls: 'cups', occ: '', mem: '' };
     for (const s of SWITCHES) $('w-sw-' + s.id).value = S.sw[s.id];
     $('w-evalout').innerHTML = ''; $('w-evalprog').textContent = '';
@@ -110,6 +112,7 @@
   function applySwitches(e) {
     e = e || S.e; if (!e) return;
     const c = S.pop.cfg;
+    e.setCfg('genLen', S.L);
     e.setCfg('lossE', S.sw.loss === '' ? c.lossE : +S.sw.loss);
     e.setCfg('occlude', S.sw.occ === '' ? +!!c.occlude : +S.sw.occ);
     e.setCfg('memory', S.sw.mem === '' ? +!!c.memory : +S.sw.mem);
@@ -325,7 +328,7 @@
         res[kind] = { ticks: f0(t / 20), full: f0(100 * full / 20), drank: f0(100 * drank / 20) };
       }
       prog.textContent = '';
-      const def = S.sw.loss === '' && S.sw.occ === '' && S.sw.mem === '', trained = S.pop.test, rows = [];
+      const def = S.sw.loss === '' && S.sw.occ === '' && S.sw.mem === '' && S.L === (c.genLen || 1000), trained = S.pop.test, rows = [];
       const cell = (a, b) => b == null ? a : (String(a) === String(b) ? `<span class="ok">${a}</span>` : `<span class="bad">${a}</span>`);
       for (const [kind, label] of [['cups', 'Cups'], ['open', 'Open maps']]) {
         const r = res[kind], tt = trained ? trained[kind] : null, cmp = def && tt && true;
@@ -334,7 +337,7 @@
       }
       const same = trained && def && ['cups', 'open'].every(k => res[k].ticks == trained[k].ticks && res[k].full == trained[k].full && res[k].drank == trained[k].drank);
       out.innerHTML = '<table class="cmp"><thead><tr><th></th><th>ticks survived</th><th>full round</th><th>drank</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>' +
-        `<p class="note" style="margin-top:6px">${trained ? (def ? (same ? '<b class="ok">Identical to the training run: the page runs the same engine.</b>' : '<b class="bad">Different from the training run.</b>') : 'What-if switches are on, so a difference from the training run is expected.') : 'No training numbers stored for this population.'}</p>`;
+        `<p class="note" style="margin-top:6px">${trained ? (def ? (same ? '<b class="ok">Identical to the training run: the page runs the same engine.</b>' : '<b class="bad">Different from the training run.</b>') : (S.L !== (c.genLen || 1000) ? 'The round length is ' + S.L + ' ticks, not the ' + (c.genLen || 1000) + ' of training, so the numbers are not comparable with the training run.' : 'What-if switches are on, so a difference from the training run is expected.')) : 'No training numbers stored for this population.'}</p>`;
       S.last = { res, same };
     } catch (err) { out.textContent = 'Evaluation failed: ' + err.message; }
     S.busy = false; $('w-eval').disabled = false;
